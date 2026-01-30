@@ -1,0 +1,208 @@
+{
+    "Berufsprofil": {
+        "Beschreibung": "Als versierter IT-Experte mit umfangreicher Erfahrung in verschiedenen IT-Bereichen, einschließlich Big Data, Softwareentwicklung, Testverfahren und DevOps, habe ich maßgeblich zur Effizienzsteigerung und Optimierung technischer Lösungen beigetragen. Meine Expertise umfasst die Entwicklung, Skalierung und Automatisierung von Prozessen sowie die Durchführung von umfassenden Testverfahren. Ich habe in zahlreichen Projekten gearbeitet, in denen ich mein technisches Know-how und meine Problemlösungsfähigkeiten unter Beweis gestellt habe.",
+        "AktuellerStandort": "Derzeit lebe ich in Deutschland.",
+        "Erfahrung": "Obwohl ich Erfahrung im Programmieren habe, war ich überwiegend in sehr vielfältigen Tätigkeiten aktiv."
+    },
+    "Berufserfahrung": [
+        {
+            "Position": "Big Data Ingenieur",
+            "Firma": "Comcast",
+            "Jahr": "2022",
+            "Art": "Freelance",
+            "Aufgaben": [
+                "Entwicklung und Skalierung von Lösungen mit Apache Spark und Databricks über AWS Lambda.",
+                "CI/CD-Management mit Concourse CI zur Steigerung der Prozesseffizienz und Produktivität.",
+                "Ausführung von Scala-Programmen auf Databricks-Clustern zur Verarbeitung großer Datenmengen.",
+                "Erstellung von CloudWatch-Dashboards zur Überwachung der Leistungsmetriken von Lambda-Funktionen."
+            ]
+        },
+        {
+            "Position": "Freelancer-Teammitglied",
+            "Firma": "Freelancer-Team",
+            "Jahr": "2013 - 2021",
+            "Art": "Freelance",
+            "Aufgaben": [
+                "Anforderungsmanagement, Softwaretests und Softwareentwicklung.",
+                "Implementierung und Support von Systemen für groß angelegte Videoüberwachung und ein effizientes Ticketsystem.",
+                "Kommunikation mit Kundenvertretern auf allen Ebenen, von Kassierern bis hin zu Managern des oberen Managements.",
+                "Erstellung technischer Dokumentationen, Benutzerhandbücher und Dokumentationen für REST-APIs.",
+                "Integration von Ticketverkaufssystemen mit externen Systemen und API-Analysen."
+            ]
+        },
+        {
+            "Position": "Ingenieur",
+            "Firma": "Staatliche Akademie für Bauwesen und Architektur Odessa",
+            "Jahr": "2012 - 2013",
+            "Aufgaben": [
+                "Hardware- und Software-Support, Entwicklung von Tools zur Modellierung physischer Prozesse.",
+                "Organisation und Support des Informatiklabors der Physikabteilung."
+            ]
+        },
+        {
+            "Position": "Software-Ingenieur",
+            "Firma": "Luxoft, Ukraine",
+            "Jahr": "2011",
+            "Aufgaben": [
+                "Erstellung und Durchführung von Testfällen, Einrichtung und Support von Continuous-Integration-Systemen.",
+                "Einführung eines automatisierten Testsystems mit Hyper-V- und TeamCity-Servern.",
+                "Branchen-Merges für ein CAD-System zur Optimierung von Teilen für Metallbearbeitungsmaschinen.",
+                "Code-Integration und Konfliktlösung."
+            ]
+        },
+        {
+            "Position": "Privatunterrichtlehrer, DBA-Softwareentwickler",
+            "Jahr": "2009 - 2011",
+            "Art": "Freelance",
+            "Aufgaben": [
+                "Privatunterricht in IT-Grundlagen.",
+                "Erstellung kundenspezifischer kleiner Datenbanken in Microsoft Access."
+            ]
+        },
+        {
+            "Position": "Softwaretest-Ingenieur",
+            "Firma": "UM-Service (RingCentral)",
+            "Jahr": "2008 - 2009",
+            "Aufgaben": [
+                "Erstellung von Software-Anforderungsspezifikationen (SRS), Festlegung von Teststrategien und Erstellung von Testfällen.",
+                "Ausführung von Testfällen und Diagnose von Problemen für SIP-Telefonie und MacOS-Anwendungen."
+            ]
+        },
+        {
+            "Position": "Softwaretest-Ingenieur",
+            "Firma": "The Product Engine",
+            "Jahr": "2007 - 2008",
+            "Aufgaben": [
+                "Erstellung und Durchführung von Testfällen, Analyse der Ergebnisse.",
+                "Erstellung von Testdaten, selbständige Fehlerbehebung.",
+                "Kodierung und Dekodierung von Videos.",
+                "Arbeit mit DVR-Systemen.",
+                "Durchführung von Blackbox- und Whitebox-Tests (C++)."
+            ]
+        },
+        {
+            "Position": "Softwareentwickler",
+            "Firma": "Handelsunternehmen 'Ruta'",
+            "Jahr": "2005 - 2006",
+            "Aufgaben": [
+                "Entwicklung und Implementierung eines Workflow-Management-Systems in Lotus Domino.",
+                "Schulung der Mitarbeiter im von mir erstellten Dokumentenverwaltungssystem und in den Datenbanken und Automatisierungssystemen."
+            ]
+        },
+        {
+            "Position": "Freiberuflicher Dozent",
+            "Firma": "Computer Akademie 'Step'",
+            "Jahr": "2005",
+            "Aufgaben": [
+                "Unterricht in Grundlagen der Programmierung in C++ und PC-Nutzung für Kinder und Erwachsene."
+            ]
+        },
+        {
+            "Position": "Berater für Lagerlogistik",
+            "Firma": "Avers Logistic",
+            "Jahr": "2005",
+            "Aufgaben": [
+                "Empfehlung und Berechnung der erforderlichen Lagerausstattung.",
+                "Empfehlungen zur Verbesserung des Lagerbetriebs."
+            ]
+        },
+        {
+            "Position": "Dozent",
+            "Firma": "Odessa Nationale Polytechnische Universität",
+            "Jahr": "2005",
+            "Lehrstuhl": "Computersysteme und Netzwerke",
+            "Aufgaben": [
+                "Durchführung von Kursen für Informatikstudenten zu den Grundlagen von Datenbanken.",
+                "Ein Teil der Kurse wurde auf Deutsch gehalten."
+            ]
+        },
+        {
+            "Position": "Freiberuflicher Dozent",
+            "Firma": "Volkshochschule Regensburg",
+            "Jahr": "2003",
+            "Aufgaben": [
+                "Durchführung von EDV-Trainings mit den Schwerpunkten EDV-Grundlagen und Office-Anwendungen."
+            ]
+        }
+    ],
+    "Ausbildung": [
+        {
+            "Titel": "Spezialist für Radioelektronik",
+            "Institution": "Odessa Nationale Polytechnische Universität",
+            "Jahr": "1996 – 2001"
+        },
+        {
+            "Titel": "Gaststudium und DSH-Vorbereitungskurs",
+            "Institution": "Universität Regensburg",
+            "Jahr": "2001 – 2003"
+        }
+    ],
+    "Sprachkenntnisse": {
+        "Deutsch": "fließend",
+        "Englisch": "technische Englischkenntnisse",
+        "Russisch": "Muttersprache",
+        "Ukrainisch": "Muttersprache"
+    },
+    "Interessen": [
+        "Lesen",
+        "Selbstbildung"
+    ],
+    "TechnischeKenntnisse": {
+        "Programmiersprachen": [
+            "Java",
+            "Scala",
+            "Bash",
+            "SQL",
+            "Spark SQL",
+            "MongoDB Query Language",
+            "@Formula",
+            "Lotus Script",
+            "C++"
+        ],
+        "Netzwerkprotokolle": [
+            "TCP/IP",
+            "HTTP",
+            "SIP",
+            "RTP"
+        ],
+        "VirtualisierungUndCloud": [
+            "Docker",
+            "Kubernetes (K8s)",
+            "Hyper-V",
+            "AWS",
+            "AWS Lambda",
+            "Microsoft Azure",
+            "Digital Ocean"
+        ],
+        "EntwicklungsUndTestwerkzeuge": [
+            "Visual Studio Code",
+            "IntelliJ IDEA",
+            "Maven",
+            "Jenkins",
+            "Concourse CI",
+            "Jira",
+            "Bugzilla",
+            "TestLink",
+            "Wireshark",
+            "HTTP Analyzer",
+            "GraphEdit",
+            "StreamEye",
+            "Git",
+            "TeamCity",
+            "Lotus Domino Server",
+            "MS Access"
+        ],
+        "Methodologien": [
+            "Agile",
+            "Scrum",
+            "Wasserfall (Waterfall)"
+        ]
+    },
+    "zusätzliche_informationen": {
+        "flüchtlingsstatus": "Ich bin ein ausländischer Flüchtling mit dem Recht, in Deutschland zu arbeiten.",
+        "körperliche_verfassung": "Mein körperlicher Zustand erlaubt es mir nicht, schwere körperliche Arbeit zu verrichten.",
+        "sprachkenntnisse": "Meine Sprachkenntnisse sind gut, aber nicht perfekt.",
+        "lernbereitschaft": "Ich bin bereit und stehe dem Lernen und Selbstlernen positiv gegenüber.",
+        "leidenschaft_für_lehre": "Ich liebe es sehr, jeden zu unterrichten, einschließlich mich selbst."
+    }
+}
