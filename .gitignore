@@ -6,7 +6,7 @@ __pycache__/
 *.so
 *.egg-info/
 .eggs/
-.build/
+build/
 dist/
 .pytest_cache/
 .coverage
@@ -15,9 +15,13 @@ htmlcov/
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv/
 venv/
 ENV/
+
+
 
 # Logs
 logs/
