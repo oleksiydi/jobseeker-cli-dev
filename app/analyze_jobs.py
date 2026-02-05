@@ -21,7 +21,7 @@ def script_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 def load_config():
-    path = os.path.join(script_dir(), '..', 'conf', 'app.json')
+    path = os.path.join(script_dir(), '..', 'config', 'app.json')
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 

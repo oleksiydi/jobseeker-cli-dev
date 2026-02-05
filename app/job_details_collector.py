@@ -29,7 +29,7 @@ def script_dir():  # Функция для получения пути к пап
     return os.path.dirname(os.path.abspath(__file__))  # Возвращаем абсолютный путь к директории текущего файла
 
 def load_config():  # Функция загрузки единого конфига приложения
-    path = os.path.join(script_dir(), '..', 'conf', 'app.json')  # Формируем путь к файлу conf/app.json
+    path = os.path.join(script_dir(), '..', 'config', 'app.json')  # Формируем путь к файлу config/app.json
     with open(path, 'r', encoding='utf-8') as f:  # Открываем файл в UTF-8
         return json.load(f)  # Читаем JSON → dict
 

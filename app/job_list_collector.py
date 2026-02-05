@@ -3,7 +3,7 @@
 
 """
 Скрипт: сбор списка вакансий из Jobcenter -> запись в MongoDB (без файлов).
-Берёт настройки из единого конфигурационного файла conf/app.json, раздел jobcenter.list_api,
+Берёт настройки из единого конфигурационного файла config/app.json, раздел jobcenter.list_api,
 где сохранены ИСХОДНЫЕ ключи: api_url, api_key, params, headers, max_requests, output_filenames.
 Поля output_filenames сохранены, но здесь НЕ используются.
 
@@ -29,8 +29,8 @@ def _script_dir() -> str:
     return os.path.dirname(os.path.abspath(__file__))  # Определяем путь к текущему файлу и берём его директорию
 
 def _load_config() -> dict:
-    """Загружает единый конфиг conf/app.json и возвращает как dict."""
-    path = os.path.join(_script_dir(), '..', 'conf', 'app.json')  # Строим путь до конфиг-файла относительно скрипта
+    """Загружает единый конфиг config/app.json и возвращает как dict."""
+    path = os.path.join(_script_dir(), '..', 'config', 'app.json')  # Строим путь до конфиг-файла относительно скрипта
     with open(path, 'r', encoding='utf-8') as f:  # Открываем файл в UTF-8
         return json.load(f)  # Читаем JSON в словарь Python
 
