@@ -3,50 +3,32 @@
 
 """
 Скрипт: сбор списка вакансий из Jobcenter -> запись в MongoDB (без файлов).
-Берёт настройки из единого конфигурационного файла config/app.json, раздел jobcenter.list_api,
-где сохранены ИСХОДНЫЕ ключи: api_url, api_key, params, headers, max_requests, output_filenames.
-Поля output_filenames сохранены, но здесь НЕ используются.
 
-Перед запуском:
-  1) Установить зависимости (requests, pymongo, python-dotenv).
-  2) Заполнить .env с MONGODB_URI (и опционально MONGODB_DB_NAME, COLLECTION_STELLENANGEBOTE).
-  3) Запустить: python -m app.job_list_collector
+Конфиг ищется в приоритете:
+1) APP_CONFIG_PATH (env)
+2) conf/app.json
 """
 
-import os  # Работа с путями и переменными окружения
-import json  # Загрузка конфигурации из JSON
-import logging  # Логирование (информация, предупреждения, ошибки)
 import time  # Паузы между запросами для вежливости к API
 from datetime import datetime  # Метки времени для created_at/updated_at
 import random
 
 import requests  # HTTP-запросы к API Jobcenter
-from dotenv import load_dotenv  # Загрузка переменных из файла .env
-from pymongo import MongoClient, ASCENDING, errors  # Клиент MongoDB, индексы, ошибки MongoDB
+from pymongo import ASCENDING, errors  # Индексы и ошибки MongoDB
+from pymongo.database import Database
 
-def _script_dir() -> str:
-    """Возвращает абсолютный путь к директории текущего файла."""
-    return os.path.dirname(os.path.abspath(__file__))  # Определяем путь к текущему файлу и берём его директорию
+# Позволяет запускать файл напрямую: python app/job_list_collector.py
+if __package__ is None or __package__ == "":
+    import sys
+    from pathlib import Path
 
-def _load_config() -> dict:
-    """Загружает единый конфиг config/app.json и возвращает как dict."""
-    path = os.path.join(_script_dir(), '..', 'config', 'app.json')  # Строим путь до конфиг-файла относительно скрипта
-    with open(path, 'r', encoding='utf-8') as f:  # Открываем файл в UTF-8
-        return json.load(f)  # Читаем JSON в словарь Python
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-def _mongo_db():
-    """Создаёт подключение к MongoDB из .env и возвращает (db, имя_коллекции_для_списка)."""
-    load_dotenv()  # Подгружаем переменные окружения из .env (если есть)
-    mongo_uri = os.getenv("MONGODB_URI")  # Берём строку подключения к MongoDB
-    if not mongo_uri:  # Если переменная не задана — это критическая ошибка
-        raise RuntimeError("MONGODB_URI не задан. Укажи его в .env (пример: mongodb://root:example@localhost:27017/?authSource=admin)")
-    db_name = os.getenv("MONGODB_DB_NAME", "jobcenter")  # Имя базы (по умолчанию jobcenter)
-    col_name = os.getenv("COLLECTION_STELLENANGEBOTE", "stellenangebote")  # Имя коллекции списка (по умолчанию stellenangebote)
-    client = MongoClient(mongo_uri)  # Создаём клиент MongoDB
-    db = client[db_name]  # Получаем объект базы данных
-    return db, col_name  # Возвращаем базу и имя коллекции
+from app.core.config import load_app_config
+from app.core.logging import get_logger
+from app.db.mongo import get_database, resolve_collection_name
 
-def _ensure_indexes(db, collection_name: str) -> None:
+def _ensure_indexes(db: Database, collection_name: str) -> None:
     """Создаёт необходимые индексы (уникальный по referenznummer, обычный по updated_at)."""
     col = db[collection_name]  # Получаем коллекцию по имени
     col.create_index([("referenznummer", ASCENDING)], unique=True)  # Уникальный индекс: не допускаем дублей по referenznummer
@@ -62,10 +44,9 @@ def _normalize_referenznummer(item: dict) -> str | None:
 
 def main() -> None:
     """Основная функция: читает конфиг, ходит по страницам API, upsert в MongoDB."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")  # Настройка логов
-    log = logging.getLogger("job_list_collector")  # Именованный логгер
+    log = get_logger("job_list_collector")  # Именованный логгер
 
-    cfg = _load_config()  # Загружаем единый конфиг в память
+    cfg = load_app_config()  # Загружаем единый конфиг в память
     list_api = cfg["jobcenter"]["list_api"]  # Берём раздел конфигурации, отвечающий за список вакансий
 
     api_url = list_api["api_url"]  # URL конечной точки API Jobcenter для списка вакансий
@@ -75,7 +56,12 @@ def main() -> None:
     max_requests = int(list_api.get("max_requests", 1000))  # Максимум страниц/запросов, чтобы не зациклиться
     _ = list_api.get("output_filenames", {})  # Для совместимости: в конфиге есть, но здесь НЕ используется
 
-    db, collection_name = _mongo_db()  # Подключаемся к базе и узнаём имя коллекции для списка
+    db = get_database(cfg)  # Подключаемся к базе
+    collection_name = resolve_collection_name(
+        cfg,
+        key="list",
+        default="stellenangebote",
+    )
     _ensure_indexes(db, collection_name)  # Гарантируем, что индексы созданы
     col = db[collection_name]  # Получаем саму коллекцию (ссылку на неё)
 

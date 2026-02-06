@@ -9,3 +9,13 @@ mongorestore \
   --archive=/backup/jobcenter-08-22.archive \
   --gzip
 
+## Конфигурации проекта
+
+- Основные конфиги хранятся в `conf/`.
+- Рабочий файл приложения: `conf/app.json`.
+- Рабочий профиль по умолчанию: `conf/profiles/default.profile.json`.
+- Через ENV можно задать явный путь к конфигам:
+- `APP_CONFIG_PATH` для файла приложения.
+- `PROFILE_CONFIG_PATH` для файла профиля.
+- Директория `config/` больше не используется как автоматический fallback.
+

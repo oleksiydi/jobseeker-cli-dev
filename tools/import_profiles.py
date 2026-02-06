@@ -3,7 +3,7 @@
 
 """
 Импорт профиля(ей) в MongoDB (коллекция profiles).
-По умолчанию читает: ../config/profiles/default.profile.json (относительно этого скрипта).
+По умолчанию читает: ../conf/profiles/default.profile.json.
 Дружит с UTF-8 BOM, делает upsert по полю "key".
 """  # Докстрока: краткое описание назначения скрипта и поведения по умолчанию
 
@@ -19,7 +19,16 @@ from pymongo import MongoClient, ASCENDING  # Клиент MongoDB и конст
 # Пути по умолчанию
 SCRIPT_DIR = Path(__file__).resolve().parent  # Папка, где лежит этот скрипт (абсолютный путь)
 ROOT_DIR = SCRIPT_DIR.parent  # Корень проекта — берем родительскую папку относительно tools/
-DEFAULT_FILE = ROOT_DIR / "config" / "profiles" / "default.profile.json"  # Файл профиля по умолчанию
+
+
+def resolve_default_profile_file() -> Path:
+    """
+    Возвращает стандартный путь к профилю в conf/.
+    """
+    return ROOT_DIR / "conf" / "profiles" / "default.profile.json"
+
+
+DEFAULT_FILE = resolve_default_profile_file()
 
 def debug_path(p: Path) -> str:  # Вспомогательная функция для красивого вывода пути (полного)
     try:

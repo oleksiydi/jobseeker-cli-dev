@@ -1,0 +1,46 @@
+{
+  "mongodb": {
+    "db_name": "jobcenter"
+  },
+  "collections": {
+    "list": "stellenangebote",
+    "details": "jobdetails",
+    "analysis": "analysen",
+    "profiles": "profiles"
+  },
+  "jobcenter": {
+    "list_api": {
+      "api_url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs",
+      "api_key": "jobboerse-jobsuche",
+      "params": {
+        "wo": "Regensburg",
+        "umkreis": 10,
+        "size": "200",
+        "pav": false,
+        "facetten": false
+      },
+      "headers": {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "de,ru-RU;q=0.9,ru;q=0.8,en-US;q=0.7,en;q=0.6,uk;q=0.5",
+        "Connection": "keep-alive",
+        "Origin": "https://www.arbeitsagentur.de"
+      },
+      "max_requests": 10000,
+      "output_filenames": {
+        "job_list": "jobangebote.json",
+        "job_details": "stellenangebote.json"
+      }
+    },
+    "details_api": {
+      "url_template": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v3/jobdetails/{ref_b64}",
+      "headers": {
+        "X-API-Key": "jobboerse-jobsuche",
+        "Accept": "application/json"
+      }
+    }
+  },
+  "analyzer": {
+    "model": "gpt-5-nano",
+    "profile_key": "default"
+  }
+}

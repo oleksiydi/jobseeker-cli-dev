@@ -15,90 +15,49 @@
 - Мы нормализуем дробную часть секунд до 6 знаков, чтобы корректно распарсить в datetime.
 """
 
-import os, json, base64, time, logging, requests  # os/json/base64/time/logging/requests — стандартные задачи скрипта
-from datetime import datetime, timezone  # datetime/timezone — для работы с датами/временем (UTC)
-from dotenv import load_dotenv  # Загрузка переменных окружения из .env (например, MONGODB_URI)
-from pymongo import MongoClient, ASCENDING  # Клиент MongoDB и создание индексов
-from typing import Optional  # Optional — тип "может быть None"
-import re  # re — регулярные выражения, пригодятся для нормализации даты
+import base64
 import random
+import time
+from datetime import datetime, timezone  # datetime/timezone — для работы с датами/временем (UTC)
+
+import requests
+from pymongo import ASCENDING  # создание индексов
+from pymongo.database import Database
+
+# Позволяет запускать файл напрямую: python app/job_details_collector.py
+if __package__ is None or __package__ == "":
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from app.core.config import load_app_config
+from app.core.logging import get_logger
+from app.core.time_utils import parse_dt
+from app.db.mongo import get_database, resolve_collection_name
 
 # ---------- утилиты (вспомогательные функции) ----------
 
-def script_dir():  # Функция для получения пути к папке, где лежит этот файл
-    return os.path.dirname(os.path.abspath(__file__))  # Возвращаем абсолютный путь к директории текущего файла
-
-def load_config():  # Функция загрузки единого конфига приложения
-    path = os.path.join(script_dir(), '..', 'config', 'app.json')  # Формируем путь к файлу config/app.json
-    with open(path, 'r', encoding='utf-8') as f:  # Открываем файл в UTF-8
-        return json.load(f)  # Читаем JSON → dict
-
-def mongo_db(cfg):  # Подключение к MongoDB
-    load_dotenv()  # Загружаем переменные окружения из .env
-    uri = os.getenv("MONGODB_URI")  # Берём строку подключения к MongoDB из переменной окружения
-    client = MongoClient(uri)  # Создаём клиент MongoDB
-    return client[cfg["mongodb"]["db_name"]]  # Возвращаем объект базы данных по имени из конфига
-
-def ensure_indexes(db, cfg):  # Гарантированно создаём индексы в коллекции деталей
-    det = db[cfg["collections"]["details"]]  # Получаем коллекцию jobdetails
+def ensure_indexes(db: Database, cfg: dict):  # Гарантированно создаём индексы в коллекции деталей
+    details_collection = resolve_collection_name(cfg, key="details", default="jobdetails")
+    det = db[details_collection]  # Получаем коллекцию jobdetails
     det.create_index([("referenznummer", ASCENDING)], unique=True)  # Уникальный индекс по referenznummer (без дублей)
     det.create_index([("aenderungsdatum", ASCENDING)])  # Индекс по дате изменения (ускоряет выборки/сортировки)
 
 def to_b64(s: str) -> str:  # Кодирование строки в Base64 для URL (как требует API)
     return base64.b64encode(s.encode("utf-8")).decode("utf-8").rstrip("=")  # Кодируем и удаляем '=' в конце
 
-def _pad_fraction_to_6(s: str) -> str:  # Нормализация: дополняем дробную часть секунд до 6 знаков (или обрезаем)
-    # Регулярка ловит: датаTвремя + опциональную дробную часть + опциональный часовой пояс
-    m = re.match(r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?([Zz]|[+-]\d{2}:\d{2})?$', s or '')
-    if not m:  # Если строка не совпала с ожидаемым шаблоном — возвращаем как есть (пусть парсер дальше попробует сам)
-        return s
-    base, frac, tz = m.group(1), m.group(2), m.group(3)  # Разбираем группы: основное время, дробная часть, таймзона
-    if frac:  # Если есть дробная часть, например ".33" или ".330"
-        digits = frac[1:]  # Берём цифры без точки
-        digits = (digits + '000000')[:6]  # Дополняем нулями до 6 символов и обрезаем лишнее
-        frac = '.' + digits  # Собираем обратно с точкой
-    else:
-        frac = ''  # Если дробной части не было — оставляем пусто
-    tz = tz or ''  # Если таймзоны нет — оставляем пусто (будем считать UTC дальше)
-    return base + frac + tz  # Собираем нормализованную строку времени
-
-def parse_dt(value: Optional[str]) -> Optional[datetime]:  # Универсальный парсер ISO-дат в datetime
-    if not value:  # Если дата пустая/None — возвращаем None
-        return None
-    v = _pad_fraction_to_6(value.strip())  # Сначала нормализуем дробную часть секунд до 6 знаков
-    v = v.replace("z", "Z")  # На всякий случай приводим 'z' к 'Z'
-    # Если есть суффикс 'Z' (UTC), заменим на '+00:00', чтобы fromisoformat понимал таймзону
-    if v.endswith("Z"):
-        v = v[:-1] + "+00:00"  # "…Z" → "…+00:00"
-    try:
-        dt = datetime.fromisoformat(v)  # Пытаемся распарсить ISO-строку
-        if dt.tzinfo is None:  # Если таймзоны нет (наивная дата)
-            dt = dt.replace(tzinfo=timezone.utc)  # Считаем, что это UTC, и явно указываем tzinfo=UTC
-        return dt  # Возвращаем datetime с tzinfo
-    except Exception:
-        # Фолбэк на несколько часто встречающихся форматов (без дробной части/с дробной — уже нормализовали выше)
-        for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S%z", "%Y-%m-%d"):
-            try:
-                dt = datetime.strptime(v, fmt)  # Пробуем очередной формат
-                if dt.tzinfo is None:  # Если tz нет — проставим UTC
-                    dt = dt.replace(tzinfo=timezone.utc)
-                return dt  # Успех — возвращаем datetime
-            except Exception:
-                pass  # Не подошёл — пробуем следующий
-    return None  # Совсем не получилось — вернём None
-
 # ---------- основная логика ----------
 
 def main():  # Главная функция, которая управляет всем процессом
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")  # Настройка логирования
-    log = logging.getLogger("job_details_collector")  # Создаём именованный логгер
+    log = get_logger("job_details_collector")  # Создаём именованный логгер
 
-    cfg = load_config()  # Загружаем конфигурацию приложения
-    db = mongo_db(cfg)  # Подключаемся к MongoDB
+    cfg = load_app_config()  # Загружаем конфигурацию приложения
+    db = get_database(cfg)  # Подключаемся к MongoDB
     ensure_indexes(db, cfg)  # Убеждаемся, что индексы созданы
 
-    list_col = db[cfg["collections"]["list"]]      # Коллекция "списка" вакансий (stellenangebote)
-    det_col  = db[cfg["collections"]["details"]]   # Коллекция деталей вакансий (jobdetails)
+    list_col = db[resolve_collection_name(cfg, key="list", default="stellenangebote")]  # Коллекция списка вакансий
+    det_col = db[resolve_collection_name(cfg, key="details", default="jobdetails")]  # Коллекция деталей вакансий
 
     api = cfg["jobcenter"]["details_api"]          # Параметры API для деталей
     headers = dict(api.get("headers", {}))         # Заголовки HTTP-запроса к API (копируем, чтобы не менять оригинал)

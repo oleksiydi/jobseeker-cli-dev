@@ -8,33 +8,32 @@
 - Ответ модели строго в JSON; сохраняем в collections.analysis
 """
 
-import os, json, re, logging
+import json
+import os
+import re
 from datetime import datetime, timezone
+
 from dotenv import load_dotenv
-from pymongo import MongoClient, ASCENDING
+from pymongo import ASCENDING
+from pymongo.database import Database
 from bson import ObjectId
 from openai import OpenAI
 
+# Позволяет запускать файл напрямую: python app/analyze_jobs.py
+if __package__ is None or __package__ == "":
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from app.core.config import load_app_config
+from app.core.logging import get_logger
+from app.db.mongo import get_database, resolve_collection_name
+
 # ---------- конфиг / подключение ----------
 
-def script_dir():
-    return os.path.dirname(os.path.abspath(__file__))
-
-def load_config():
-    path = os.path.join(script_dir(), '..', 'config', 'app.json')
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def mongo_db(cfg):
-    load_dotenv()
-    uri = os.getenv("MONGODB_URI")
-    if not uri:
-        raise RuntimeError("MONGODB_URI не задан в .env")
-    client = MongoClient(uri)
-    return client[cfg["mongodb"]["db_name"]]
-
-def ensure_indexes(db, cfg):
-    col = db[cfg["collections"]["analysis"]]
+def ensure_indexes(db: Database, cfg: dict):
+    col = db[resolve_collection_name(cfg, key="analysis", default="analysen")]
     col.create_index([("referenznummer", ASCENDING)], unique=True)
 
 # ---------- утилиты ----------
@@ -87,23 +86,23 @@ def make_json_safe(x):
 # ---------- основная логика ----------
 
 def main():
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-    log = logging.getLogger("analyze_jobs")
+    log = get_logger("analyze_jobs")
 
-    cfg = load_config()
-    db = mongo_db(cfg)
+    cfg = load_app_config()
+    db = get_database(cfg)
     ensure_indexes(db, cfg)
 
-    col_list = db[cfg["collections"]["list"]]       # stellenangebote
-    col_det  = db[cfg["collections"]["details"]]    # jobdetails
-    col_an   = db[cfg["collections"]["analysis"]]   # analysen
-    col_prof = db[cfg["collections"]["profiles"]]   # profiles
+    col_list = db[resolve_collection_name(cfg, key="list", default="stellenangebote")]  # stellenangebote
+    col_det = db[resolve_collection_name(cfg, key="details", default="jobdetails")]  # jobdetails
+    col_an = db[resolve_collection_name(cfg, key="analysis", default="analysen")]  # analysen
+    col_prof = db[resolve_collection_name(cfg, key="profiles", default="profiles")]  # profiles
 
     # профиль кандидата
     key = cfg["analyzer"]["profile_key"]
     profile = col_prof.find_one({"key": key}, {"_id": 0})
     if not profile:
-        raise RuntimeError(f"Профиль с key='{key}' не найден в '{cfg['collections']['profiles']}'")
+        profiles_collection_name = resolve_collection_name(cfg, key="profiles", default="profiles")
+        raise RuntimeError(f"Профиль с key='{key}' не найден в '{profiles_collection_name}'")
 
     # клиент OpenAI
     load_dotenv()
