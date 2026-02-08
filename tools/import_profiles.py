@@ -1,143 +1,212 @@
-#!/usr/bin/env python3  # Позволяет запускать файл как исполняемый скрипт в Unix-системах
-# -*- coding: utf-8 -*-  # Указываем кодировку исходника (UTF-8), чтобы русские комментарии отображались корректно
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """
-Импорт профиля(ей) в MongoDB (коллекция profiles).
-По умолчанию читает: ../conf/profiles/default.profile.json.
-Дружит с UTF-8 BOM, делает upsert по полю "key".
-"""  # Докстрока: краткое описание назначения скрипта и поведения по умолчанию
+Import profile document(s) into MongoDB (profiles collection).
+Default source: conf/profiles/default.profile.json.
+Supports JSON object or JSON array and performs idempotent upsert by key.
+"""
 
-import os  # Модуль для работы с переменными окружения и путями
-import json  # Модуль для чтения/записи JSON
-import argparse  # Модуль для удобного парсинга аргументов командной строки
-from pathlib import Path  # Удобная работа с путями в виде объектов Path
-from datetime import datetime, timezone  # Работа с датой/временем (timezone-aware время)
+from __future__ import annotations
 
-from dotenv import load_dotenv  # Функция для загрузки переменных окружения из .env
-from pymongo import MongoClient, ASCENDING  # Клиент MongoDB и константа для индексов по возрастанию
+import argparse
+import hashlib
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
-# Пути по умолчанию
-SCRIPT_DIR = Path(__file__).resolve().parent  # Папка, где лежит этот скрипт (абсолютный путь)
-ROOT_DIR = SCRIPT_DIR.parent  # Корень проекта — берем родительскую папку относительно tools/
+from pymongo import ASCENDING
+
+# Allows running as script: python tools/import_profiles.py
+if __package__ is None or __package__ == "":
+    import sys
+
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from app.core.config import project_root, load_app_config
+from app.db.mongo import get_database, resolve_collection_name
+
+SERVICE_FIELDS = {"_id", "created_at", "updated_at", "profile_hash"}
 
 
 def resolve_default_profile_file() -> Path:
-    """
-    Возвращает стандартный путь к профилю в conf/.
-    """
-    return ROOT_DIR / "conf" / "profiles" / "default.profile.json"
+    return project_root() / "conf" / "profiles" / "default.profile.json"
 
 
-DEFAULT_FILE = resolve_default_profile_file()
-
-def debug_path(p: Path) -> str:  # Вспомогательная функция для красивого вывода пути (полного)
+def _debug_path(path: Path) -> str:
     try:
-        return str(p.resolve())  # Пытаемся вернуть абсолютный нормализованный путь
+        return str(path.resolve())
     except Exception:
-        return str(p)  # Если что-то пошло не так — возвращаем простой str-путь
+        return str(path)
 
-def load_docs(path: Path):  # Функция загрузки документов из JSON-файла (может быть 1 объект или массив объектов)
-    """Читает JSON-файл: объект или массив объектов. Поддерживает UTF-8 с BOM."""  # Комментарий к функции
-    if not path.exists():  # Проверяем, существует ли файл по указанному пути
-        raise FileNotFoundError(f"Файл не найден: {debug_path(path)}")  # Если нет — бросаем понятную ошибку
-    if path.stat().st_size == 0:  # Проверяем, не пустой ли файл (размер 0 байт)
-        raise ValueError(f"Файл пустой: {debug_path(path)}")  # Если пустой — сообщаем об этом
 
-    try:
-        with path.open("r", encoding="utf-8-sig") as f:  # Открываем файл на чтение; 'utf-8-sig' автоматически уберёт BOM
-            data = json.load(f)  # Парсим JSON в Python-объекты (dict или list)
-    except json.JSONDecodeError as e:  # Ловим ошибки парсинга JSON
-        head = path.open("rb").read(200)  # Читаем первые 200 байт файла (для диагностики)
-        try:
-            head_txt = head.decode("utf-8", errors="replace")  # Пытаемся показать эти байты как текст UTF-8
-        except Exception:
-            head_txt = str(head)  # Если не получилось — покажем как сырые байты
-        raise ValueError(
-            f"Некорректный JSON в {debug_path(path)}: {e}\n"
-            f"Первые 200 байт файла:\n{head_txt}"
-        ) from e  # Бросаем подробную ошибку с контекстом, перекидывая оригинальное исключение
+def load_docs(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        raise FileNotFoundError(f"Файл не найден: {_debug_path(path)}")
+    if path.stat().st_size == 0:
+        raise ValueError(f"Файл пустой: {_debug_path(path)}")
 
-    if isinstance(data, dict):  # Если в файле один JSON-объект (словарь)
-        return [data]  # Возвращаем список из одного элемента для унификации обработки
-    if isinstance(data, list):  # Если в файле массив JSON-объектов
-        if not all(isinstance(x, dict) for x in data):  # Проверяем, что каждый элемент массива — объект (словарь)
-            raise ValueError("В массиве должны быть объекты JSON ({}), не строки/числа.")  # Иначе сообщаем об ошибке
-        return data  # Возвращаем список документов
-    raise ValueError("Ожидался JSON-объект или массив объектов.")  # Если формат не dict и не list — ошибка
+    with path.open("r", encoding="utf-8-sig") as handle:
+        data = json.load(handle)
 
-def get_db():  # Функция подключения к MongoDB, возвращает объект базы данных
-    """Подключение к MongoDB из .env."""  # Комментарий к функции
-    load_dotenv()  # Загружаем переменные окружения из файла .env (если он существует)
-    uri = os.getenv("MONGODB_URI", "mongodb://root:example@localhost:27017/?authSource=admin")  # Берём строку подключения (или дефолт)
-    db_name = os.getenv("MONGODB_DB_NAME", "jobcenter")  # Имя базы данных (по умолчанию jobcenter)
-    client = MongoClient(uri)  # Создаём клиент MongoDB
-    return client[db_name]  # Возвращаем объект базы с указанным именем
+    if isinstance(data, dict):
+        docs = [data]
+    elif isinstance(data, list) and all(isinstance(item, dict) for item in data):
+        docs = data
+    else:
+        raise ValueError("Ожидается JSON-объект или массив JSON-объектов.")
 
-def main():  # Главная функция — точка входа скрипта
-    ap = argparse.ArgumentParser(description="Импорт профилей в MongoDB (коллекция profiles).")  # Описываем CLI-интерфейс
-    ap.add_argument("--file", "-f", type=Path, default=DEFAULT_FILE,  # Аргумент: путь к JSON-файлу (по умолчанию дефолтный)
-                    help=f"Путь к JSON-файлу (по умолчанию: {debug_path(DEFAULT_FILE)})")
-    ap.add_argument("--collection", "-c", default=os.getenv("COLLECTION_PROFILES", "profiles"),  # Аргумент: имя коллекции (по умолчанию profiles)
-                    help="Имя коллекции (по умолчанию 'profiles')")
-    ap.add_argument("--upsert-key", default="key",  # Аргумент: поле, по которому делаем upsert (ключ уникальности)
-                    help="Поле для upsert (по умолчанию 'key')")
-    ap.add_argument("--key", default="default",  # Аргумент: значение key, если его нет в документе
-                    help="Значение 'key', если его нет в документе (по умолчанию 'default')")
-    args = ap.parse_args()  # Парсим аргументы командной строки
+    if not docs:
+        raise ValueError("Список profile-документов пуст.")
+    return docs
 
-    print(f"Читаю файл: {debug_path(args.file)}")  # Выводим пользователю, какой файл читаем
 
-    docs = load_docs(args.file)  # Загружаем документы из указанного JSON-файла (список словарей)
-    db = get_db()  # Подключаемся к базе данных
-    col = db[args.collection]  # Получаем коллекцию с именем, переданным в аргументах (или по умолчанию)
+def _canonical_hash(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
-    # Уникальный индекс по upsert-ключу
-    col.create_index([(args.upsert_key, ASCENDING)], unique=True)  # Создаём (если нет) уникальный индекс по полю upsert-ключа
 
-    inserted = updated = unchanged = 0  # Счётчики результатов: сколько вставили/обновили/оставили без изменений
-    for d in docs:  # Идём по каждому документу из файла
-        # key по умолчанию
-        d.setdefault("key", args.key)  # Если в документе нет поля "key", подставляем значение из аргумента (по умолчанию 'default')
+def _profile_business_payload(doc: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in doc.items() if k not in SERVICE_FIELDS}
 
-        # время UTC с таймзоной
-        now = datetime.now(timezone.utc)  # Текущее время в UTC с tzinfo (современно и безопасно)
 
-        # если в документ уже вручную положили created_at — уважаем; иначе ставим сейчас
-        created_at = d.get("created_at", now)  # Берём created_at из документа, либо используем текущее время
+def normalize_profile_doc(
+    doc: dict[str, Any],
+    *,
+    default_key: str,
+    upsert_key: str,
+    strict_validate: bool,
+    created_by: str | None,
+    now: datetime,
+) -> dict[str, Any]:
+    normalized = dict(doc)
+    normalized.setdefault("key", default_key)
 
-        # updated_at всегда текущее (не трогаем created_at)
-        d["updated_at"] = now  # Поле updated_at обновляется на текущее время при каждом запуске
+    upsert_value = normalized.get(upsert_key)
+    if upsert_value is None:
+        raise ValueError(f"Отсутствует поле upsert-key '{upsert_key}' в profile-документе.")
 
-        # ВАЖНО: чтобы не конфликтовать с $setOnInsert, удаляем created_at из $set
-        set_doc = dict(d)  # Делаем копию документа, который пойдёт в $set (чтобы можно было убрать поле)
-        set_doc.pop("created_at", None)  # Удаляем created_at из $set, он будет ставиться только через $setOnInsert
+    if isinstance(upsert_value, str):
+        normalized[upsert_key] = upsert_value.strip()
+        upsert_value = normalized[upsert_key]
+    if upsert_value in ("", None):
+        raise ValueError(f"Пустое значение upsert-key '{upsert_key}'.")
 
-        uk = d.get(args.upsert_key)  # Достаём значение upsert-ключа (например, key)
-        if uk is None:  # Если ключа нет — нечем определять уникальность
-            # нет ключа для upsert — просто вставим, с обоими полями времени
-            set_doc["created_at"] = created_at  # Вставим created_at напрямую, т.к. не используем $setOnInsert без ключа
-            col.insert_one(set_doc)  # Обычная вставка документа в коллекцию
-            inserted += 1  # Увеличиваем счётчик вставок
-            continue  # Переходим к следующему документу
+    business_payload = _profile_business_payload(normalized)
+    business_payload_wo_upsert = {k: v for k, v in business_payload.items() if k != upsert_key}
+    if strict_validate and not business_payload_wo_upsert:
+        raise ValueError("Profile-документ не содержит бизнес-полей.")
 
-        res = col.update_one(  # Пытаемся обновить документ или вставить новый (upsert=True)
-            {args.upsert_key: uk},  # Фильтр: документ с тем же значением upsert-ключа
-            {
-                "$setOnInsert": {"created_at": created_at},  # Если вставка — выставим created_at один раз
-                "$set": set_doc  # Всегда обновляем остальные поля (без created_at) и updated_at
-            },
-            upsert=True  # Разрешаем вставку, если документа с таким ключом нет
+    normalized["profile_hash"] = _canonical_hash(business_payload)
+    normalized["updated_at"] = now
+    if created_by:
+        normalized["created_by"] = created_by
+    return normalized
+
+
+def _comparable_doc(doc: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in doc.items() if k not in {"_id", "created_at", "updated_at"}}
+
+
+def main() -> None:
+    default_file = resolve_default_profile_file()
+    parser = argparse.ArgumentParser(description="Импорт профилей в MongoDB.")
+    parser.add_argument(
+        "--file",
+        "-f",
+        type=Path,
+        default=default_file,
+        help=f"Путь к JSON-файлу (по умолчанию: {_debug_path(default_file)})",
+    )
+    parser.add_argument(
+        "--collection",
+        "-c",
+        default=None,
+        help="Имя коллекции (по умолчанию берется из conf/app.json: collections.profiles).",
+    )
+    parser.add_argument(
+        "--upsert-key",
+        default="key",
+        help="Поле для upsert (по умолчанию: key).",
+    )
+    parser.add_argument(
+        "--key",
+        default="default",
+        help="Значение key по умолчанию, если key отсутствует в документе.",
+    )
+    parser.add_argument(
+        "--created-by",
+        default="tools/import_profiles.py",
+        help="Значение created_by для записей.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Показать изменения без записи в MongoDB.",
+    )
+    parser.add_argument(
+        "--strict-validate",
+        action="store_true",
+        help="Включить строгую валидацию profile-документов.",
+    )
+    args = parser.parse_args()
+
+    docs = load_docs(args.file)
+    cfg = load_app_config()
+    db = get_database(cfg)
+    collection_name = args.collection or resolve_collection_name(cfg, key="profiles", default="profiles")
+    col = db[collection_name]
+    col.create_index([(args.upsert_key, ASCENDING)], unique=True)
+
+    inserted = 0
+    updated = 0
+    unchanged = 0
+    now = datetime.now(timezone.utc)
+
+    for raw in docs:
+        normalized = normalize_profile_doc(
+            raw,
+            default_key=args.key,
+            upsert_key=args.upsert_key,
+            strict_validate=args.strict_validate,
+            created_by=args.created_by,
+            now=now,
         )
+        upsert_value = normalized[args.upsert_key]
+        created_at = raw.get("created_at", now)
+        set_doc = dict(normalized)
+        set_doc.pop("created_at", None)
 
-        if res.matched_count == 0 and res.upserted_id:  # Если совпадений не было, но документ создан (есть upserted_id)
-            inserted += 1  # Считаем как вставку
-        elif res.modified_count:  # Если существующий документ был изменён
-            updated += 1  # Считаем как обновление
+        existing = col.find_one({args.upsert_key: upsert_value})
+        if existing and _comparable_doc(existing) == _comparable_doc(set_doc):
+            unchanged += 1
+            continue
+
+        if args.dry_run:
+            if existing:
+                updated += 1
+            else:
+                inserted += 1
+            continue
+
+        result = col.update_one(
+            {args.upsert_key: upsert_value},
+            {"$setOnInsert": {"created_at": created_at}, "$set": set_doc},
+            upsert=True,
+        )
+        if result.matched_count == 0 and result.upserted_id is not None:
+            inserted += 1
+        elif result.modified_count:
+            updated += 1
         else:
-            unchanged += 1  # Иначе изменений не было (данные те же)
+            unchanged += 1
 
-    print(f"Готово. inserted={inserted}, updated={updated}, unchanged={unchanged}")  # Итоговая статистика по операциям
-    print(f"Коллекция: {args.collection}")  # Уточняем, в какую коллекцию вносили документы
+    print(
+        f"Готово. collection={collection_name}, dry_run={args.dry_run}, "
+        f"inserted={inserted}, updated={updated}, unchanged={unchanged}"
+    )
 
-if __name__ == "__main__":  # Этот блок выполнится только при прямом запуске скрипта (не при импорте)
-    main()  # Вызываем главную функцию
+
+if __name__ == "__main__":
+    main()

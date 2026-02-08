@@ -11,10 +11,11 @@
 import json
 import os
 import re
+import hashlib
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 from pymongo.database import Database
 from bson import ObjectId
 from openai import OpenAI
@@ -35,6 +36,28 @@ from app.db.mongo import get_database, resolve_collection_name
 def ensure_indexes(db: Database, cfg: dict):
     col = db[resolve_collection_name(cfg, key="analysis", default="analysen")]
     col.create_index([("referenznummer", ASCENDING)], unique=True)
+    col.create_index([("input_hash", ASCENDING)])
+    col.create_index([("prompt_key", ASCENDING), ("prompt_version", ASCENDING)])
+    col_prompt = db[resolve_collection_name(cfg, key="analysis_prompts", default="analysis_prompts")]
+    col_prompt.create_index([("key", ASCENDING), ("version", ASCENDING)], unique=True)
+    col_prompt.create_index([("key", ASCENDING), ("is_active", ASCENDING), ("version", DESCENDING)])
+
+
+INPUT_HASH_IGNORE_FIELDS = {
+    "_id",
+    "old",
+    "created_at",
+    "updated_at",
+    "last_checked_at",
+    "meta_hash",
+    "details_hash",
+    "input_hash",
+    "version",
+    "is_latest",
+    "run_id",
+    "seen_at",
+    "missing_since",
+}
 
 # ---------- утилиты ----------
 
@@ -83,6 +106,80 @@ def make_json_safe(x):
         return x.isoformat()
     return x
 
+
+def _is_input_hash_service_field(key: str) -> bool:
+    return (
+        key in INPUT_HASH_IGNORE_FIELDS
+        or key.startswith("list_seen")
+        or key.startswith("last_seen_remote_updated_at")
+    )
+
+
+def _strip_input_hash_service_fields(value):
+    if isinstance(value, dict):
+        return {
+            k: _strip_input_hash_service_fields(v)
+            for k, v in value.items()
+            if not _is_input_hash_service_field(k)
+        }
+    if isinstance(value, list):
+        return [_strip_input_hash_service_fields(v) for v in value]
+    if isinstance(value, tuple):
+        return [_strip_input_hash_service_fields(v) for v in value]
+    return value
+
+
+def _compute_input_hash(payload: dict) -> str:
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=json_default,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _resolve_prompt_key(cfg: dict) -> str:
+    env_value = os.getenv("ANALYZER_PROMPT_KEY")
+    if env_value:
+        return env_value.strip()
+    key = str(cfg.get("analyzer", {}).get("prompt_key", "default")).strip()
+    return key or "default"
+
+
+def _resolve_prompt_version(cfg: dict) -> int | None:
+    env_value = os.getenv("ANALYZER_PROMPT_VERSION")
+    raw = env_value if env_value is not None else cfg.get("analyzer", {}).get("prompt_version")
+    if raw is None or raw == "":
+        return None
+    try:
+        value = int(raw)
+    except Exception as exc:
+        raise RuntimeError(f"Некорректный prompt_version: {raw}") from exc
+    if value < 1:
+        raise RuntimeError(f"prompt_version должен быть >= 1, получено: {value}")
+    return value
+
+
+def _load_analysis_prompt(col_prompt, prompt_key: str, prompt_version: int | None) -> dict:
+    if prompt_version is None:
+        prompt = col_prompt.find_one(
+            {"key": prompt_key, "is_active": True},
+            sort=[("version", DESCENDING)],
+        )
+        if prompt:
+            return prompt
+        raise RuntimeError(
+            f"Prompt не найден: key='{prompt_key}' (ожидалась активная версия). "
+            "Импортируйте default prompt: python3 tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json"
+        )
+
+    prompt = col_prompt.find_one({"key": prompt_key, "version": prompt_version})
+    if prompt:
+        return prompt
+    raise RuntimeError(f"Prompt не найден: key='{prompt_key}', version={prompt_version}")
+
 # ---------- основная логика ----------
 
 def main():
@@ -93,9 +190,11 @@ def main():
     ensure_indexes(db, cfg)
 
     col_list = db[resolve_collection_name(cfg, key="list", default="stellenangebote")]  # stellenangebote
-    col_det = db[resolve_collection_name(cfg, key="details", default="jobdetails")]  # jobdetails
     col_an = db[resolve_collection_name(cfg, key="analysis", default="analysen")]  # analysen
     col_prof = db[resolve_collection_name(cfg, key="profiles", default="profiles")]  # profiles
+    col_prompt = db[
+        resolve_collection_name(cfg, key="analysis_prompts", default="analysis_prompts")
+    ]  # analysis_prompts
 
     # профиль кандидата
     key = cfg["analyzer"]["profile_key"]
@@ -108,12 +207,23 @@ def main():
     load_dotenv()
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     model = cfg["analyzer"]["model"]
+    prompt_key = _resolve_prompt_key(cfg)
+    prompt_version = _resolve_prompt_version(cfg)
+    prompt_doc = _load_analysis_prompt(col_prompt, prompt_key=prompt_key, prompt_version=prompt_version)
+    system_prompt = str(prompt_doc.get("system_prompt", "")).strip()
+    analysis_task = str(prompt_doc.get("analysis_task", "")).strip()
+    if not system_prompt or not analysis_task:
+        raise RuntimeError(
+            f"Prompt key='{prompt_doc.get('key')}', version={prompt_doc.get('version')} "
+            "не содержит system_prompt и/или analysis_task."
+        )
 
     # агрегат: сшиваем meta+details, сразу выбрасываем _id/old (только актуальное состояние)
     cursor = col_list.aggregate([
+        { "$match": { "is_active": { "$ne": False } } },
         {
             "$lookup": {
-                "from": cfg["collections"]["details"],
+                "from": resolve_collection_name(cfg, key="details", default="jobdetails"),
                 "let": {"ref": "$referenznummer"},
                 "pipeline": [
                     { "$match": { "$expr": { "$eq": ["$referenznummer", "$$ref"] } } },
@@ -136,13 +246,6 @@ def main():
         title = (doc.get("stellenangebotsTitel") or "").strip()
         firma = (doc.get("arbeitgeber") or doc.get("firma") or "").strip()
 
-        # уже анализировали?
-        if col_an.find_one({"referenznummer": ref}):
-            log.info(f"{ref}: уже обработана — {title} bei {firma}")
-            continue
-        else:
-            log.info(f"{ref}: новая вакансия — {title} bei {firma}")
-
         details = doc.get("details") or {}
         job_meta = {k: v for k, v in doc.items() if k != "details"}
 
@@ -155,41 +258,44 @@ def main():
         safe_profile = make_json_safe(profile)
         safe_merged  = make_json_safe(merged)
 
-        system = (
-             "Du bist Senior-Recruiter/HRBP auf Unternehmensseite und triffst eine strenge Vorauswahl. "
-             "Du arbeitest ausschließlich im Interesse des Arbeitgebers: Risiko minimieren, nur Kandidaten mit klar belegtem Fit weiterleiten. "
-             "Kein Coaching-Ton, keine Nettigkeiten. Nur belegbare Aussagen.\n\n"
-             "Regeln:\n"
-             "- Nutze primär Nachweise/Ergebnisse (Rollen, Verantwortung, Projekte, Zahlen). Behauptungen ohne Beleg zählen schwach.\n"
-             "- Wenn Informationen fehlen: klar als 'fehlender Nachweis' markieren. Keine Spekulation als факт.\n"
-             "- Prüfe Must-haves zuerst. Wenn Must-haves fehlen -> decision meist 'reject' oder 'hold'.\n\n"
-             "Score 0–100 (kalibriert): "
-             "0–39 Reject, 40–59 Schwach/hohes Risiko, 60–74 Möglich aber Lücken, 75–89 Stark, 90–100 Außergewöhnlich (selten).\n"
-             "Gewichtung: Must-haves 60%, relevante Erfahrung/Impact 25%, Risiken/Red Flags 15%.\n\n"
-             "Ausgabeformat: ausschließlich ein gültiges JSON-Objekt mit exakt diesen Schlüsseln:\n"
-             "- score (0-100, integer)\n"
-             "- decision (\"reject\" | \"hold\" | \"shortlist\")\n"
-             "- reasons (Liste mit genau 5 kurzen Punkten, max. 140 Zeichen je Punkt)\n"
-             "- risks (Liste mit 2 bis 4 kurzen Punkten)\n"
-             "- missing_evidence (Liste mit 2 bis 4 kurzen Punkten)\n"
-             "- notes (optional kurzer Text)\n\n"
-             "Keine zusätzlichen Keys, kein Markdown, keine Texte außerhalb von JSON."
-             )
+        input_hash_payload = {
+            "meta": _strip_input_hash_service_fields(safe_merged.get("meta", {})),
+            "details": _strip_input_hash_service_fields(safe_merged.get("details", {})),
+            "profile": _strip_input_hash_service_fields(safe_profile),
+            "prompt": {
+                "key": prompt_doc.get("key"),
+                "version": prompt_doc.get("version"),
+                "hash": prompt_doc.get("prompt_hash"),
+                "system": system_prompt,
+                "task": analysis_task,
+            },
+            "model": model,
+        }
+        input_hash = _compute_input_hash(input_hash_payload)
+        existing = col_an.find_one({"referenznummer": ref}, {"_id": 1, "input_hash": 1})
+        if existing and existing.get("input_hash") == input_hash:
+            log.info(f"{ref}: вход без изменений — пропуск ({title} bei {firma})")
+            continue
+        if existing:
+            log.info(f"{ref}: вход изменился — переанализ ({title} bei {firma})")
+        else:
+            log.info(f"{ref}: новая вакансия — {title} bei {firma}")
 
 
         user_payload = {
             "candidate_profile": safe_profile,
             "job_payload": safe_merged,
-            "task": "Bewerte die Passung und erstelle Anschreiben. score=0..100 (ohne Prozentzeichen)."
+            "task": analysis_task
         }
+        user_content = json.dumps(user_payload, ensure_ascii=False, default=json_default)
     
         try:
             req = {
                 "model": model,
                 "response_format": {"type": "json_object"},
                 "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False, default=json_default)}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
                 ],
                 #"max_completion_tokens": 1100,
                 #"temperature": 0.2,  # хотим, но не все модели поддерживают
@@ -239,10 +345,32 @@ def main():
 
         out_doc = {
             "referenznummer": ref,
-            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
             "candidate_profile_key": key,
+            "model": model,
+            "input_hash": input_hash,
+            "prompt_key": prompt_doc.get("key"),
+            "prompt_version": prompt_doc.get("version"),
+            "prompt_hash": prompt_doc.get("prompt_hash"),
 
             "job_payload": make_json_safe(merged),
+            "request_snapshot": {
+                "model": req.get("model"),
+                "response_format": req.get("response_format"),
+                "reasoning_effort": req.get("reasoning_effort"),
+                "verbosity": req.get("verbosity"),
+                "messages": req.get("messages"),
+                "user_payload": user_payload,
+            },
+            "prompt_snapshot": {
+                "key": prompt_doc.get("key"),
+                "version": prompt_doc.get("version"),
+                "name": prompt_doc.get("name"),
+                "description": prompt_doc.get("description"),
+                "prompt_hash": prompt_doc.get("prompt_hash"),
+                "system": system_prompt,
+                "task": analysis_task,
+            },
 
             #"candidate_profile": make_json_safe(profile),  # можно убрать, если документ слишком большой
            
@@ -260,7 +388,11 @@ def main():
             "openai_raw": data,     # ответ модели в JSON
         }
 
-        col_an.insert_one(out_doc)
+        if existing:
+            col_an.update_one({"_id": existing["_id"]}, {"$set": out_doc})
+        else:
+            out_doc["created_at"] = out_doc["updated_at"]
+            col_an.insert_one(out_doc)
         processed += 1
         log.info(f"{ref}: анализ сохранён")
 

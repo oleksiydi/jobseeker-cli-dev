@@ -1,5 +1,61 @@
 # jobseeker-cli
 
+## Первый запуск (обязательно)
+
+Перед запуском пайплайнов нужно один раз загрузить в MongoDB:
+- профиль(и) кандидата в `profiles`;
+- default prompt/task в `analysis_prompts`.
+
+Команды:
+```bash
+.venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json
+.venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json
+```
+
+Проверка без записи (опционально):
+```bash
+.venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json --dry-run
+.venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json --dry-run
+```
+
+После этого можно запускать пайплайны:
+```bash
+.venv/bin/python -m app.job_list_collector
+.venv/bin/python -m app.job_details_collector
+.venv/bin/python -m app.analyze_jobs
+```
+
+## Типовые ошибки старта
+
+- `MONGODB_URI is not set`
+- Причина: не настроен `.env` или переменная окружения.
+- Что проверить:
+```bash
+grep -E '^MONGODB_URI=' .env
+```
+
+- `Prompt не найден: key='default'...`
+- Причина: не загружен default prompt/task в `analysis_prompts`.
+- Что сделать:
+```bash
+.venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json
+```
+
+- `Профиль с key='default' не найден`
+- Причина: не загружен профиль в `profiles`.
+- Что сделать:
+```bash
+.venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json
+```
+
+- `dry_run=True, updated=...` повторяется каждый запуск
+- Причина: `--dry-run` не пишет в Mongo, поэтому изменения только “планируются”.
+- Что сделать:
+```bash
+.venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json
+.venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json
+```
+
 ## Политика конфигов (`.env` vs `conf/app.json`)
 
 - `conf/app.json` и `conf/profiles/default.profile.json`:

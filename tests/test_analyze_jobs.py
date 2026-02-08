@@ -17,8 +17,13 @@ class FakeCollection:
     def create_index(self, *args, **kwargs):
         self.indexes.append((args, kwargs))
 
-    def find_one(self, query, projection=None):
-        for doc in self.docs:
+    def find_one(self, query, projection=None, sort=None):
+        docs = list(self.docs)
+        if sort:
+            for field, direction in reversed(sort):
+                reverse = direction == -1
+                docs.sort(key=lambda item: item.get(field), reverse=reverse)
+        for doc in docs:
             if all(doc.get(k) == v for k, v in query.items()):
                 if projection:
                     return {k: v for k, v in doc.items() if projection.get(k, 1) != 0}
@@ -26,10 +31,24 @@ class FakeCollection:
         return None
 
     def aggregate(self, pipeline):
-        return iter(self.docs)
+        docs = list(self.docs)
+        for stage in pipeline:
+            if "$match" in stage:
+                match = stage["$match"]
+                if match == {"is_active": {"$ne": False}}:
+                    docs = [doc for doc in docs if doc.get("is_active") is not False]
+        return iter(docs)
 
     def insert_one(self, doc):
         self.inserted.append(doc)
+
+    def update_one(self, query, update):
+        for doc in self.docs:
+            if all(doc.get(k) == v for k, v in query.items()):
+                set_doc = update.get("$set", {})
+                doc.update(set_doc)
+                return
+        raise AssertionError("No document found for update_one")
 
 
 class FakeDB:
@@ -67,8 +86,23 @@ def base_cfg():
             "details": "details",
             "analysis": "analysis",
             "profiles": "profiles",
+            "analysis_prompts": "analysis_prompts",
         },
-        "analyzer": {"profile_key": "p1", "model": "m1"},
+        "analyzer": {"profile_key": "p1", "model": "m1", "prompt_key": "default", "prompt_version": None},
+    }
+
+
+@pytest.fixture
+def default_prompt_doc():
+    return {
+        "key": "default",
+        "version": 1,
+        "name": "Default",
+        "description": "desc",
+        "system_prompt": "SYSTEM",
+        "analysis_task": "TASK",
+        "prompt_hash": "phash-default-1",
+        "is_active": True,
     }
 
 
@@ -113,25 +147,43 @@ def test_make_json_safe_removes_service_fields():
     assert out["items"][1] == {"keep": 1}
 
 
-def test_main_skips_already_analyzed(base_cfg):
-    col_list = FakeCollection(
-        [
-            {
-                "referenznummer": "ref1",
-                "stellenangebotsTitel": "Dev",
-                "arbeitgeber": "ACME",
-                "details": {"desc": "x"},
-            }
-        ]
+def test_main_skips_already_analyzed(base_cfg, default_prompt_doc):
+    profile = {"key": "p1", "name": "User"}
+    meta = {
+        "referenznummer": "ref1",
+        "stellenangebotsTitel": "Dev",
+        "arbeitgeber": "ACME",
+        "details": {"desc": "x"},
+        "is_active": True,
+    }
+    safe_merged = analyze_jobs.make_json_safe({"meta": {k: v for k, v in meta.items() if k != "details"}, "details": meta["details"]})
+    input_hash = analyze_jobs._compute_input_hash(
+        {
+            "meta": analyze_jobs._strip_input_hash_service_fields(safe_merged.get("meta", {})),
+            "details": analyze_jobs._strip_input_hash_service_fields(safe_merged.get("details", {})),
+            "profile": analyze_jobs._strip_input_hash_service_fields(profile),
+            "prompt": {
+                "key": default_prompt_doc["key"],
+                "version": default_prompt_doc["version"],
+                "hash": default_prompt_doc["prompt_hash"],
+                "system": default_prompt_doc["system_prompt"],
+                "task": default_prompt_doc["analysis_task"],
+            },
+            "model": "m1",
+        }
     )
-    col_an = FakeCollection([{"referenznummer": "ref1"}])
-    col_prof = FakeCollection([{"key": "p1", "name": "User"}])
+    col_list = FakeCollection(
+        [meta]
+    )
+    col_an = FakeCollection([{"_id": "x1", "referenznummer": "ref1", "input_hash": input_hash}])
+    col_prof = FakeCollection([profile])
     db = FakeDB(
         {
             "list": col_list,
             "details": FakeCollection(),
             "analysis": col_an,
             "profiles": col_prof,
+            "analysis_prompts": FakeCollection([default_prompt_doc]),
         }
     )
 
@@ -149,7 +201,7 @@ def test_main_skips_already_analyzed(base_cfg):
     assert len(col_an.inserted) == 0
 
 
-def test_main_inserts_analysis(base_cfg):
+def test_main_inserts_analysis(base_cfg, default_prompt_doc):
     col_list = FakeCollection(
         [
             {
@@ -157,6 +209,7 @@ def test_main_inserts_analysis(base_cfg):
                 "stellenangebotsTitel": "Engineer",
                 "arbeitgeber": "Example",
                 "details": {"desc": "x"},
+                "is_active": True,
             }
         ]
     )
@@ -168,6 +221,7 @@ def test_main_inserts_analysis(base_cfg):
             "details": FakeCollection(),
             "analysis": col_an,
             "profiles": col_prof,
+            "analysis_prompts": FakeCollection([default_prompt_doc]),
         }
     )
 
@@ -201,3 +255,190 @@ def test_main_inserts_analysis(base_cfg):
     assert saved["risks"] == ["risk1"]
     assert saved["missing_evidence"] == ["m1", "m2"]
     assert saved["notes"] == "ok"
+    assert saved["prompt_key"] == "default"
+    assert saved["prompt_version"] == 1
+    assert saved["prompt_hash"] == "phash-default-1"
+    assert saved["prompt_snapshot"]["system"] == "SYSTEM"
+    assert saved["prompt_snapshot"]["task"] == "TASK"
+
+
+def test_main_updates_analysis_when_input_changed(base_cfg, default_prompt_doc):
+    col_list = FakeCollection(
+        [
+            {
+                "referenznummer": "ref3",
+                "stellenangebotsTitel": "Engineer",
+                "arbeitgeber": "Example",
+                "details": {"desc": "new"},
+                "is_active": True,
+            }
+        ]
+    )
+    col_an = FakeCollection([{"_id": "x3", "referenznummer": "ref3", "input_hash": "old-hash", "notes": "old"}])
+    col_prof = FakeCollection([{"key": "p1", "name": "User"}])
+    db = FakeDB(
+        {
+            "list": col_list,
+            "details": FakeCollection(),
+            "analysis": col_an,
+            "profiles": col_prof,
+            "analysis_prompts": FakeCollection([default_prompt_doc]),
+        }
+    )
+
+    response_payload = {
+        "score": 81,
+        "decision": "shortlist",
+        "reasons": ["r1", "r2", "r3", "r4", "r5"],
+        "risks": ["risk1"],
+        "missing_evidence": ["m1", "m2"],
+        "notes": "updated",
+    }
+    fake_response = FakeOpenAIResponse(json.dumps(response_payload))
+    fake_client = FakeOpenAIClient(fake_response)
+
+    with (
+        patch.object(analyze_jobs, "load_app_config", return_value=base_cfg),
+        patch.object(analyze_jobs, "get_database", return_value=db),
+        patch.object(analyze_jobs, "ensure_indexes"),
+        patch.object(analyze_jobs, "load_dotenv"),
+        patch.object(analyze_jobs, "OpenAI", return_value=fake_client),
+    ):
+        analyze_jobs.main()
+
+    assert len(col_an.inserted) == 0
+    updated = col_an.docs[0]
+    assert updated["referenznummer"] == "ref3"
+    assert updated["notes"] == "updated"
+    assert "input_hash" in updated
+
+
+def test_main_skips_inactive_vacancies(base_cfg, default_prompt_doc):
+    col_list = FakeCollection(
+        [
+            {
+                "referenznummer": "inactive-1",
+                "stellenangebotsTitel": "Engineer",
+                "arbeitgeber": "Example",
+                "details": {"desc": "x"},
+                "is_active": False,
+            }
+        ]
+    )
+    col_an = FakeCollection()
+    col_prof = FakeCollection([{"key": "p1", "name": "User"}])
+    db = FakeDB(
+        {
+            "list": col_list,
+            "details": FakeCollection(),
+            "analysis": col_an,
+            "profiles": col_prof,
+            "analysis_prompts": FakeCollection([default_prompt_doc]),
+        }
+    )
+    fake_client = FakeOpenAIClient(FakeOpenAIResponse("{}"))
+
+    with (
+        patch.object(analyze_jobs, "load_app_config", return_value=base_cfg),
+        patch.object(analyze_jobs, "get_database", return_value=db),
+        patch.object(analyze_jobs, "ensure_indexes"),
+        patch.object(analyze_jobs, "load_dotenv"),
+        patch.object(analyze_jobs, "OpenAI", return_value=fake_client),
+    ):
+        analyze_jobs.main()
+
+    assert len(col_an.inserted) == 0
+
+
+def test_main_uses_latest_active_prompt_when_version_not_set(base_cfg):
+    col_list = FakeCollection(
+        [
+            {
+                "referenznummer": "ref-latest",
+                "stellenangebotsTitel": "Engineer",
+                "arbeitgeber": "Example",
+                "details": {"desc": "x"},
+                "is_active": True,
+            }
+        ]
+    )
+    col_an = FakeCollection()
+    col_prof = FakeCollection([{"key": "p1", "name": "User"}])
+    col_prompts = FakeCollection(
+        [
+            {
+                "key": "default",
+                "version": 1,
+                "system_prompt": "SYSTEM V1",
+                "analysis_task": "TASK V1",
+                "prompt_hash": "hash-v1",
+                "is_active": True,
+            },
+            {
+                "key": "default",
+                "version": 2,
+                "system_prompt": "SYSTEM V2",
+                "analysis_task": "TASK V2",
+                "prompt_hash": "hash-v2",
+                "is_active": True,
+            },
+        ]
+    )
+    db = FakeDB(
+        {
+            "list": col_list,
+            "details": FakeCollection(),
+            "analysis": col_an,
+            "profiles": col_prof,
+            "analysis_prompts": col_prompts,
+        }
+    )
+    response_payload = {
+        "score": 78,
+        "decision": "shortlist",
+        "reasons": ["r1", "r2", "r3", "r4", "r5"],
+        "risks": ["risk1"],
+        "missing_evidence": ["m1", "m2"],
+        "notes": "ok",
+    }
+    fake_client = FakeOpenAIClient(FakeOpenAIResponse(json.dumps(response_payload)))
+
+    with (
+        patch.object(analyze_jobs, "load_app_config", return_value=base_cfg),
+        patch.object(analyze_jobs, "get_database", return_value=db),
+        patch.object(analyze_jobs, "ensure_indexes"),
+        patch.object(analyze_jobs, "load_dotenv"),
+        patch.object(analyze_jobs, "OpenAI", return_value=fake_client),
+    ):
+        analyze_jobs.main()
+
+    assert len(col_an.inserted) == 1
+    saved = col_an.inserted[0]
+    assert saved["prompt_version"] == 2
+    assert saved["prompt_hash"] == "hash-v2"
+    assert saved["prompt_snapshot"]["system"] == "SYSTEM V2"
+
+
+def test_main_raises_if_default_prompt_missing(base_cfg):
+    col_list = FakeCollection([])
+    col_an = FakeCollection()
+    col_prof = FakeCollection([{"key": "p1", "name": "User"}])
+    db = FakeDB(
+        {
+            "list": col_list,
+            "details": FakeCollection(),
+            "analysis": col_an,
+            "profiles": col_prof,
+            "analysis_prompts": FakeCollection([]),
+        }
+    )
+
+    with (
+        patch.object(analyze_jobs, "load_app_config", return_value=base_cfg),
+        patch.object(analyze_jobs, "get_database", return_value=db),
+        patch.object(analyze_jobs, "ensure_indexes"),
+        patch.object(analyze_jobs, "load_dotenv"),
+        patch.object(analyze_jobs, "OpenAI"),
+    ):
+        with pytest.raises(RuntimeError, match="Prompt не найден"):
+            analyze_jobs.main()

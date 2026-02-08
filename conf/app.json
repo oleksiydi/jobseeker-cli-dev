@@ -6,7 +6,8 @@
     "list": "stellenangebote",
     "details": "jobdetails",
     "analysis": "analysen",
-    "profiles": "profiles"
+    "profiles": "profiles",
+    "analysis_prompts": "analysis_prompts"
   },
   "history_collections": {
     "list": "stellenangebote_history",
@@ -48,6 +49,8 @@
   },
   "analyzer": {
     "model": "gpt-5-nano",
-    "profile_key": "default"
+    "profile_key": "default",
+    "prompt_key": "default",
+    "prompt_version": null
   }
 }

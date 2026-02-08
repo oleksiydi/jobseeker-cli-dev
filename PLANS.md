@@ -496,6 +496,229 @@
 - Следующие действия:
 - Этап 6 закрыт.
 
+### [PLAN-20260208-07] Этап 7: идемпотентный анализ `analysen` (input_hash + version)
+
+Контекст:
+- Что меняем и зачем.
+- Текущая логика `app/analyze_jobs.py` пропускает вакансию, если в `analysen` уже есть запись по `referenznummer`.
+- Это не учитывает изменения входа (`meta/details/profile/prompt/model`) и приводит к устаревшим анализам.
+- Цель: реализовать версионирование анализа и пересоздавать новую версию только при реальном изменении входа.
+- Анализ и оценка выполняются только для вакансий, активных в `stellenangebote` на момент последнего обновления (`is_active != false`).
+- Какие ограничения.
+- Основная коллекция `analysen` не переименовывается.
+- Для `analysen` отдельная `*_history` коллекция не нужна: версии храним в самой `analysen`.
+
+Область изменений:
+- Файлы/модули:
+- `app/analyze_jobs.py`, при необходимости `app/core/...` для общих hash/validation helper.
+- `conf/app.json` (feature flag для новой логики анализа), при необходимости `README.md`.
+- Данные/индексы MongoDB:
+- Новые индексы в `analysen`: `(referenznummer, input_hash)` unique, `(referenznummer, is_latest)`.
+
+Правила сравнения входа (`input_hash`):
+- Учитываем:
+- `meta`: бизнес-поля вакансии из `stellenangebote` после JSON-safe нормализации.
+- `details`: бизнес-поля из `jobdetails` после JSON-safe нормализации.
+- `profile`: данные выбранного профиля по `analyzer.profile_key`.
+- `prompt`: итоговый system/user prompt (шаблон и его версия).
+- `model`: идентификатор модели (`analyzer.model`).
+- Пропускаем:
+- Служебные/технические поля хранения: `_id`, `old`, `created_at`, `updated_at`, `last_checked_at`.
+- Технические хеши/версии и маркеры пайплайна: `meta_hash`, `details_hash`, `input_hash`, `version`, `is_latest`.
+- Операционные поля видимости/ранов: `run_id`, `seen_at`, `missing_since`, `list_seen*`, `last_seen_remote_updated_at*`.
+- Вход для анализа ограничивается активными вакансиями: `stellenangebote.is_active != false`.
+
+Шаги:
+1. Ввести расчет `input_hash`.
+Критерий готовности: hash строится стабильно из `meta + details + profile + prompt + model` после JSON-safe нормализации.
+Риски: нестабильная сериализация приведет к ложным новым версиям.
+Откат: временно оставить старую логику skip-only по `referenznummer`.
+
+2. Добавить версионирование в `analysen`.
+Критерий готовности: при новом `input_hash` создается новая версия (`version + 1`), прошлые версии помечаются `is_latest=false`; при том же hash — skip.
+Риски: гонки при параллельном запуске.
+Откат: последовательный режим записи + упрощенный upsert по уникальному ключу.
+
+3. Ограничить анализ только активными вакансиями.
+Критерий готовности: в цикл анализа попадают только документы `stellenangebote` с `is_active != false`.
+Риски: старые документы без `is_active`.
+Откат: совместимый фильтр по умолчанию считать отсутствие флага активным (уже соответствует `is_active != false`).
+
+4. Усилить надежность OpenAI-вызова и валидации ответа.
+Критерий готовности: ретраи для временных ошибок (`429/5xx`), проверка обязательных полей ответа, понятные error-логи.
+Риски: увеличение времени прогона.
+Откат: уменьшить число ретраев и вернуть текущий single-shot режим.
+
+5. Добавить run-level метрики анализа.
+Критерий готовности: в логах итоговые счетчики `seen/new_version/skipped_same_hash/errors`.
+Риски: шум в логах.
+Откат: оставить только итоговую строку без детальных счетчиков.
+
+Проверки:
+- Команды:
+- `.venv/bin/pytest -q`
+- `.venv/bin/python -m app.analyze_jobs`
+- Что должно получиться:
+- Повторный запуск без изменений увеличивает `skipped_same_hash`, не создает новые версии.
+- При изменении входа создается ровно одна новая версия в `analysen`.
+- Индексы предотвращают дубли `(referenznummer, input_hash)`.
+- Вакансии с `is_active=false` не анализируются и не получают новых оценок.
+
+Статус:
+- [x] Запланировано
+- [x] В работе
+- [ ] Завершено
+
+Итог:
+- Что сделано:
+- План этапа 7 зафиксирован.
+- В `app/analyze_jobs.py` добавлен фильтр анализа только для активных вакансий: `is_active != false`.
+- Реализован расчет `input_hash` по `meta + details + profile + prompt + model` с исключением служебных полей.
+- Логика анализа стала идемпотентной по хешу входа: при одинаковом `input_hash` — `skip`, при изменении — переанализ и обновление записи.
+- Добавлен индекс `input_hash` в `analysen`.
+- Обновлены тесты `tests/test_analyze_jobs.py` под новую логику (same-hash skip, changed-hash update, inactive skip).
+- Что не сделано:
+- Не реализовано полноценное версионирование `analysen` (`version`, `is_latest`, хранение нескольких версий на `referenznummer`).
+- Не добавлены ретраи `429/5xx` и строгая валидация обязательных полей ответа OpenAI.
+- Не добавлены run-level счетчики `seen/new_version/skipped_same_hash/errors`.
+- Следующие действия:
+- Реализовать шаг 2: переход на схему версий (`version`, `is_latest`) и составные индексы `(referenznummer,input_hash)` и `(referenznummer,is_latest)`.
+
+### [PLAN-20260208-08] Этап 8: prompt/task в MongoDB (`analysis_prompts`)
+
+Контекст:
+- Убрать hardcoded `SYSTEM_PROMPT` и `ANALYSIS_TASK` из runtime-пути анализа.
+- Хранить шаблоны запросов в MongoDB с версиями и метаданными.
+- Использовать prompt по умолчанию из коллекции, если явно не задан другой.
+
+Область изменений:
+- Файлы/модули:
+- `app/analyze_jobs.py`, `tools/import_analysis_prompts.py`, `conf/prompts/default.prompt_task.json`, `conf/app.json`.
+- Отдельная постановка и дизайн:
+- `PROMPT_TASK_COLLECTION_PLAN.md`.
+- Данные/индексы MongoDB:
+- Новая коллекция `analysis_prompts`, индекс `(key, version)` unique.
+
+Шаги:
+1. Создать коллекцию prompt/task и схему документа.
+Критерий готовности: в MongoDB есть `analysis_prompts` с документом `default:v1` и индексом `(key,version)`.
+Риски: несогласованность формата между JSON и кодом.
+Откат: оставить текущие hardcoded константы как временный fallback.
+
+2. Добавить файл `conf/prompts/default.prompt_task.json` и утилиту импорта.
+Критерий готовности: команда импорта создает/обновляет prompt-документы idempotent-образом.
+Риски: случайные дубли версий.
+Откат: удалить новые документы и повторно импортировать из эталонного JSON.
+
+3. Переключить `analyze_jobs` на чтение prompt из `analysis_prompts`.
+Критерий готовности: при запуске анализатор берет prompt по `prompt_key`/`prompt_version` или latest active для key.
+Риски: runtime-ошибка при пустой коллекции.
+Откат: временно вернуть hardcoded fallback до заполнения коллекции.
+
+Проверки:
+- Команды:
+- `.venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json`
+- `.venv/bin/pytest -q`
+- `.venv/bin/python -m app.analyze_jobs`
+- Что должно получиться:
+- Prompt выбирается из MongoDB.
+- При одинаковом входе и prompt `input_hash` остается стабильным.
+- Snapshot запроса в `analysen` содержит используемый prompt из БД.
+
+Статус:
+- [x] Запланировано
+- [x] В работе
+- [x] Завершено
+
+Итог:
+- Что сделано:
+- Этап 8 зафиксирован; дизайн вынесен в `PROMPT_TASK_COLLECTION_PLAN.md`.
+- Добавлен default prompt-файл `conf/prompts/default.prompt_task.json` (key=`default`, version=`1`).
+- Добавлена утилита `tools/import_analysis_prompts.py` для idempotent upsert prompt/task по `(key, version)` с расчетом `prompt_hash`.
+- В `conf/app.json` добавлены:
+- `collections.analysis_prompts`
+- `analyzer.prompt_key`
+- `analyzer.prompt_version`
+- В `app/db/mongo.py` добавлен ENV override `COLLECTION_ANALYSIS_PROMPTS`.
+- `app/analyze_jobs.py` переведен на выбор prompt из MongoDB (`analysis_prompts`):
+- если `prompt_version` не задан, выбирается latest active для `prompt_key` (по умолчанию `default`);
+- если prompt не найден — fail-fast с понятной ошибкой.
+- В результатах `analysen` сохраняются `prompt_key`, `prompt_version`, `prompt_hash`, а также полный `prompt_snapshot` и `request_snapshot`.
+- Обновлены тесты `tests/test_analyze_jobs.py` под новую prompt-логику:
+- выбор latest active prompt;
+- ошибка при отсутствии default prompt;
+- сохранение prompt-метаданных в анализе.
+- Выполнены проверки:
+- `.venv/bin/pytest -q tests/test_analyze_jobs.py` -> `10 passed`.
+- `.venv/bin/pytest -q` -> `15 passed`.
+- `.venv/bin/python -c "...import_analysis_prompts..."` -> `ok` (локальная валидация JSON/normalization без подключения к MongoDB).
+- `.venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json` -> `ServerSelectionTimeoutError` (в сессии нет доступа к `localhost:27017`).
+- Что не сделано:
+- Интеграционная проверка импорта в реальную MongoDB не завершена из-за сетевого ограничения текущей сессии (`Operation not permitted` при доступе к `localhost:27017`).
+- Следующие действия:
+- Выполнить в окружении с доступной MongoDB:
+- `.venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json`
+- После импорта запустить `.venv/bin/python -m app.analyze_jobs`.
+
+### [PLAN-20260208-09] Этап 9: оптимизация import-утилит (profiles + prompts)
+
+Контекст:
+- Импорт профилей и prompt/task должен быть идемпотентным без лишних записей при неизменных данных.
+- Нужен единый подход к конфигу/DB, dry-run режим и строгая валидация входного JSON.
+
+Область изменений:
+- Файлы/модули:
+- `tools/import_profiles.py`, `tools/import_analysis_prompts.py`, `tests/test_import_tools.py`.
+- Данные/индексы MongoDB:
+- Схема и индексы сохраняются, меняется только поведение записи (без лишних update).
+
+Шаги:
+1. Унифицировать `import_profiles.py` на общий конфиг/DB слой.
+Критерий готовности: используется `load_app_config/get_database/resolve_collection_name`.
+Риски: несовместимость с прежними CLI параметрами.
+Откат: вернуть предыдущую версию скрипта.
+
+2. Добавить idempotent-поведение без лишних update.
+Критерий готовности: при неизменном входе запись в Mongo не выполняется, счетчик `unchanged` растет.
+Риски: некорректное сравнение документов.
+Откат: временно вернуть always-upsert.
+
+3. Добавить `--dry-run` и `--strict-validate` в оба импортера.
+Критерий готовности: dry-run показывает операции без записи; strict режет некорректные документы.
+Риски: слишком строгие проверки для старых файлов.
+Откат: запуск без strict-validate.
+
+4. Добавить unit-тесты на helper-логику импорта.
+Критерий готовности: тесты покрывают нормализацию/валидацию/загрузку docs.
+Риски: неполное покрытие интеграционного поведения с Mongo.
+Откат: оставить только smoke-проверки CLI.
+
+Проверки:
+- Команды:
+- `.venv/bin/pytest -q tests/test_import_tools.py`
+- `.venv/bin/pytest -q`
+- Что должно получиться:
+- Тесты проходят.
+- Импортеры сообщают `dry_run` и корректные счетчики `inserted/updated/unchanged`.
+
+Статус:
+- [x] Запланировано
+- [x] В работе
+- [x] Завершено
+
+Итог:
+- Что сделано:
+- `tools/import_profiles.py` переведен на общий конфиг/DB слой и collection resolution.
+- В `tools/import_profiles.py` добавлены `profile_hash`, пропуск лишних update, `--dry-run`, `--strict-validate`.
+- В `tools/import_analysis_prompts.py` добавлены пропуск лишних update, `--dry-run`, `--strict-validate`.
+- Добавлены unit-тесты `tests/test_import_tools.py`.
+- Что не сделано:
+- Интеграционный прогон импортов с реальной MongoDB в текущей сессии ограничен доступом к `localhost:27017`.
+- Следующие действия:
+- Прогнать импортеры в окружении с доступной MongoDB:
+- `.venv/bin/python tools/import_profiles.py --dry-run`
+- `.venv/bin/python tools/import_analysis_prompts.py --dry-run`
+
 ## Отложенные наблюдения (backlog)
 
 ### [NOTE-20260208-01] Стабильный `diff_positive` между `stellenangebote` и `jobdetails`
@@ -521,3 +744,31 @@
 - Проверить выборку `diff_positive` на интервальной серии запусков (trend по дням/неделям).
 - Зафиксировать, какие поля API источника чаще всего вызывают расхождение времени.
 - Решить, нужен ли отдельный фильтр/правило для таких кейсов.
+
+### [NOTE-20260208-02] Бизнес-нормализация payload для LLM
+
+Контекст:
+- Сейчас в OpenAI отправляется JSON-safe payload (без `_id/old`), но не полностью бизнес-нормализованный набор полей.
+- Для повышения стабильности анализа полезно отдельно внедрить нормализатор business-полей и использовать его и для `input_hash`, и для фактического LLM payload.
+
+Статус:
+- Отложено.
+
+Что сделать позже:
+- Определить whitelist/правила бизнес-нормализации для `meta/details/profile`.
+- Выровнять: одинаковый нормализованный payload уходит и в OpenAI, и в snapshot/`input_hash`.
+- Добавить тесты на стабильность нормализации и отсутствие ложных переанализов.
+
+### [NOTE-20260208-03] Переключаемая стратегия хранения анализа (snapshot vs references)
+
+Контекст:
+- Текущий приоритет: хранить полные snapshot (prompt + вход + результат) в `analysen`.
+- На росте объема может понадобиться режим хранения только ссылок на версии входа/prompt при сохранении воспроизводимости.
+
+Статус:
+- Отложено.
+
+Что сделать позже:
+- Добавить feature flag стратегии хранения (например, `analysis_storage_mode=snapshot|reference`).
+- В режиме `reference` хранить идентификаторы/хеши версий входа и prompt вместо полных тел.
+- Подготовить миграционный/совместимый слой чтения для обеих стратегий.

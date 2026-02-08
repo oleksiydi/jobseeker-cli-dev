@@ -12,6 +12,7 @@ COLLECTION_ENV_OVERRIDES: dict[str, str] = {
     "details": "COLLECTION_JOBDETAILS",
     "analysis": "COLLECTION_ANALYSEN",
     "profiles": "COLLECTION_PROFILES",
+    "analysis_prompts": "COLLECTION_ANALYSIS_PROMPTS",
 }
 
 
