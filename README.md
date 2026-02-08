@@ -17,3 +17,27 @@
 - Важно:
 - `config/` не используется как рабочий источник конфигурации.
 - Единый стандарт проекта: `conf/`.
+
+## Диагностика `404` в `jobdetails`
+
+- Новый инструмент: `tools/check_list_seen.py`.
+- Назначение: проверить, были ли проблемные `referenznummer` в последнем запуске сборщика списка (`list_seen`).
+
+- Проверить номера из лога `job_details_collector`:
+```bash
+.venv/bin/python tools/check_list_seen.py --from-log /tmp/job_details_after_list.log --print-missing
+```
+
+- Проверить конкретные номера:
+```bash
+.venv/bin/python tools/check_list_seen.py --ref 10001-1000943252-S --ref 10000-1205119986-S --print-missing --print-present
+```
+
+- Проверить относительно конкретного `run_id`:
+```bash
+.venv/bin/python tools/check_list_seen.py --run-id list-20260206T232446-cc175cdc --from-log /tmp/job_details_after_list.log --print-missing
+```
+
+- Логика:
+- `present_in_run`: номер был в последнем list-run.
+- `missing_in_run`: номер отсутствовал в list-run (типичный случай для части `404` в деталях).

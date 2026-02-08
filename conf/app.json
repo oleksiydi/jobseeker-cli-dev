@@ -8,6 +8,13 @@
     "analysis": "analysen",
     "profiles": "profiles"
   },
+  "history_collections": {
+    "list": "stellenangebote_history",
+    "details": "jobdetails_history"
+  },
+  "history_ttl_days": {
+    "list_seen": 540
+  },
   "jobcenter": {
     "list_api": {
       "api_url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs",
