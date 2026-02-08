@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import app.job_list_collector as job_list_collector
@@ -111,7 +111,7 @@ class FakeSession:
 
 
 def test_main_marks_missing_records_inactive():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     seen_payload = {"referenznummer": "A", "titel": "Job A"}
     seen_hash = job_list_collector._compute_meta_hash({"referenznummer": "A", "titel": "Job A"})
 

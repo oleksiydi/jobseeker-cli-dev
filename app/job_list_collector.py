@@ -33,6 +33,7 @@ if __package__ is None or __package__ == "":
 
 from app.core.config import load_app_config
 from app.core.logging import get_logger
+from app.core.time_utils import parse_remote_dt, utcnow_naive
 from app.db.mongo import get_database, resolve_collection_name
 
 
@@ -75,6 +76,7 @@ def _ensure_indexes(
     col.create_index([("meta_hash", ASCENDING)])
     col.create_index([("is_active", ASCENDING)])
     col.create_index([("updated_at", ASCENDING)])
+    col.create_index([("modifikationsTimestamp_dt", ASCENDING)])
 
     history = db[history_collection_name]
     history.create_index([("referenznummer", ASCENDING), ("changed_at", ASCENDING)])
@@ -113,7 +115,13 @@ def _meta_payload(item: dict[str, Any]) -> dict[str, Any]:
 
 def _compute_meta_hash(payload: dict[str, Any]) -> str:
     """Стабильный hash для детекта изменений по meta-входу."""
-    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=lambda value: value.isoformat() if isinstance(value, datetime) else str(value),
+    )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
@@ -220,7 +228,7 @@ def main() -> None:
     _ensure_indexes(db, list_collection_name, history_collection_name, list_seen_ttl_days)
     col: Collection = db[list_collection_name]
     col_history: Collection = db[history_collection_name]
-    run_id = f"list-{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}-{uuid4().hex[:8]}"
+    run_id = f"list-{utcnow_naive().strftime('%Y%m%dT%H%M%S')}-{uuid4().hex[:8]}"
     log.info(
         "Запуск list_collector: run_id=%s, list_seen_ttl_days=%s",
         run_id,
@@ -293,7 +301,8 @@ def main() -> None:
         for raw in prepared_items:
             ref = raw["referenznummer"]
             seen_refs_in_run.add(ref)
-            now = datetime.utcnow()
+            now = utcnow_naive()
+            raw["modifikationsTimestamp_dt"] = parse_remote_dt(raw.get("modifikationsTimestamp"))
             payload = _meta_payload(raw)
             payload["referenznummer"] = ref
             new_hash = _compute_meta_hash(payload)
@@ -403,7 +412,7 @@ def main() -> None:
             col.find(missing_filter, {"_id": 1, "referenznummer": 1, "missing_since": 1})
         )
         if missing_docs:
-            now = datetime.utcnow()
+            now = utcnow_naive()
             missing_ops: list[UpdateOne] = []
             missing_history_docs: list[dict[str, Any]] = []
             for doc in missing_docs:

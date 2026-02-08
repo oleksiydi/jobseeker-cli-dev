@@ -349,7 +349,7 @@
 Статус:
 - [x] Запланировано
 - [x] В работе
-- [ ] Завершено
+- [x] Завершено
 
 Итог:
 - Что сделано:
@@ -361,10 +361,12 @@
 - Добавлен диагностический CLI `tools/check_list_seen.py` для проверки `404` относительно последнего `run_id` в `stellenangebote_history`.
 - Выполнен новый сбор списка: `run_id=list-20260206T232446-cc175cdc`, `seen=4772`, `inserted=146`, `updated=274`, `skipped=4352`, `archived=274`.
 - Проверка `404` по новому логу `jobdetails`: `input_refs=78`, `present_in_run=0`, `missing_in_run=78` (все 404 отсутствовали в последнем list-run).
+- Выполнен полный контрольный прогон без принудительного таймаута: `.venv/bin/python -m app.job_details_collector`.
+- Итог полного прогона (2026-02-08): `Готово. Обновлено/добавлено: 801`.
 - Что не сделано:
-- Нет финального подтверждения метрик на полном реальном прогоне `job_details_collector` без таймаута (`timeout 1200s` завершил запуск кодом `124`).
+- Нет открытых задач в рамках этапа 4.
 - Следующие действия:
-- Выполнить контрольный запуск `app.job_details_collector` без принудительного таймаута и зафиксировать итоговые метрики.
+- Перейти к этапу 6: завершить миграцию MongoDB Date-полей и зафиксировать результаты backfill.
 
 ### [PLAN-20260207-05] Этап 5: inactive-логика списка и фильтрация details
 
@@ -422,6 +424,100 @@
 - В `app/job_details_collector.py` выборка кандидатов ограничена условием `{"is_active": {"$ne": False}}`.
 - Добавлены тесты `tests/test_job_list_collector_inactive.py` и `tests/test_job_details_collector_active_filter.py`.
 - Что не сделано:
-- Не выполнен реальный долгий прогон pipeline на production-данных в рамках этой задачи.
+- Нет блокирующих задач для этапа 5.
+- Расширенное нагрузочное/долгосрочное тестирование оставлено как follow-up (не блокирует закрытие этапа).
 - Следующие действия:
-- Запустить `python3 -m app.job_list_collector` и `python3 -m app.job_details_collector` в рабочей среде и проверить метрики `marked_missing/restored` и падение числа `remote_not_found`.
+- При следующем цикле качества: периодически мониторить метрики `marked_missing/restored` и динамику `remote_not_found`.
+
+### [PLAN-20260208-06] Этап 6: MongoDB Date-поля для remote timestamp
+
+Контекст:
+- Что меняем и зачем.
+- Добавляем явные MongoDB Date-поля для remote-времени:
+- `stellenangebote.modifikationsTimestamp_dt`
+- `jobdetails.aenderungsdatum_dt`
+- `jobdetails.last_seen_remote_updated_at_dt`
+- Цель: убрать неоднозначность строковых дат и ускорить сравнения/агрегации.
+- Ключевое правило миграции: существующие строки без timezone интерпретируем как `Europe/Berlin`.
+
+Область изменений:
+- Файлы/модули:
+- `app/core/time_utils.py`, `app/job_list_collector.py`, `app/job_details_collector.py`, `tools/backfill_remote_datetime_fields.py`.
+- `PLANS.md`, при необходимости `README.md`.
+- Данные/индексы MongoDB:
+- Индексы по новым Date-полям в основных коллекциях.
+
+Шаги:
+1. Добавить единый helper парсинга remote datetime с правилом `Europe/Berlin` для naive строк.
+Критерий готовности: helper возвращает timezone-aware UTC datetime и используется для новых `*_dt`.
+Риски: неправильная интерпретация старых строк без timezone.
+Откат: временно вернуться к старому `parse_dt` для gate-сравнений.
+
+2. Обновить `job_list_collector` и `job_details_collector` для записи/обновления `*_dt` полей на каждом upsert/update.
+Критерий готовности: новые и обновленные документы содержат `*_dt`.
+Риски: несогласованность между строковым и Date-полем.
+Откат: отключить запись `*_dt` без удаления старых строковых полей.
+
+3. Добавить миграционный backfill-скрипт для существующих документов.
+Критерий готовности: script обновляет Date-поля батчами и выводит статистику `updated/failed`.
+Риски: длительный прогон на больших объемах.
+Откат: запуск в `--dry-run`, затем дозапуск с меньшим batch-size.
+
+Проверки:
+- Команды:
+- `.venv/bin/pytest -q`
+- `.venv/bin/python tools/backfill_remote_datetime_fields.py --dry-run`
+- `.venv/bin/python tools/backfill_remote_datetime_fields.py`
+- Что должно получиться:
+- Данные корректно парсятся в Date-поля без потери строковых исходников.
+- Коллекторы продолжают работать и используют Date-поля в date-gate.
+
+Статус:
+- [x] Запланировано
+- [x] В работе
+- [x] Завершено
+
+Итог:
+- Что сделано:
+- Добавлен helper `parse_remote_dt` с правилом `Europe/Berlin` для naive datetime и нормализацией к UTC в `app/core/time_utils.py`.
+- Добавлен helper `ensure_utc_datetime` для безопасной нормализации MongoDB datetime.
+- Обновлен `app/job_list_collector.py`: запись `modifikationsTimestamp_dt` и индекс по `modifikationsTimestamp_dt`.
+- Обновлен `app/job_details_collector.py`: запись `aenderungsdatum_dt` и `last_seen_remote_updated_at_dt`, использование `*_dt` в date-gate с fallback на строковые поля, добавлены индексы.
+- Добавлен миграционный скрипт `tools/backfill_remote_datetime_fields.py`.
+- Добавлены тесты `tests/test_time_utils.py` для проверки интерпретации naive datetime как `Europe/Berlin` (зима/лето).
+- Выполнены проверки:
+- `.venv/bin/pytest -q` -> `10 passed`.
+- `.venv/bin/python tools/backfill_remote_datetime_fields.py --dry-run` -> `updated=0`, `failed_parse=0` по всем целевым полям.
+- `.venv/bin/python tools/backfill_remote_datetime_fields.py` -> `updated=0`, `failed_parse=0` по всем целевым полям.
+- Дополнительно проверено, что отсутствуют документы с source-полями без новых `*_dt`:
+- `missing_list_dt=0`, `missing_details_aenderungsdatum_dt=0`, `missing_details_last_seen_dt=0`.
+- Что не сделано:
+- Нет открытых задач в рамках этапа 6.
+- Следующие действия:
+- Этап 6 закрыт.
+
+## Отложенные наблюдения (backlog)
+
+### [NOTE-20260208-01] Стабильный `diff_positive` между `stellenangebote` и `jobdetails`
+
+Контекст:
+- По агрегату на 2026-02-08 зафиксировано:
+- `total_joined=5754`
+- `diff_null=0`
+- `diff_negative=8`
+- `diff_zero=5644`
+- `diff_positive=102`
+- Наблюдение: `diff_positive` сохраняется даже после повторных прогонов, вероятно это особенность/задержка данных источника Jobcenter, а не текущей логики пайплайна.
+
+Статус:
+- Отложено сознательно.
+- В ближайшие этапы не включать.
+
+Когда вернуться:
+- При следующем цикле оптимизации date-gate/качества данных источника.
+- Или при заметном росте `diff_positive` относительно текущего baseline (`102`).
+
+Что сделать позже:
+- Проверить выборку `diff_positive` на интервальной серии запусков (trend по дням/неделям).
+- Зафиксировать, какие поля API источника чаще всего вызывают расхождение времени.
+- Решить, нужен ли отдельный фильтр/правило для таких кейсов.

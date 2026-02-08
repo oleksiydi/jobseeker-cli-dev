@@ -39,7 +39,7 @@ if __package__ is None or __package__ == "":
 
 from app.core.config import load_app_config
 from app.core.logging import get_logger
-from app.core.time_utils import parse_dt
+from app.core.time_utils import ensure_utc_datetime, parse_remote_dt, utcnow_naive
 from app.db.mongo import get_database, resolve_collection_name
 
 # ---------- утилиты (вспомогательные функции) ----------
@@ -51,6 +51,8 @@ SERVICE_FIELDS = {
     "details_hash",
     "old",
     "last_seen_remote_updated_at",
+    "last_seen_remote_updated_at_dt",
+    "aenderungsdatum_dt",
     "last_checked_at",
 }
 CONTENT_HASH_EXCLUDE_FIELDS = {"aenderungsdatum"}
@@ -70,6 +72,8 @@ def ensure_indexes(
     det = db[details_collection_name]
     det.create_index([("referenznummer", ASCENDING)], unique=True)
     det.create_index([("aenderungsdatum", ASCENDING)])
+    det.create_index([("aenderungsdatum_dt", ASCENDING)])
+    det.create_index([("last_seen_remote_updated_at_dt", ASCENDING)])
     det.create_index([("details_hash", ASCENDING)])
 
     history = db[history_collection_name]
@@ -193,7 +197,7 @@ def main():  # Главная функция, которая управляет 
     # Берем только активные вакансии (совместимость: отсутствие is_active считаем активной).
     cursor = list_col.find(
         {"is_active": {"$ne": False}},
-        {"referenznummer": 1, "refnr": 1, "modifikationsTimestamp": 1},
+        {"referenznummer": 1, "refnr": 1, "modifikationsTimestamp": 1, "modifikationsTimestamp_dt": 1},
     )  # Итератор по кандидатам для обновления details
     processed = 0  # Счётчик обработанных (созданных/обновлённых) записей деталей
 
@@ -203,7 +207,9 @@ def main():  # Главная функция, которая управляет 
             continue  # Переходим к следующему документу
 
         sa_raw = doc.get("modifikationsTimestamp")  # Дата/время изменения в "списке" (как строка)
-        sa_dt = parse_dt(sa_raw)  # Пробуем распарсить строку в объект datetime
+        sa_dt = ensure_utc_datetime(doc.get("modifikationsTimestamp_dt"))
+        if sa_dt is None:
+            sa_dt = parse_remote_dt(sa_raw)  # fallback для старых документов без *_dt
         if sa_dt is None:  # Если распарсить не удалось — мы не можем корректно сравнить даты
             log.info(f"{ref}: нет корректного modifikationsTimestamp в stellenangebote — пропуск запроса")  # Сообщаем и пропускаем
             continue  # Переходим к следующей вакансии
@@ -212,7 +218,11 @@ def main():  # Главная функция, которая управляет 
 
         if current:  # Если запись деталей уже существует
             jd_raw = current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
-            jd_dt = parse_dt(jd_raw)  # Парсим его в datetime (или получаем None)
+            jd_dt = ensure_utc_datetime(
+                current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
+            )
+            if jd_dt is None:
+                jd_dt = parse_remote_dt(jd_raw)  # fallback для старых документов без *_dt
 
             # --- КЛЮЧЕВОЕ УСЛОВИЕ: обращаемся к API ТОЛЬКО если дата в списке СТРОГО больше даты в деталях ---
             if jd_dt is not None and sa_dt <= jd_dt:  # Если в деталях дата есть и список НЕ новее (<=), то обновлять не нужно
@@ -251,7 +261,7 @@ def main():  # Главная функция, которая управляет 
             time.sleep(2 ** attempt ** random.uniform(0.9, 4))  # Ждём 1/2/4  * randon секунд между попытками (экспоненциальная пауза)
 
         if remote_not_found:
-            now = datetime.utcnow()
+            now = utcnow_naive()
             det_history_col.insert_one(
                 _build_remote_not_found_event(
                     referenznummer=ref,
@@ -272,10 +282,17 @@ def main():  # Главная функция, которая управляет 
         payload["referenznummer"] = ref  # Явно указываем связку с референс-номером
         payload.setdefault("aenderungsdatum", None)  # Если поля нет — добавим с None (чтобы парсер не падал)
         remote_updated_raw = payload.get("aenderungsdatum")
-        new_dt = parse_dt(remote_updated_raw) or datetime.now(timezone.utc)  # Для сравнений в date-gate
+        remote_updated_dt = parse_remote_dt(remote_updated_raw)
+        new_dt = remote_updated_dt or datetime.now(timezone.utc)  # Для сравнений в date-gate
 
         if current:  # Если документ уже существовал — решаем: обновлять/версировать или нет
-            cur_dt = parse_dt(current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum"))
+            cur_dt = ensure_utc_datetime(
+                current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
+            )
+            if cur_dt is None:
+                cur_dt = parse_remote_dt(
+                    current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
+                )
 
             if cur_dt and new_dt <= cur_dt:  # Дополнительная защита: если вдруг API вернул не более новую дату
                 log.info(f"{ref}: детали от API не новее (new<=old), пропущено")  # Сообщаем и пропускаем обновление
@@ -286,7 +303,7 @@ def main():  # Главная функция, которая управляет 
             content_payload = _content_payload_for_hash(business_payload)
             new_hash = _compute_details_hash(content_payload)
             if current.get("details_hash") == new_hash:
-                now = datetime.utcnow()
+                now = utcnow_naive()
                 previous_remote_updated_at = current.get("last_seen_remote_updated_at")
                 det_history_col.insert_one(
                     _build_no_content_change_event(
@@ -302,7 +319,9 @@ def main():  # Главная функция, которая управляет 
                     {
                         "$set": {
                             "aenderungsdatum": remote_updated_raw,
+                            "aenderungsdatum_dt": remote_updated_dt,
                             "last_seen_remote_updated_at": remote_updated_raw,
+                            "last_seen_remote_updated_at_dt": remote_updated_dt,
                             "last_checked_at": now,
                         }
                     },
@@ -310,8 +329,10 @@ def main():  # Главная функция, которая управляет 
                 log.info(f"{ref}: содержимое без изменений, обновлены метки времени и история события")
                 continue
 
-            now = datetime.utcnow()
+            now = utcnow_naive()
             business_payload["last_seen_remote_updated_at"] = remote_updated_raw
+            business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
+            business_payload["aenderungsdatum_dt"] = remote_updated_dt
             business_payload["last_checked_at"] = now
             det_history_col.insert_one(
                 _build_history_snapshot(current, new_hash, remote_updated_raw, now)
@@ -324,11 +345,13 @@ def main():  # Главная функция, которая управляет 
             log.info(f"{ref}: обновлено (предыдущее состояние вынесено в {history_collection_name})")
         else:
             # Если документа не было — просто вставляем новый
-            now = datetime.utcnow()  # Текущее время UTC для служебных полей
+            now = utcnow_naive()  # Текущее время UTC для служебных полей
             business_payload = _details_payload(payload)
             business_payload["referenznummer"] = ref
             business_payload["details_hash"] = _compute_details_hash(_content_payload_for_hash(business_payload))
             business_payload["last_seen_remote_updated_at"] = remote_updated_raw
+            business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
+            business_payload["aenderungsdatum_dt"] = remote_updated_dt
             business_payload["last_checked_at"] = now
             business_payload["created_at"] = now
             business_payload["updated_at"] = now
