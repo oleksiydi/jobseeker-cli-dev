@@ -25,6 +25,16 @@ Danach können die Pipelines gestartet werden:
 .venv/bin/python -m app.analyze_jobs
 ```
 
+## Temporäres UI starten
+
+Für eine schnelle Sicht auf gruppierte Analysen (nach Arbeitgeber) kann ein temporäres Streamlit-UI gestartet werden:
+
+```bash
+.venv/bin/streamlit run app/ui_grouped.py --server.headless true --server.address 0.0.0.0 --server.port 8501
+```
+
+Danach ist das UI unter `http://localhost:8501` erreichbar.
+
 ## Typische Startfehler
 
 - `MONGODB_URI is not set`
