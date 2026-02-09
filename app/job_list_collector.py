@@ -1,10 +1,10 @@
-#!/usr/bin/env python3  # Указывает, что скрипт можно запускать как исполняемый в Unix
-# -*- coding: utf-8 -*-  # Объявляем кодировку файла (UTF-8)
+#!/usr/bin/env python3  # Das Skript kann unter Unix direkt ausgeführt werden
+# -*- coding: utf-8 -*-  # Dateikodierung (UTF-8)
 
 """
-Скрипт: сбор списка вакансий из Jobcenter -> запись в MongoDB (без файлов).
+Skript: lädt die Stellenliste aus Jobcenter und speichert sie in MongoDB (ohne Dateien).
 
-Конфиг ищется в приоритете:
+Konfigurationspriorität:
 1) APP_CONFIG_PATH (env)
 2) conf/app.json
 """
@@ -12,19 +12,19 @@
 import hashlib
 import json
 import os
-import time  # Паузы между запросами для вежливости к API
-from datetime import datetime  # Метки времени для created_at/updated_at
+import time  # Pausen zwischen Requests, um die API zu entlasten
+from datetime import datetime  # Zeitstempel für created_at/updated_at
 import random
 from uuid import uuid4
 from typing import Any
 
-import requests  # HTTP-запросы к API Jobcenter
-from pymongo import ASCENDING, UpdateOne, errors  # Индексы и ошибки MongoDB
+import requests  # HTTP-Requests an die Jobcenter-API
+from pymongo import ASCENDING, UpdateOne, errors  # MongoDB-Indizes und Fehler
 from pymongo.errors import OperationFailure
 from pymongo.collection import Collection
 from pymongo.database import Database
 
-# Позволяет запускать файл напрямую: python app/job_list_collector.py
+# Erlaubt Direktstart: python app/job_list_collector.py
 if __package__ is None or __package__ == "":
     import sys
     from pathlib import Path
@@ -60,7 +60,7 @@ def _list_seen_ttl_days(cfg: dict[str, Any]) -> int:
             return max(int(cfg_value), 1)
         except (ValueError, TypeError):
             pass
-    # Храним долго, чтобы можно было анализировать длительные тренды доступности.
+    # Lange Aufbewahrung zur Analyse langfristiger Verfügbarkeits-Trends.
     return 540
 
 
@@ -70,7 +70,7 @@ def _ensure_indexes(
     history_collection_name: str,
     list_seen_ttl_days: int,
 ) -> None:
-    """Создаёт индексы для актуальных и архивных документов списка вакансий."""
+    """Erstellt Indizes für aktuelle und historische Listendokumente."""
     col = db[list_collection_name]
     col.create_index([("referenznummer", ASCENDING)], unique=True)
     col.create_index([("meta_hash", ASCENDING)])
@@ -96,25 +96,25 @@ def _ensure_indexes(
             },
         )
     except OperationFailure:
-        # Индекс может уже существовать с другими параметрами на старой среде.
+        # Der Index kann in älteren Umgebungen bereits mit anderen Parametern existieren.
         pass
 
 def _normalize_referenznummer(item: dict) -> str | None:
-    """Приводит референс-номер к единому полю 'referenznummer' и возвращает его (или None)."""
-    ref = item.get("referenznummer") or item.get("refnr")  # Иногда поле называется refnr — подстрахуемся
-    if ref is not None:  # Если референс-номер есть
-        ref = str(ref).strip()  # Приводим к строке и убираем пробелы
-        item["referenznummer"] = ref  # Записываем под ключом 'referenznummer' для единообразия
-    return ref  # Возвращаем нормализованное значение (или None)
+    """Normalisiert die Referenznummer im Feld 'referenznummer' und gibt sie zurück (oder None)."""
+    ref = item.get("referenznummer") or item.get("refnr")  # Manche Quellen verwenden refnr
+    if ref is not None:  # Referenznummer vorhanden
+        ref = str(ref).strip()  # In String umwandeln und trimmen
+        item["referenznummer"] = ref  # Einheitliches Feld für die weitere Verarbeitung
+    return ref  # Normalisierter Wert (oder None)
 
 
 def _meta_payload(item: dict[str, Any]) -> dict[str, Any]:
-    """Возвращает только бизнес-поля для сравнения изменений."""
+    """Gibt nur Business-Felder für den Änderungsvergleich zurück."""
     return {k: v for k, v in item.items() if k not in SERVICE_FIELDS}
 
 
 def _compute_meta_hash(payload: dict[str, Any]) -> str:
-    """Стабильный hash для детекта изменений по meta-входу."""
+    """Stabiler Hash zur Erkennung von Änderungen im Meta-Input."""
     canonical = json.dumps(
         payload,
         ensure_ascii=False,
@@ -204,20 +204,20 @@ def _build_list_restored_event(ref: str, run_id: str, now: datetime) -> dict[str
     }
 
 def main() -> None:
-    """Основная функция: читает конфиг, ходит по страницам API и делает idempotent update."""
-    log = get_logger("job_list_collector")  # Именованный логгер
+    """Hauptfunktion: lädt Konfiguration, iteriert API-Seiten und führt idempotente Updates aus."""
+    log = get_logger("job_list_collector")  # Benannter Logger
 
-    cfg = load_app_config()  # Загружаем единый конфиг в память
-    list_api = cfg["jobcenter"]["list_api"]  # Берём раздел конфигурации, отвечающий за список вакансий
+    cfg = load_app_config()  # Einheitliche Konfiguration laden
+    list_api = cfg["jobcenter"]["list_api"]  # Konfigurationsbereich für Stellenliste
 
-    api_url = list_api["api_url"]  # URL конечной точки API Jobcenter для списка вакансий
-    api_key = list_api.get("api_key", "")  # Ключ API (обычно 'jobboerse-jobsuche'); может быть пустым
-    base_params = dict(list_api.get("params", {}))  # Базовые параметры поиска (город, радиус, размер страницы и т.п.)
-    base_headers = dict(list_api.get("headers", {}))  # Базовые заголовки HTTP-запроса
-    max_requests = int(list_api.get("max_requests", 1000))  # Максимум страниц/запросов, чтобы не зациклиться
-    _ = list_api.get("output_filenames", {})  # Для совместимости: в конфиге есть, но здесь НЕ используется
+    api_url = list_api["api_url"]  # API-Endpunkt für Stellenliste
+    api_key = list_api.get("api_key", "")  # API-Key (oft 'jobboerse-jobsuche'), optional
+    base_params = dict(list_api.get("params", {}))  # Basis-Suchparameter
+    base_headers = dict(list_api.get("headers", {}))  # Basis-HTTP-Header
+    max_requests = int(list_api.get("max_requests", 1000))  # Max. Seiten/Requests als Schutz
+    _ = list_api.get("output_filenames", {})  # Kompatibilität: in config vorhanden, hier nicht verwendet
 
-    db = get_database(cfg)  # Подключаемся к базе
+    db = get_database(cfg)  # DB-Verbindung
     list_collection_name = resolve_collection_name(
         cfg,
         key="list",
@@ -230,15 +230,15 @@ def main() -> None:
     col_history: Collection = db[history_collection_name]
     run_id = f"list-{utcnow_naive().strftime('%Y%m%dT%H%M%S')}-{uuid4().hex[:8]}"
     log.info(
-        "Запуск list_collector: run_id=%s, list_seen_ttl_days=%s",
+        "Start list_collector: run_id=%s, list_seen_ttl_days=%s",
         run_id,
         list_seen_ttl_days,
     )
 
-    session = requests.Session()  # Создаём сессию HTTP (повторное использование соединений ускоряет работу)
-    headers = dict(base_headers)  # Копируем базовые заголовки, чтобы не портить исходный словарь
-    if api_key:  # Если ключ API задан
-        headers["X-API-Key"] = api_key  # Добавляем заголовок X-API-Key, как требует сервис
+    session = requests.Session()  # HTTP-Session (Connection-Reuse)
+    headers = dict(base_headers)  # Header kopieren, um Originalwerte nicht zu ändern
+    if api_key:  # API-Key vorhanden
+        headers["X-API-Key"] = api_key  # Erforderlicher Header für den Dienst
 
     total_inserted = 0
     total_updated = 0
@@ -249,25 +249,25 @@ def main() -> None:
     total_marked_missing = 0
     seen_refs_in_run: set[str] = set()
     completed_full_scan = False
-    page = 1  # Номер текущей страницы (начинаем с 1, как в API)
-    made = 0  # Сколько запросов уже отправили (для ограничения max_requests)
+    page = 1  # Aktuelle Seite (API startet bei 1)
+    made = 0  # Bereits gesendete Requests (Limit via max_requests)
 
-    while made < max_requests:  # Цикл, ограниченный максимальным числом запросов
-        params = {**base_params, "page": page}  # Берём базовые параметры и добавляем номер страницы
+    while made < max_requests:  # Schleife mit Request-Limit
+        params = {**base_params, "page": page}  # Basisparameter + Seitennummer
 
         try:
-            resp = session.get(api_url, headers=headers, params=params, timeout=20)  # Отправляем GET-запрос с таймаутом
-            resp.raise_for_status()  # Бросит исключение, если статус-код не 2xx
-            data = resp.json()  # Парсим JSON-ответ в словарь
-        except Exception as e:  # Любая ошибка запроса/парсинга
-            log.error(f"Страница {page}: ошибка запроса/парсинга: {e}")  # Пишем в лог причину
-            break  # Прерываем цикл (можно сделать ретраи — упрощаем)
+            resp = session.get(api_url, headers=headers, params=params, timeout=20)  # GET mit Timeout
+            resp.raise_for_status()  # Exception bei nicht-2xx
+            data = resp.json()  # JSON-Antwort parsen
+        except Exception as e:  # Request-/Parsing-Fehler
+            log.error(f"Seite {page}: Request/Parsing-Fehler: {e}")
+            break
 
-        items = data.get("stellenangebote") or []  # Забираем список вакансий из поля 'stellenangebote'
-        if not items:  # Если список пуст — дальше ничего нет
-            log.info(f"Страница {page}: вакансий нет — завершаем.")  # Сообщаем и выходим из цикла
+        items = data.get("stellenangebote") or []  # Liste aus Feld 'stellenangebote'
+        if not items:  # Leere Liste => Ende
+            log.info(f"Seite {page}: keine Stellen — beende Lauf.")
             completed_full_scan = True
-            break  # Прерываем цикл по страницам
+            break
 
         refs: list[str] = []
         prepared_items: list[dict[str, Any]] = []
@@ -279,7 +279,7 @@ def main() -> None:
             prepared_items.append(raw)
 
         if not prepared_items:
-            log.info(f"Страница {page}: нет валидных записей с referenznummer.")
+            log.info(f"Seite {page}: keine validen Einträge mit referenznummer.")
             page += 1
             made += 1
             time.sleep(random.uniform(0.5, 5))
@@ -378,9 +378,9 @@ def main() -> None:
             if all_history_docs:
                 col_history.insert_many(all_history_docs, ordered=False)
         except errors.DuplicateKeyError:
-            log.warning(f"Страница {page}: обнаружены гонки по уникальному ключу, продолжаем.")
+            log.warning(f"Seite {page}: Race Condition am Unique-Key erkannt, fortgesetzt.")
         except Exception as e:
-            log.warning(f"Страница {page}: ошибка записи в Mongo: {e}")
+            log.warning(f"Seite {page}: Fehler beim Schreiben nach Mongo: {e}")
 
         total_inserted += inserted_this_page
         total_updated += updated_this_page
@@ -389,7 +389,7 @@ def main() -> None:
         total_seen += seen_this_page
         total_restored += restored_this_page
         log.info(
-            "Страница %s: seen=%s, inserted=%s, updated=%s, skipped=%s, archived=%s, restored=%s",
+            "Seite %s: seen=%s, inserted=%s, updated=%s, skipped=%s, archived=%s, restored=%s",
             page,
             seen_this_page,
             inserted_this_page,
@@ -399,9 +399,9 @@ def main() -> None:
             restored_this_page,
         )
 
-        page += 1  # Переходим к следующей странице
-        made += 1  # Считаем отправленный запрос
-        time.sleep(random.uniform(0.5, 5)) # Небольшая пауза (снизить шанс троттлинга; при необходимости можно убрать/изменить)
+        page += 1  # Nächste Seite
+        made += 1  # Request-Zähler erhöhen
+        time.sleep(random.uniform(0.5, 5)) # Kurze Pause gegen mögliches Throttling
 
     if completed_full_scan:
         missing_filter: dict[str, Any] = {"is_active": {"$ne": False}}
@@ -447,15 +447,15 @@ def main() -> None:
                     if missing_history_docs:
                         col_history.insert_many(missing_history_docs, ordered=False)
                 except Exception as e:
-                    log.warning("run_id=%s: ошибка деактивации отсутствующих вакансий: %s", run_id, e)
+                    log.warning("run_id=%s: Fehler bei Deaktivierung fehlender Stellen: %s", run_id, e)
     else:
         log.warning(
-            "run_id=%s завершен без полного обхода страниц, пропускаем деактивацию отсутствующих вакансий",
+            "run_id=%s ohne vollständigen Seitenlauf beendet, Deaktivierung fehlender Stellen wird übersprungen",
             run_id,
         )
 
     log.info(
-        "Готово. run_id=%s, seen=%s, inserted=%s, updated=%s, skipped=%s, archived=%s, restored=%s, marked_missing=%s",
+        "Fertig. run_id=%s, seen=%s, inserted=%s, updated=%s, skipped=%s, archived=%s, restored=%s, marked_missing=%s",
         run_id,
         total_seen,
         total_inserted,
@@ -467,5 +467,5 @@ def main() -> None:
     )
 
 
-if __name__ == "__main__":  # Если файл запущен как скрипт
-    main()  # Вызываем основную функцию
+if __name__ == "__main__":  # Bei Direktstart als Skript
+    main()  # Hauptfunktion ausführen

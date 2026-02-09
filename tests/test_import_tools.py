@@ -34,7 +34,7 @@ def test_profile_normalize_strict_rejects_empty_business_payload():
             now=now,
         )
     except ValueError as exc:
-        assert "не содержит бизнес-полей" in str(exc)
+        assert "enthält keine Business-Felder" in str(exc)
     else:
         raise AssertionError("Expected ValueError for strict empty business payload")
 

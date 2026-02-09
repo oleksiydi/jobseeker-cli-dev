@@ -440,5 +440,5 @@ def test_main_raises_if_default_prompt_missing(base_cfg):
         patch.object(analyze_jobs, "load_dotenv"),
         patch.object(analyze_jobs, "OpenAI"),
     ):
-        with pytest.raises(RuntimeError, match="Prompt не найден"):
+        with pytest.raises(RuntimeError, match="Prompt nicht gefunden"):
             analyze_jobs.main()

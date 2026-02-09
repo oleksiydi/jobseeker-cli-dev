@@ -1,99 +1,99 @@
 # jobseeker-cli
 
-## Первый запуск (обязательно)
+## Erster Start (obligatorisch)
 
-Перед запуском пайплайнов нужно один раз загрузить в MongoDB:
-- профиль(и) кандидата в `profiles`;
-- default prompt/task в `analysis_prompts`.
+Vor dem Start der Pipelines müssen einmalig folgende Daten nach MongoDB geladen werden:
+- Kandidatenprofil(e) in `profiles`
+- default prompt/task in `analysis_prompts`
 
-Команды:
+Befehle:
 ```bash
 .venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json
 .venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json
 ```
 
-Проверка без записи (опционально):
+Prüfung ohne Schreibzugriff (optional):
 ```bash
 .venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json --dry-run
 .venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json --dry-run
 ```
 
-После этого можно запускать пайплайны:
+Danach können die Pipelines gestartet werden:
 ```bash
 .venv/bin/python -m app.job_list_collector
 .venv/bin/python -m app.job_details_collector
 .venv/bin/python -m app.analyze_jobs
 ```
 
-## Типовые ошибки старта
+## Typische Startfehler
 
 - `MONGODB_URI is not set`
-- Причина: не настроен `.env` или переменная окружения.
-- Что проверить:
+- Ursache: `.env` oder Umgebungsvariable ist nicht gesetzt.
+- Prüfen:
 ```bash
 grep -E '^MONGODB_URI=' .env
 ```
 
-- `Prompt не найден: key='default'...`
-- Причина: не загружен default prompt/task в `analysis_prompts`.
-- Что сделать:
+- `Prompt nicht gefunden: key='default'...`
+- Ursache: default prompt/task wurde nicht nach `analysis_prompts` importiert.
+- Lösung:
 ```bash
 .venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json
 ```
 
-- `Профиль с key='default' не найден`
-- Причина: не загружен профиль в `profiles`.
-- Что сделать:
+- `Profil mit key='default' wurde ... nicht gefunden`
+- Ursache: Profil wurde nicht nach `profiles` importiert.
+- Lösung:
 ```bash
 .venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json
 ```
 
-- `dry_run=True, updated=...` повторяется каждый запуск
-- Причина: `--dry-run` не пишет в Mongo, поэтому изменения только “планируются”.
-- Что сделать:
+- `dry_run=True, updated=...` erscheint bei jedem Lauf
+- Ursache: `--dry-run` schreibt nicht nach MongoDB, Änderungen werden nur simuliert.
+- Lösung:
 ```bash
 .venv/bin/python tools/import_profiles.py --file conf/profiles/default.profile.json
 .venv/bin/python tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json
 ```
 
-## Политика конфигов (`.env` vs `conf/app.json`)
+## Konfigurationsrichtlinie (`.env` vs `conf/app.json`)
 
-- `conf/app.json` и `conf/profiles/default.profile.json`:
-- Храним несекретные параметры приложения.
-- Примеры: имя БД по умолчанию, имена коллекций, API URL/параметры, настройки анализатора.
+- `conf/app.json` und `conf/profiles/default.profile.json`:
+- Enthalten nicht geheime Anwendungsparameter.
+- Beispiele: Standard-DB-Name, Collection-Namen, API-URL/Parameter, Analyzer-Einstellungen.
 
 - `.env`:
-- Храним только секреты и чувствительные значения.
-- Минимум: `MONGODB_URI`, `OPENAI_API_KEY`.
+- Enthält nur Secrets und sensitive Werte.
+- Minimum: `MONGODB_URI`, `OPENAI_API_KEY`.
 
-- ENV override (опционально):
-- При необходимости можно временно переопределить несекретные параметры через ENV (`MONGODB_DB_NAME`, `COLLECTION_*`).
-- Если override не задан, используются значения из `conf/app.json`.
+- ENV-Override (optional):
+- Nicht geheime Parameter können temporär per ENV überschrieben werden (`MONGODB_DB_NAME`, `COLLECTION_*`).
+- Ohne Override gelten die Werte aus `conf/app.json`.
 
-- Важно:
-- `config/` не используется как рабочий источник конфигурации.
-- Единый стандарт проекта: `conf/`.
+- Wichtig:
+- `config/` wird nicht als aktive Konfigurationsquelle verwendet.
+- Projektstandard ist `conf/`.
 
-## Диагностика `404` в `jobdetails`
+## Diagnose von `404` in `jobdetails`
 
-- Новый инструмент: `tools/check_list_seen.py`.
-- Назначение: проверить, были ли проблемные `referenznummer` в последнем запуске сборщика списка (`list_seen`).
+- Tool: `tools/check_list_seen.py`.
+- Zweck: Prüft, ob problematische `referenznummer` im letzten List-Run (`list_seen`) vorhanden waren.
 
-- Проверить номера из лога `job_details_collector`:
+- Nummern aus dem `job_details_collector`-Log prüfen:
 ```bash
 .venv/bin/python tools/check_list_seen.py --from-log /tmp/job_details_after_list.log --print-missing
 ```
 
-- Проверить конкретные номера:
+- Konkrete Nummern prüfen:
 ```bash
 .venv/bin/python tools/check_list_seen.py --ref 10001-1000943252-S --ref 10000-1205119986-S --print-missing --print-present
 ```
 
-- Проверить относительно конкретного `run_id`:
+- Gegen einen konkreten `run_id` prüfen:
 ```bash
 .venv/bin/python tools/check_list_seen.py --run-id list-20260206T232446-cc175cdc --from-log /tmp/job_details_after_list.log --print-missing
 ```
 
-- Логика:
-- `present_in_run`: номер был в последнем list-run.
-- `missing_in_run`: номер отсутствовал в list-run (типичный случай для части `404` в деталях).
+- Logik:
+- `present_in_run`: Nummer war im letzten list-run vorhanden.
+- `missing_in_run`: Nummer war im list-run nicht vorhanden (typischer Fall für einen Teil der `404` in Details).

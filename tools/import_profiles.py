@@ -43,9 +43,9 @@ def _debug_path(path: Path) -> str:
 
 def load_docs(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
-        raise FileNotFoundError(f"Файл не найден: {_debug_path(path)}")
+        raise FileNotFoundError(f"Datei nicht gefunden: {_debug_path(path)}")
     if path.stat().st_size == 0:
-        raise ValueError(f"Файл пустой: {_debug_path(path)}")
+        raise ValueError(f"Datei ist leer: {_debug_path(path)}")
 
     with path.open("r", encoding="utf-8-sig") as handle:
         data = json.load(handle)
@@ -55,10 +55,10 @@ def load_docs(path: Path) -> list[dict[str, Any]]:
     elif isinstance(data, list) and all(isinstance(item, dict) for item in data):
         docs = data
     else:
-        raise ValueError("Ожидается JSON-объект или массив JSON-объектов.")
+        raise ValueError("Erwartet wird ein JSON-Objekt oder ein Array von JSON-Objekten.")
 
     if not docs:
-        raise ValueError("Список profile-документов пуст.")
+        raise ValueError("Liste der Profile-Dokumente ist leer.")
     return docs
 
 
@@ -85,18 +85,18 @@ def normalize_profile_doc(
 
     upsert_value = normalized.get(upsert_key)
     if upsert_value is None:
-        raise ValueError(f"Отсутствует поле upsert-key '{upsert_key}' в profile-документе.")
+        raise ValueError(f"Feld upsert-key '{upsert_key}' fehlt im Profil-Dokument.")
 
     if isinstance(upsert_value, str):
         normalized[upsert_key] = upsert_value.strip()
         upsert_value = normalized[upsert_key]
     if upsert_value in ("", None):
-        raise ValueError(f"Пустое значение upsert-key '{upsert_key}'.")
+        raise ValueError(f"Leerer Wert für upsert-key '{upsert_key}'.")
 
     business_payload = _profile_business_payload(normalized)
     business_payload_wo_upsert = {k: v for k, v in business_payload.items() if k != upsert_key}
     if strict_validate and not business_payload_wo_upsert:
-        raise ValueError("Profile-документ не содержит бизнес-полей.")
+        raise ValueError("Profil-Dokument enthält keine Business-Felder.")
 
     normalized["profile_hash"] = _canonical_hash(business_payload)
     normalized["updated_at"] = now
@@ -111,44 +111,44 @@ def _comparable_doc(doc: dict[str, Any]) -> dict[str, Any]:
 
 def main() -> None:
     default_file = resolve_default_profile_file()
-    parser = argparse.ArgumentParser(description="Импорт профилей в MongoDB.")
+    parser = argparse.ArgumentParser(description="Import von Profilen in MongoDB.")
     parser.add_argument(
         "--file",
         "-f",
         type=Path,
         default=default_file,
-        help=f"Путь к JSON-файлу (по умолчанию: {_debug_path(default_file)})",
+        help=f"Pfad zur JSON-Datei (Standard: {_debug_path(default_file)})",
     )
     parser.add_argument(
         "--collection",
         "-c",
         default=None,
-        help="Имя коллекции (по умолчанию берется из conf/app.json: collections.profiles).",
+        help="Collection-Name (Standard aus conf/app.json: collections.profiles).",
     )
     parser.add_argument(
         "--upsert-key",
         default="key",
-        help="Поле для upsert (по умолчанию: key).",
+        help="Feld für upsert (Standard: key).",
     )
     parser.add_argument(
         "--key",
         default="default",
-        help="Значение key по умолчанию, если key отсутствует в документе.",
+        help="Standardwert für key, falls key im Dokument fehlt.",
     )
     parser.add_argument(
         "--created-by",
         default="tools/import_profiles.py",
-        help="Значение created_by для записей.",
+        help="Wert für created_by in den Datensätzen.",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Показать изменения без записи в MongoDB.",
+        help="Zeigt Änderungen ohne Schreiben in MongoDB.",
     )
     parser.add_argument(
         "--strict-validate",
         action="store_true",
-        help="Включить строгую валидацию profile-документов.",
+        help="Aktiviert strikte Validierung von Profil-Dokumenten.",
     )
     args = parser.parse_args()
 
@@ -203,7 +203,7 @@ def main() -> None:
             unchanged += 1
 
     print(
-        f"Готово. collection={collection_name}, dry_run={args.dry_run}, "
+        f"Fertig. collection={collection_name}, dry_run={args.dry_run}, "
         f"inserted={inserted}, updated={updated}, unchanged={unchanged}"
     )
 

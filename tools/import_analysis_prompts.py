@@ -41,7 +41,7 @@ def _debug_path(path: Path) -> str:
 
 def load_docs(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
-        raise FileNotFoundError(f"Файл не найден: {_debug_path(path)}")
+        raise FileNotFoundError(f"Datei nicht gefunden: {_debug_path(path)}")
 
     with path.open("r", encoding="utf-8-sig") as handle:
         data = json.load(handle)
@@ -51,10 +51,10 @@ def load_docs(path: Path) -> list[dict[str, Any]]:
     elif isinstance(data, list) and all(isinstance(item, dict) for item in data):
         docs = data
     else:
-        raise ValueError("Ожидается JSON-объект или массив JSON-объектов.")
+        raise ValueError("Erwartet wird ein JSON-Objekt oder ein Array von JSON-Objekten.")
 
     if not docs:
-        raise ValueError("Список prompt-документов пуст.")
+        raise ValueError("Liste der Prompt-Dokumente ist leer.")
     return docs
 
 
@@ -71,23 +71,23 @@ def _prompt_hash(system_prompt: str, analysis_task: str) -> str:
 def normalize_prompt_doc(doc: dict[str, Any], now: datetime, created_by: str | None) -> dict[str, Any]:
     key = str(doc.get("key", "")).strip()
     if not key:
-        raise ValueError("Поле 'key' обязательно и не может быть пустым.")
+        raise ValueError("Das Feld 'key' ist Pflicht und darf nicht leer sein.")
 
     if doc.get("version") is None:
-        raise ValueError(f"Для key='{key}' поле 'version' обязательно.")
+        raise ValueError(f"Für key='{key}' ist das Feld 'version' erforderlich.")
     try:
         version = int(doc["version"])
     except Exception as exc:
-        raise ValueError(f"Некорректный version для key='{key}': {doc.get('version')}") from exc
+        raise ValueError(f"Ungültige version für key='{key}': {doc.get('version')}") from exc
     if version < 1:
-        raise ValueError(f"version должен быть >= 1 для key='{key}'.")
+        raise ValueError(f"version muss >= 1 sein für key='{key}'.")
 
     system_prompt = str(doc.get("system_prompt", "")).strip()
     analysis_task = str(doc.get("analysis_task", "")).strip()
     if not system_prompt:
-        raise ValueError(f"Для key='{key}', version={version} пустой system_prompt.")
+        raise ValueError(f"Für key='{key}', version={version} ist system_prompt leer.")
     if not analysis_task:
-        raise ValueError(f"Для key='{key}', version={version} пустой analysis_task.")
+        raise ValueError(f"Für key='{key}', version={version} ist analysis_task leer.")
 
     normalized = dict(doc)
     normalized["key"] = key
@@ -108,34 +108,34 @@ def _comparable_doc(doc: dict[str, Any]) -> dict[str, Any]:
 
 def main() -> None:
     default_file = resolve_default_prompt_file()
-    parser = argparse.ArgumentParser(description="Импорт prompt/task документов в MongoDB.")
+    parser = argparse.ArgumentParser(description="Import von Prompt/Task-Dokumenten in MongoDB.")
     parser.add_argument(
         "--file",
         "-f",
         type=Path,
         default=default_file,
-        help=f"Путь к JSON-файлу (по умолчанию: {_debug_path(default_file)})",
+        help=f"Pfad zur JSON-Datei (Standard: {_debug_path(default_file)})",
     )
     parser.add_argument(
         "--collection",
         "-c",
         default=None,
-        help="Имя коллекции (по умолчанию берется из conf/app.json: collections.analysis_prompts).",
+        help="Collection-Name (Standard aus conf/app.json: collections.analysis_prompts).",
     )
     parser.add_argument(
         "--created-by",
         default="tools/import_analysis_prompts.py",
-        help="Значение created_by для записей (по умолчанию: tools/import_analysis_prompts.py).",
+        help="Wert für created_by (Standard: tools/import_analysis_prompts.py).",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Показать изменения без записи в MongoDB.",
+        help="Zeigt Änderungen ohne Schreiben in MongoDB.",
     )
     parser.add_argument(
         "--strict-validate",
         action="store_true",
-        help="Включить строгую валидацию формата prompt/task.",
+        help="Aktiviert strikte Validierung des Prompt/Task-Formats.",
     )
     args = parser.parse_args()
 
@@ -173,7 +173,7 @@ def main() -> None:
             }
             if extra_keys:
                 raise ValueError(
-                    f"Неожиданные поля в prompt key='{normalized['key']}', version={normalized['version']}: "
+                    f"Unerwartete Felder im Prompt key='{normalized['key']}', version={normalized['version']}: "
                     f"{sorted(extra_keys)}"
                 )
         key = normalized["key"]
@@ -208,7 +208,7 @@ def main() -> None:
             unchanged += 1
 
     print(
-        f"Готово. collection={collection_name}, dry_run={args.dry_run}, "
+        f"Fertig. collection={collection_name}, dry_run={args.dry_run}, "
         f"inserted={inserted}, updated={updated}, unchanged={unchanged}"
     )
 

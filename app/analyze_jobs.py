@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Аналитика + сопроводительное письмо в MongoDB.
-- Профиль: из коллекции profiles по analyzer.profile_key
-- Вакансия: meta (stellenangebote) + details (jobdetails) через $lookup
-- В OpenAI уходит ТОЛЬКО актуальное состояние (без _id/old)
-- Ответ модели строго в JSON; сохраняем в collections.analysis
+Analyse + Begleitschreiben in MongoDB.
+- Profil: aus der Collection profiles via analyzer.profile_key
+- Stelle: meta (stellenangebote) + details (jobdetails) via $lookup
+- An OpenAI wird NUR der aktuelle Zustand gesendet (ohne _id/old)
+- Modellantwort strikt als JSON; Speicherung in collections.analysis
 """
 
 import json
@@ -20,7 +20,7 @@ from pymongo.database import Database
 from bson import ObjectId
 from openai import OpenAI
 
-# Позволяет запускать файл напрямую: python app/analyze_jobs.py
+# Erlaubt Direktstart: python app/analyze_jobs.py
 if __package__ is None or __package__ == "":
     import sys
     from pathlib import Path
@@ -31,7 +31,7 @@ from app.core.config import load_app_config
 from app.core.logging import get_logger
 from app.db.mongo import get_database, resolve_collection_name
 
-# ---------- конфиг / подключение ----------
+# ---------- Konfiguration / Verbindung ----------
 
 def ensure_indexes(db: Database, cfg: dict):
     col = db[resolve_collection_name(cfg, key="analysis", default="analysen")]
@@ -59,10 +59,10 @@ INPUT_HASH_IGNORE_FIELDS = {
     "missing_since",
 }
 
-# ---------- утилиты ----------
+# ---------- Hilfsfunktionen ----------
 
 def extract_numbers(text: str, limit=3):
-    """Извлекает до 3 чисел из текста (учитывает запятые/точки)."""
+    """Extrahiert bis zu 3 Zahlen aus Text (inkl. Komma/Punkt)."""
     if not text:
         return []
     nums = re.findall(r'(?<!\w)(?:\d{1,3}(?:[.,]\d+)?)', text)
@@ -79,7 +79,7 @@ def extract_numbers(text: str, limit=3):
     return out
 
 def json_default(o):
-    """Сериализация нестандартных типов для json.dumps."""
+    """Serialisierung nicht standardmäßiger Typen für json.dumps."""
     if isinstance(o, ObjectId):
         return str(o)
     if isinstance(o, datetime):
@@ -89,7 +89,7 @@ def json_default(o):
     return str(o)
 
 def make_json_safe(x):
-    """Рекурсивно убирает служебные поля и приводит к JSON-безопасному виду."""
+    """Entfernt rekursiv Service-Felder und macht Daten JSON-sicher."""
     if isinstance(x, dict):
         return {k: make_json_safe(v)
                 for k, v in x.items()
@@ -156,9 +156,9 @@ def _resolve_prompt_version(cfg: dict) -> int | None:
     try:
         value = int(raw)
     except Exception as exc:
-        raise RuntimeError(f"Некорректный prompt_version: {raw}") from exc
+        raise RuntimeError(f"Ungültige prompt_version: {raw}") from exc
     if value < 1:
-        raise RuntimeError(f"prompt_version должен быть >= 1, получено: {value}")
+        raise RuntimeError(f"prompt_version muss >= 1 sein, erhalten: {value}")
     return value
 
 
@@ -171,16 +171,16 @@ def _load_analysis_prompt(col_prompt, prompt_key: str, prompt_version: int | Non
         if prompt:
             return prompt
         raise RuntimeError(
-            f"Prompt не найден: key='{prompt_key}' (ожидалась активная версия). "
-            "Импортируйте default prompt: python3 tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json"
+            f"Prompt nicht gefunden: key='{prompt_key}' (aktive Version erwartet). "
+            "Importieren Sie den default Prompt: python3 tools/import_analysis_prompts.py --file conf/prompts/default.prompt_task.json"
         )
 
     prompt = col_prompt.find_one({"key": prompt_key, "version": prompt_version})
     if prompt:
         return prompt
-    raise RuntimeError(f"Prompt не найден: key='{prompt_key}', version={prompt_version}")
+    raise RuntimeError(f"Prompt nicht gefunden: key='{prompt_key}', version={prompt_version}")
 
-# ---------- основная логика ----------
+# ---------- Hauptlogik ----------
 
 def main():
     log = get_logger("analyze_jobs")
@@ -196,14 +196,14 @@ def main():
         resolve_collection_name(cfg, key="analysis_prompts", default="analysis_prompts")
     ]  # analysis_prompts
 
-    # профиль кандидата
+    # Kandidatenprofil
     key = cfg["analyzer"]["profile_key"]
     profile = col_prof.find_one({"key": key}, {"_id": 0})
     if not profile:
         profiles_collection_name = resolve_collection_name(cfg, key="profiles", default="profiles")
-        raise RuntimeError(f"Профиль с key='{key}' не найден в '{profiles_collection_name}'")
+        raise RuntimeError(f"Profil mit key='{key}' wurde in '{profiles_collection_name}' nicht gefunden")
 
-    # клиент OpenAI
+    # OpenAI-Client
     load_dotenv()
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     model = cfg["analyzer"]["model"]
@@ -215,10 +215,10 @@ def main():
     if not system_prompt or not analysis_task:
         raise RuntimeError(
             f"Prompt key='{prompt_doc.get('key')}', version={prompt_doc.get('version')} "
-            "не содержит system_prompt и/или analysis_task."
+            "enthält kein system_prompt und/oder analysis_task."
         )
 
-    # агрегат: сшиваем meta+details, сразу выбрасываем _id/old (только актуальное состояние)
+    # Aggregation: verbindet meta+details, entfernt _id/old (nur aktueller Zustand)
     cursor = col_list.aggregate([
         { "$match": { "is_active": { "$ne": False } } },
         {
@@ -254,7 +254,7 @@ def main():
             "details": details
         }
 
-        # JSON-безопасные копии для отправки модели
+        # JSON-sichere Kopien für die Modellanfrage
         safe_profile = make_json_safe(profile)
         safe_merged  = make_json_safe(merged)
 
@@ -274,12 +274,12 @@ def main():
         input_hash = _compute_input_hash(input_hash_payload)
         existing = col_an.find_one({"referenznummer": ref}, {"_id": 1, "input_hash": 1})
         if existing and existing.get("input_hash") == input_hash:
-            log.info(f"{ref}: вход без изменений — пропуск ({title} bei {firma})")
+            log.info(f"{ref}: Eingang unverändert — übersprungen ({title} bei {firma})")
             continue
         if existing:
-            log.info(f"{ref}: вход изменился — переанализ ({title} bei {firma})")
+            log.info(f"{ref}: Eingang geändert — erneute Analyse ({title} bei {firma})")
         else:
-            log.info(f"{ref}: новая вакансия — {title} bei {firma}")
+            log.info(f"{ref}: neue Stelle — {title} bei {firma}")
 
 
         user_payload = {
@@ -298,7 +298,7 @@ def main():
                     {"role": "user", "content": user_content}
                 ],
                 #"max_completion_tokens": 1100,
-                #"temperature": 0.2,  # хотим, но не все модели поддерживают
+                #"temperature": 0.2,  # gewünscht, aber nicht von allen Modellen unterstützt
                 "reasoning_effort":"low",
                 "verbosity":"low"
             }
@@ -306,7 +306,7 @@ def main():
             try:
                 resp = client.chat.completions.create(**req)
             except Exception as e:
-                # gpt-5-nano / gpt-5-* часто не дают менять temperature
+                # gpt-5-nano / gpt-5-* erlauben häufig keine temperature-Änderung
                 if "Unsupported value: 'temperature'" in str(e):
                     req.pop("temperature", None)
                     resp = client.chat.completions.create(**req)
@@ -317,18 +317,18 @@ def main():
             data = json.loads(content)
 
         except Exception as e:
-            log.error(f"{ref}: ошибка вызова/парсинга OpenAI: {e}")
+            log.error(f"{ref}: Fehler beim OpenAI-Aufruf/Parsing: {e}")
             continue
 
 
-        # нормализуем оценку
+        # Score normalisieren
         score = data.get("score")
         try:
             score = float(score) if score is not None else None
         except Exception:
             score = None
 
-        # «первые встретившиеся числа» (до 3) из всех текстов
+        # Erste gefundene Zahlen (bis zu 3) aus allen Textfeldern
         concat_text = " ".join(filter(None, [
             data.get("notes", ""),
             data.get("cover_letter", ""),
@@ -372,7 +372,7 @@ def main():
                 "task": analysis_task,
             },
 
-            #"candidate_profile": make_json_safe(profile),  # можно убрать, если документ слишком большой
+            #"candidate_profile": make_json_safe(profile),  # kann entfernt werden, falls das Dokument zu groß wird
            
             "score": score,
             "score_": int(data.get("score", 0)),
@@ -385,7 +385,7 @@ def main():
             "notes": data.get("notes", ""),
             #"improvements": (data.get("improvements") or [])[:3],
             #"cover_letter": data.get("cover_letter", "")
-            "openai_raw": data,     # ответ модели в JSON
+            "openai_raw": data,     # Modellantwort als JSON
         }
 
         if existing:
@@ -394,9 +394,9 @@ def main():
             out_doc["created_at"] = out_doc["updated_at"]
             col_an.insert_one(out_doc)
         processed += 1
-        log.info(f"{ref}: анализ сохранён")
+        log.info(f"{ref}: Analyse gespeichert")
 
-    log.info(f"Готово. Проанализировано: {processed}")
+    log.info(f"Fertig. Analysiert: {processed}")
 
 if __name__ == "__main__":
     main()

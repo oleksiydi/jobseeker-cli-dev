@@ -47,11 +47,11 @@ def _to_utc_datetime(value: Any) -> datetime | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Backfill MongoDB Date-полей для remote timestamp с правилом Europe/Berlin."
+        description="Backfill von MongoDB-Datumsfeldern für Remote-Timestamps mit Europe/Berlin-Regel."
     )
-    parser.add_argument("--batch-size", type=int, default=500, help="Размер пакета bulk_write.")
-    parser.add_argument("--force", action="store_true", help="Перезаписывать *_dt даже если поле уже заполнено.")
-    parser.add_argument("--dry-run", action="store_true", help="Только показать статистику без записи в MongoDB.")
+    parser.add_argument("--batch-size", type=int, default=500, help="Größe des bulk_write-Batches.")
+    parser.add_argument("--force", action="store_true", help="Überschreibt *_dt auch wenn das Feld bereits gesetzt ist.")
+    parser.add_argument("--dry-run", action="store_true", help="Nur Statistik anzeigen, ohne in MongoDB zu schreiben.")
     args = parser.parse_args()
 
     cfg = load_app_config()

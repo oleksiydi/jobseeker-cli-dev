@@ -4,10 +4,10 @@
 // The current database to use.
 use("jobcenter");
 
-// db.jobdetails.distinct("aenderungsdatum", { /* фильтр */ })
+// db.jobdetails.distinct("aenderungsdatum", { /* Filter */ })
 
-// Быстрая проверка покрытия jobdetails активным списком.
-// 1) Сколько jobdetails имеют пару в активных stellenangebote (is_active != false)
+// Schnelle Prüfung der Abdeckung von jobdetails durch aktive Stellen.
+// 1) Wie viele jobdetails haben ein passendes aktives stellenangebot (is_active != false)
 db.jobdetails.aggregate([
   {
     $lookup: {
@@ -33,7 +33,7 @@ db.jobdetails.aggregate([
   { $count: "details_matching_active" }
 ]);
 
-// 2) Сколько jobdetails НЕ имеют пары в активных stellenangebote
+// 2) Wie viele jobdetails haben KEIN passendes aktives stellenangebot
 db.jobdetails.aggregate([
   {
     $lookup: {
@@ -59,14 +59,14 @@ db.jobdetails.aggregate([
   { $count: "details_without_active" }
 ]);
 
-// 3) Контрольные totals
+// 3) Kontroll-Totalwerte
 db.getCollection("stellenangebote").countDocuments({ is_active: { $ne: false } });
 db.getCollection("jobdetails").countDocuments({});
 
 
 
 
-// === Общая база для join + нормализации дат ===
+// === Gemeinsame Basis für Join + Datumsnormalisierung ===
 const baseJoin = [
   {
     $lookup: {
@@ -133,7 +133,7 @@ const baseJoin = [
 ];
 
 
-// 1) Показать разницу по каждой вакансии
+// 1) Differenz pro Stelle anzeigen
 db.jobdetails.aggregate([
   ...baseJoin,
   { $match: { diff_ms: { $ne: null } } },
@@ -163,7 +163,7 @@ db.jobdetails.aggregate([
 ]);
 
 
-// 2) Сколько positive / negative / zero / null
+// 2) Anzahl positive / negative / zero / null
 db.jobdetails.aggregate([
   ...baseJoin,
   {
@@ -181,14 +181,14 @@ db.jobdetails.aggregate([
 
 /*
 
-// 3) Отдельно только negative
+// 3) Nur negative Werte
 db.jobdetails.aggregate([
   ...baseJoin,
   { $match: { diff_ms: { $lt: 0 } } },
   { $count: "negative_count" }
 ]);
 
-// 4) Отдельно только positive
+// 4) Nur positive Werte
 db.jobdetails.aggregate([
   ...baseJoin,
   { $match: { diff_ms: { $gt: 0 } } },
@@ -197,7 +197,7 @@ db.jobdetails.aggregate([
 
 
 
-// 5) Группы с одинаковой разницей + количество записей в каждой группе
+// 5) Gruppen mit gleicher Differenz + Anzahl Einträge pro Gruppe
 db.jobdetails.aggregate([
   ...baseJoin,
   { $match: { diff_ms: { $ne: null } } },
@@ -213,7 +213,7 @@ db.jobdetails.aggregate([
       _id: 0,
       diff_ms: "$_id",
       count: 1,
-      // Чтобы вывод не был огромным, показываем первые 5 referenznummer из группы
+      // Damit die Ausgabe klein bleibt, nur die ersten 5 referenznummer je Gruppe
       example_refs: { $slice: ["$example_refs", 5] }
     }
   },

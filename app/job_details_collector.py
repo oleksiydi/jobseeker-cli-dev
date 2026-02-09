@@ -1,19 +1,19 @@
-#!/usr/bin/env python3  # Позволяет запускать файл как скрипт в Unix-системах
-# -*- coding: utf-8 -*-  # Указываем кодировку файла (UTF-8), чтобы корректно показывать русские комментарии
+#!/usr/bin/env python3  # Kann unter Unix direkt als Skript ausgeführt werden
+# -*- coding: utf-8 -*-  # Dateikodierung (UTF-8)
 
 """
-Получение деталей вакансий из Jobcenter с условием обращения к API:
-- Если в jobdetails уже есть запись, сравниваем:
-    stellenangebote.modifikationsTimestamp (из коллекции списка)
-    VS jobdetails.aenderungsdatum (в деталях)
-  К API обращаемся ТОЛЬКО если modifikationsTimestamp строго больше aenderungsdatum.
-- Если записи в jobdetails нет — обращаемся к API и создаём запись.
-- При изменениях содержимого сохраняем прошлое состояние в отдельную коллекцию history.
-- Если содержимое не изменилось, сохраняем lightweight-событие обновления времени.
+Lädt Stellendetails aus Jobcenter mit API-Aufrufbedingung:
+- Wenn in jobdetails bereits ein Datensatz existiert, vergleichen wir:
+    stellenangebote.modifikationsTimestamp (aus der Listen-Collection)
+    VS jobdetails.aenderungsdatum (in den Details)
+  Die API wird NUR aufgerufen, wenn modifikationsTimestamp strikt größer ist als aenderungsdatum.
+- Wenn kein Datensatz in jobdetails existiert, wird die API aufgerufen und ein neuer Datensatz erstellt.
+- Bei Inhaltsänderungen speichern wir den vorherigen Zustand in einer separaten History-Collection.
+- Bei unverändertem Inhalt speichern wir ein leichtgewichtiges Zeit-Update-Event.
 
-Допущения:
-- Даты приходят строками вида "2025-08-05T06:14:28.330" или "2025-08-05T06:14:28.33".
-- Мы нормализуем дробную часть секунд до 6 знаков, чтобы корректно распарсить в datetime.
+Annahmen:
+- Datumswerte kommen als Strings wie "2025-08-05T06:14:28.330" oder "2025-08-05T06:14:28.33".
+- Der Bruchteil der Sekunden wird auf 6 Stellen normalisiert, um datetime korrekt zu parsen.
 """
 
 import base64
@@ -22,7 +22,7 @@ import json
 import os
 import random
 import time
-from datetime import datetime, timezone  # datetime/timezone — для работы с датами/временем (UTC)
+from datetime import datetime, timezone  # datetime/timezone für Zeitverarbeitung (UTC)
 from typing import Any
 
 import requests
@@ -30,7 +30,7 @@ from pymongo import ASCENDING
 from pymongo.collection import Collection
 from pymongo.database import Database
 
-# Позволяет запускать файл напрямую: python app/job_details_collector.py
+# Erlaubt Direktstart: python app/job_details_collector.py
 if __package__ is None or __package__ == "":
     import sys
     from pathlib import Path
@@ -42,7 +42,7 @@ from app.core.logging import get_logger
 from app.core.time_utils import ensure_utc_datetime, parse_remote_dt, utcnow_naive
 from app.db.mongo import get_database, resolve_collection_name
 
-# ---------- утилиты (вспомогательные функции) ----------
+# ---------- Hilfsfunktionen ----------
 
 SERVICE_FIELDS = {
     "_id",
@@ -68,7 +68,7 @@ def _history_collection_name(cfg: dict[str, Any]) -> str:
 def ensure_indexes(
     db: Database, details_collection_name: str, history_collection_name: str
 ) -> None:
-    """Гарантированно создаём индексы в коллекциях деталей и их архива."""
+    """Erstellt zuverlässig Indizes in Details- und History-Collections."""
     det = db[details_collection_name]
     det.create_index([("referenznummer", ASCENDING)], unique=True)
     det.create_index([("aenderungsdatum", ASCENDING)])
@@ -81,17 +81,17 @@ def ensure_indexes(
     history.create_index([("occurred_at", ASCENDING)])
     history.create_index([("event_type", ASCENDING)])
 
-def to_b64(s: str) -> str:  # Кодирование строки в Base64 для URL (как требует API)
-    return base64.b64encode(s.encode("utf-8")).decode("utf-8").rstrip("=")  # Кодируем и удаляем '=' в конце
+def to_b64(s: str) -> str:  # Base64-Kodierung für URL (API-Anforderung)
+    return base64.b64encode(s.encode("utf-8")).decode("utf-8").rstrip("=")  # Kodieren und abschließendes '=' entfernen
 
 
 def _details_payload(item: dict[str, Any]) -> dict[str, Any]:
-    """Оставляет только бизнес-поля для сравнения изменений."""
+    """Behält nur Business-Felder für den Änderungsvergleich."""
     return {k: v for k, v in item.items() if k not in SERVICE_FIELDS}
 
 
 def _content_payload_for_hash(payload: dict[str, Any]) -> dict[str, Any]:
-    """Поля для hash содержимого (без временных меток удаленного обновления)."""
+    """Felder für Inhalts-Hash (ohne Remote-Update-Zeitstempel)."""
     return {k: v for k, v in payload.items() if k not in CONTENT_HASH_EXCLUDE_FIELDS}
 
 
@@ -174,13 +174,13 @@ def _build_remote_not_found_event(
     }
 
 
-# ---------- основная логика ----------
+# ---------- Hauptlogik ----------
 
-def main():  # Главная функция, которая управляет всем процессом
-    log = get_logger("job_details_collector")  # Создаём именованный логгер
+def main():  # Hauptfunktion, die den Ablauf steuert
+    log = get_logger("job_details_collector")  # Benannter Logger
 
-    cfg = load_app_config()  # Загружаем конфигурацию приложения
-    db = get_database(cfg)  # Подключаемся к MongoDB
+    cfg = load_app_config()  # Anwendungskonfiguration laden
+    db = get_database(cfg)  # Mit MongoDB verbinden
     list_collection_name = resolve_collection_name(cfg, key="list", default="stellenangebote")
     details_collection_name = resolve_collection_name(cfg, key="details", default="jobdetails")
     history_collection_name = _history_collection_name(cfg)
@@ -190,75 +190,75 @@ def main():  # Главная функция, которая управляет 
     det_col: Collection = db[details_collection_name]
     det_history_col: Collection = db[history_collection_name]
 
-    api = cfg["jobcenter"]["details_api"]          # Параметры API для деталей
-    headers = dict(api.get("headers", {}))         # Заголовки HTTP-запроса к API (копируем, чтобы не менять оригинал)
-    url_tpl = api["url_template"]                   # Шаблон URL, куда подставим Base64(ref)
+    api = cfg["jobcenter"]["details_api"]          # API-Parameter für Details
+    headers = dict(api.get("headers", {}))         # HTTP-Header (kopieren, um Original nicht zu ändern)
+    url_tpl = api["url_template"]                   # URL-Vorlage mit Base64(ref)
 
-    # Берем только активные вакансии (совместимость: отсутствие is_active считаем активной).
+    # Nur aktive Stellen (Kompatibilität: fehlendes is_active gilt als aktiv).
     cursor = list_col.find(
         {"is_active": {"$ne": False}},
         {"referenznummer": 1, "refnr": 1, "modifikationsTimestamp": 1, "modifikationsTimestamp_dt": 1},
-    )  # Итератор по кандидатам для обновления details
-    processed = 0  # Счётчик обработанных (созданных/обновлённых) записей деталей
+    )  # Iterator der Kandidaten zur Detail-Aktualisierung
+    processed = 0  # Zähler für verarbeitete (erstellt/aktualisiert) Detail-Datensätze
 
-    for doc in cursor:  # Проходим по всем документам списка
-        ref = doc.get("referenznummer") or doc.get("refnr")  # Берём референс-номер вакансии
-        if not ref:  # Если референс-номер отсутствует — пропускаем
-            continue  # Переходим к следующему документу
+    for doc in cursor:  # Durch alle Listen-Dokumente iterieren
+        ref = doc.get("referenznummer") or doc.get("refnr")  # Referenznummer der Stelle
+        if not ref:  # Ohne Referenznummer überspringen
+            continue
 
-        sa_raw = doc.get("modifikationsTimestamp")  # Дата/время изменения в "списке" (как строка)
+        sa_raw = doc.get("modifikationsTimestamp")  # Änderungszeit in der Liste (String)
         sa_dt = ensure_utc_datetime(doc.get("modifikationsTimestamp_dt"))
         if sa_dt is None:
-            sa_dt = parse_remote_dt(sa_raw)  # fallback для старых документов без *_dt
-        if sa_dt is None:  # Если распарсить не удалось — мы не можем корректно сравнить даты
-            log.info(f"{ref}: нет корректного modifikationsTimestamp в stellenangebote — пропуск запроса")  # Сообщаем и пропускаем
-            continue  # Переходим к следующей вакансии
+            sa_dt = parse_remote_dt(sa_raw)  # Fallback für ältere Dokumente ohne *_dt
+        if sa_dt is None:  # Ohne parsebares Datum kein korrekter Vergleich möglich
+            log.info(f"{ref}: kein gültiger modifikationsTimestamp in stellenangebote — Request übersprungen")
+            continue
 
-        current = det_col.find_one({"referenznummer": ref})  # Ищем существующую запись в деталях по тому же референс-номеру
+        current = det_col.find_one({"referenznummer": ref})  # Bestehenden Detail-Datensatz suchen
 
-        if current:  # Если запись деталей уже существует
+        if current:  # Falls Detail-Datensatz bereits existiert
             jd_raw = current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
             jd_dt = ensure_utc_datetime(
                 current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
             )
             if jd_dt is None:
-                jd_dt = parse_remote_dt(jd_raw)  # fallback для старых документов без *_dt
+                jd_dt = parse_remote_dt(jd_raw)  # Fallback für ältere Dokumente ohne *_dt
 
-            # --- КЛЮЧЕВОЕ УСЛОВИЕ: обращаемся к API ТОЛЬКО если дата в списке СТРОГО больше даты в деталях ---
-            if jd_dt is not None and sa_dt <= jd_dt:  # Если в деталях дата есть и список НЕ новее (<=), то обновлять не нужно
-                log.info(f"{ref}: список не новее (SA<=JD), пропускаем API")  # Логируем причину пропуска
-                continue  # Переходим к следующей вакансии
+            # --- Schlüsselbedingung: API-Aufruf NUR wenn Listen-Datum strikt neuer ist ---
+            if jd_dt is not None and sa_dt <= jd_dt:
+                log.info(f"{ref}: Liste ist nicht neuer (SA<=JD), API wird übersprungen")
+                continue
 
-            # Если в деталях даты нет (jd_dt is None) — считаем, что надо обновить (получить свежие детали)
-            # Если sa_dt > jd_dt — тоже обновляем (эту ветку мы не пишем явно, условие выше уже отфильтровало обратное)
+            # Wenn in Details kein Datum vorhanden ist (jd_dt is None), wird aktualisiert.
+            # Falls sa_dt > jd_dt, wird ebenfalls aktualisiert.
 
         else:
-            # Если записи в деталях вообще нет — обязательно пойдём в API и создадим её
-            pass  # Ничего делать не нужно — ниже общий код получения деталей
+            # Wenn kein Detail-Datensatz existiert, API aufrufen und neu anlegen
+            pass
 
-        # --- Если дошли сюда, значит надо идти в API за деталями (либо запись отсутствует, либо список новее) ---
+        # --- Ab hier: API-Aufruf erforderlich (kein Datensatz oder Liste neuer) ---
         
-        ref_b64 = to_b64(ref)  # Кодируем референс-номер в Base64 (требование API)
-        url = url_tpl.format(ref_b64=ref_b64)  # Подставляем код в шаблон URL
+        ref_b64 = to_b64(ref)  # Referenznummer in Base64 (API-Anforderung)
+        url = url_tpl.format(ref_b64=ref_b64)  # In URL-Vorlage einsetzen
 
-        payload = None  # Здесь будет ответ API (детали вакансии)
+        payload = None  # API-Antwort (Stellendetails)
         remote_not_found = False
-        time.sleep(random.uniform(0.5, 2)) # Небольшая пауза (снизить шанс троттлинга; при необходимости можно убрать/изменить)
-        for attempt in range(2):  # Делаем до 2 попыток на случай временных ошибок сети/сервера
+        time.sleep(random.uniform(0.5, 2)) # Kurze Pause zur Reduktion von Throttling-Risiko
+        for attempt in range(2):  # Bis zu 2 Versuche bei temporären Fehlern
             try:
-                r = requests.get(url, headers=headers, timeout=10)  # Отправляем HTTP GET
-                if r.status_code == 200:  # Успех — получили данные
-                    payload = r.json()  # Парсим JSON → dict
-                    break  # Выходим из цикла ретраев
+                r = requests.get(url, headers=headers, timeout=10)  # HTTP GET senden
+                if r.status_code == 200:  # Erfolg
+                    payload = r.json()  # JSON parsen -> dict
+                    break
                 if r.status_code == 404:
                     remote_not_found = True
-                    log.info(f"{ref}: HTTP 404 (детали недоступны у источника), пропуск без ретрая")
+                    log.info(f"{ref}: HTTP 404 (Details an der Quelle nicht verfügbar), ohne Retry übersprungen")
                     break
                 else:
-                    log.warning(f"{ref}: HTTP {r.status_code}")  # Логируем неожиданный код ответа
-            except Exception as e:  # Ловим любые сетевые ошибки/таймауты
-                log.warning(f"{ref}: ошибка запроса: {e}")  # Пишем предупреждение в лог
-            time.sleep(2 ** attempt ** random.uniform(0.9, 4))  # Ждём 1/2/4  * randon секунд между попытками (экспоненциальная пауза)
+                    log.warning(f"{ref}: HTTP {r.status_code}")
+            except Exception as e:  # Netzwerk-/Timeout-Fehler
+                log.warning(f"{ref}: Request-Fehler: {e}")
+            time.sleep(2 ** attempt ** random.uniform(0.9, 4))  # Exponentielle Pause zwischen Versuchen
 
         if remote_not_found:
             now = utcnow_naive()
@@ -274,18 +274,18 @@ def main():  # Главная функция, которая управляет 
             )
             continue
 
-        if not payload:  # Если после всех попыток ничего не получили
-            log.info(f"{ref}: нет данных от API (пропуск)")  # Сообщаем и идём дальше
-            continue  # Переходим к следующей вакансии
+        if not payload:  # Nach allen Versuchen keine Daten
+            log.info(f"{ref}: keine Daten von der API (übersprungen)")
+            continue
 
-        # Нормализуем полезную нагрузку (проставим referenznummer, убедимся что aenderungsdatum есть хоть None)
-        payload["referenznummer"] = ref  # Явно указываем связку с референс-номером
-        payload.setdefault("aenderungsdatum", None)  # Если поля нет — добавим с None (чтобы парсер не падал)
+        # Payload normalisieren (referenznummer setzen, aenderungsdatum notfalls auf None)
+        payload["referenznummer"] = ref
+        payload.setdefault("aenderungsdatum", None)
         remote_updated_raw = payload.get("aenderungsdatum")
         remote_updated_dt = parse_remote_dt(remote_updated_raw)
-        new_dt = remote_updated_dt or datetime.now(timezone.utc)  # Для сравнений в date-gate
+        new_dt = remote_updated_dt or datetime.now(timezone.utc)  # Für date-gate Vergleiche
 
-        if current:  # Если документ уже существовал — решаем: обновлять/версировать или нет
+        if current:  # Bei bestehendem Dokument entscheiden: aktualisieren oder überspringen
             cur_dt = ensure_utc_datetime(
                 current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
             )
@@ -294,9 +294,9 @@ def main():  # Главная функция, которая управляет 
                     current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
                 )
 
-            if cur_dt and new_dt <= cur_dt:  # Дополнительная защита: если вдруг API вернул не более новую дату
-                log.info(f"{ref}: детали от API не новее (new<=old), пропущено")  # Сообщаем и пропускаем обновление
-                continue  # Идём к следующей вакансии
+            if cur_dt and new_dt <= cur_dt:  # Zusätzlicher Schutz gegen nicht-neuere Daten
+                log.info(f"{ref}: API-Details nicht neuer (new<=old), übersprungen")
+                continue
 
             business_payload = _details_payload(payload)
             business_payload["referenznummer"] = ref
@@ -326,7 +326,7 @@ def main():  # Главная функция, которая управляет 
                         }
                     },
                 )
-                log.info(f"{ref}: содержимое без изменений, обновлены метки времени и история события")
+                log.info(f"{ref}: Inhalt unverändert, Zeitmarken und History-Event aktualisiert")
                 continue
 
             now = utcnow_naive()
@@ -341,11 +341,11 @@ def main():  # Главная функция, которая управляет 
                 {"_id": current["_id"], "details_hash": {"$ne": new_hash}},
                 _build_diff_update(current, business_payload, new_hash, now),
             )
-            processed += 1  # Увеличиваем счётчик обработанных документов
-            log.info(f"{ref}: обновлено (предыдущее состояние вынесено в {history_collection_name})")
+            processed += 1  # Zähler erhöhen
+            log.info(f"{ref}: aktualisiert (vorheriger Zustand in {history_collection_name} archiviert)")
         else:
-            # Если документа не было — просто вставляем новый
-            now = utcnow_naive()  # Текущее время UTC для служебных полей
+            # Kein bestehendes Dokument: neu einfügen
+            now = utcnow_naive()  # Aktuelle UTC-Zeit für Service-Felder
             business_payload = _details_payload(payload)
             business_payload["referenznummer"] = ref
             business_payload["details_hash"] = _compute_details_hash(_content_payload_for_hash(business_payload))
@@ -356,10 +356,10 @@ def main():  # Главная функция, которая управляет 
             business_payload["created_at"] = now
             business_payload["updated_at"] = now
             det_col.insert_one(business_payload)
-            processed += 1  # Счётчик +1
-            log.info(f"{ref}: вставлено")  # Сообщаем об успешной вставке
+            processed += 1
+            log.info(f"{ref}: eingefügt")
 
-    log.info(f"Готово. Обновлено/добавлено: {processed}")  # Итоговый отчёт после завершения цикла
+    log.info(f"Fertig. Aktualisiert/eingefügt: {processed}")
 
-if __name__ == "__main__":  # Если файл запустили как основную программу
-    main()  # Выполняем главную функцию
+if __name__ == "__main__":  # Bei Direktstart als Hauptprogramm
+    main()

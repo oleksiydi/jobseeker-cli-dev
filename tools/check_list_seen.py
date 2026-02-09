@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-Проверяет, были ли referenznummer в последнем (или указанном) list-run.
+Prüft, ob referenznummern im letzten (oder angegebenen) list-run vorhanden waren.
 
-Поддерживает 2 режима входа:
-1) Явный список номеров через --ref (можно указывать несколько раз).
-2) Автоизвлечение из лога job_details_collector с HTTP 404 через --from-log.
+Unterstützt 2 Eingabemodi:
+1) Explizite Liste über --ref (mehrfach verwendbar).
+2) Automatisches Extrahieren aus job_details_collector-Log mit HTTP 404 via --from-log.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def _resolve_run_id(history_col, run_id: str | None) -> str:
         projection={"_id": 0, "run_id": 1},
     )
     if not doc or not doc.get("run_id"):
-        raise RuntimeError("Не найден ни один run_id с event_type=list_seen.")
+        raise RuntimeError("Kein run_id mit event_type=list_seen gefunden.")
     return str(doc["run_id"])
 
 
@@ -67,38 +67,38 @@ def _collect_refs(args: argparse.Namespace) -> set[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Проверка присутствия referenznummer в list_seen событиях последнего/указанного run_id."
+        description="Prüft referenznummern in list_seen-Events des letzten/angegebenen run_id."
     )
     parser.add_argument(
         "--run-id",
-        help="Явный run_id list collector. Если не указан, берется последний run_id.",
+        help="Expliziter run_id des list collectors. Wenn nicht gesetzt, wird der letzte run_id verwendet.",
     )
     parser.add_argument(
         "--ref",
         action="append",
         default=[],
-        help="Referenznummer для проверки. Можно указывать аргумент несколько раз.",
+        help="Referenznummer zur Prüfung. Argument kann mehrfach verwendet werden.",
     )
     parser.add_argument(
         "--from-log",
         type=Path,
-        help="Путь к логу job_details_collector; будут взяты referenznummer с HTTP 404.",
+        help="Pfad zum job_details_collector-Log; referenznummern mit HTTP 404 werden extrahiert.",
     )
     parser.add_argument(
         "--print-missing",
         action="store_true",
-        help="Печатать список referenznummer, отсутствующих в выбранном run_id.",
+        help="Gibt referenznummern aus, die im gewählten run_id fehlen.",
     )
     parser.add_argument(
         "--print-present",
         action="store_true",
-        help="Печатать список referenznummer, найденных в выбранном run_id.",
+        help="Gibt referenznummern aus, die im gewählten run_id vorhanden sind.",
     )
     args = parser.parse_args()
 
     refs = _collect_refs(args)
     if not refs:
-        raise RuntimeError("Не переданы referenznummer. Используйте --ref или --from-log.")
+        raise RuntimeError("Keine referenznummern angegeben. Verwenden Sie --ref oder --from-log.")
 
     cfg = load_app_config()
     db = get_database(cfg)
