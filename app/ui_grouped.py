@@ -91,7 +91,13 @@ def get_selected_row(event: Any) -> Optional[int]:
         return None
     if not rows:
         return None
-    return rows[0]
+    idx = rows[0]
+    if idx is None:
+        return None
+    try:
+        return int(idx)
+    except (TypeError, ValueError):
+        return None
 
 
 st.set_page_config(page_title="Analysen nach Arbeitgeber", layout="wide")
@@ -137,7 +143,7 @@ st.caption("Zeile auswählen, um darunter die zugehörigen Stellen anzuzeigen (n
 
 g_event = st.dataframe(
     gdf[["arbeitgeber", "anzahl", "max_score"]],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     on_select="rerun",
     selection_mode="single-row",
@@ -146,7 +152,7 @@ selected_group_index = get_selected_row(g_event)
 
 st.divider()
 
-if selected_group_index is None or selected_group_index >= len(groups):
+if selected_group_index is None or selected_group_index < 0 or selected_group_index >= len(groups):
     st.info("Bitte zuerst einen Arbeitgeber in der Tabelle oben auswählen.")
     st.stop()
 
@@ -172,7 +178,7 @@ jdf = pd.DataFrame(
 
 j_event = st.dataframe(
     jdf[["score", "referenznummer", "beruf", "titel", "beschreibung_kurz"]],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     on_select="rerun",
     selection_mode="single-row",
@@ -182,7 +188,7 @@ selected_job_index = get_selected_row(j_event)
 st.divider()
 st.subheader("Stellendetails")
 
-if selected_job_index is None or selected_job_index >= len(jobs):
+if selected_job_index is None or selected_job_index < 0 or selected_job_index >= len(jobs):
     st.info("Bitte zuerst eine Stelle in der Tabelle oben auswählen.")
 else:
     job = jobs[selected_job_index]
