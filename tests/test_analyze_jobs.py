@@ -85,6 +85,40 @@ class FakeOpenAIClient:
         return self._response
 
 
+class RetryableError(Exception):
+    def __init__(self, status_code):
+        super().__init__(f"status={status_code}")
+        self.status_code = status_code
+
+
+class SequenceOpenAIClient:
+    def __init__(self, results):
+        self.results = list(results)
+        self.calls = 0
+        self.chat = type(
+            "Chat",
+            (),
+            {"completions": type("Completions", (), {"create": self._create})()},
+        )
+
+    def _create(self, **kwargs):
+        self.calls += 1
+        if not self.results:
+            raise AssertionError("No more prepared results")
+        result = self.results.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+
+class FakeLog:
+    def __init__(self):
+        self.warnings = []
+
+    def warning(self, msg):
+        self.warnings.append(msg)
+
+
 @pytest.fixture
 def base_cfg():
     return {
@@ -139,6 +173,53 @@ def test_extract_numbers_limit():
     text = "Values 1 2 3 4"
     nums = analyze_jobs.extract_numbers(text, limit=2)
     assert nums == [1.0, 2.0]
+
+
+def test_create_chat_completion_retries_then_succeeds(monkeypatch):
+    # Erst 429, danach 503, dann Erfolg: insgesamt 3 Versuche.
+    response = FakeOpenAIResponse('{"ok": true}')
+    client = SequenceOpenAIClient([RetryableError(429), RetryableError(503), response])
+    fake_log = FakeLog()
+    sleeps = []
+
+    monkeypatch.setattr(analyze_jobs.time, "sleep", lambda seconds: sleeps.append(seconds))
+
+    out = analyze_jobs._create_chat_completion_with_retries(
+        client=client,
+        req={"model": "m1", "messages": []},
+        log=fake_log,
+        ref="ref-retry-ok",
+        max_attempts=3,
+        base_delay_seconds=0.5,
+    )
+
+    assert out is response
+    assert client.calls == 3
+    assert sleeps == [0.5, 1.0]
+    assert len(fake_log.warnings) == 2
+
+
+def test_create_chat_completion_retries_and_raises_after_limit(monkeypatch):
+    # Nur retrybare Fehler -> nach max_attempts wird der letzte Fehler geworfen.
+    client = SequenceOpenAIClient([RetryableError(500), RetryableError(503), RetryableError(429)])
+    fake_log = FakeLog()
+    sleeps = []
+
+    monkeypatch.setattr(analyze_jobs.time, "sleep", lambda seconds: sleeps.append(seconds))
+
+    with pytest.raises(RetryableError, match="status=429"):
+        analyze_jobs._create_chat_completion_with_retries(
+            client=client,
+            req={"model": "m1", "messages": []},
+            log=fake_log,
+            ref="ref-retry-fail",
+            max_attempts=3,
+            base_delay_seconds=0.25,
+        )
+
+    assert client.calls == 3
+    assert sleeps == [0.25, 0.5]
+    assert len(fake_log.warnings) == 2
 
 
 def test_json_default_objectid_datetime():
