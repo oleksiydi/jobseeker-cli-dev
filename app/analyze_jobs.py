@@ -12,6 +12,7 @@ import json
 import os
 import re
 import hashlib
+import time
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
@@ -182,6 +183,54 @@ def _load_analysis_prompt(col_prompt, prompt_key: str, prompt_version: int | Non
         return prompt
     raise RuntimeError(f"Prompt nicht gefunden: key='{prompt_key}', version={prompt_version}")
 
+
+def _extract_status_code(exc: Exception) -> int | None:
+    status_code = getattr(exc, "status_code", None)
+    if isinstance(status_code, int):
+        return status_code
+
+    response = getattr(exc, "response", None)
+    response_status_code = getattr(response, "status_code", None)
+    if isinstance(response_status_code, int):
+        return response_status_code
+    return None
+
+
+def _is_retryable_openai_error(exc: Exception) -> bool:
+    status_code = _extract_status_code(exc)
+    if status_code == 429:
+        return True
+    if isinstance(status_code, int) and 500 <= status_code < 600:
+        return True
+    return False
+
+
+def _create_chat_completion_with_retries(
+    client: OpenAI,
+    req: dict,
+    log,
+    ref: str,
+    max_attempts: int = 3,
+    base_delay_seconds: float = 1.0,
+):
+    # Nur temporäre API-Fehler (429/5xx) werden erneut versucht.
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return client.chat.completions.create(**req)
+        except Exception as exc:
+            if not _is_retryable_openai_error(exc):
+                raise
+            if attempt >= max_attempts:
+                raise
+
+            delay = base_delay_seconds * (2 ** (attempt - 1))
+            status_code = _extract_status_code(exc)
+            log.warning(
+                f"{ref}: OpenAI temporärer Fehler (status={status_code}), "
+                f"Retry {attempt}/{max_attempts} in {delay:.1f}s"
+            )
+            time.sleep(delay)
+
 # ---------- Hauptlogik ----------
 
 def main():
@@ -317,15 +366,7 @@ def main():
                 "verbosity":"low"
             }
 
-            try:
-                resp = client.chat.completions.create(**req)
-            except Exception as e:
-                # gpt-5-nano / gpt-5-* erlauben häufig keine temperature-Änderung
-                if "Unsupported value: 'temperature'" in str(e):
-                    req.pop("temperature", None)
-                    resp = client.chat.completions.create(**req)
-                else:
-                    raise
+            resp = _create_chat_completion_with_retries(client=client, req=req, log=log, ref=ref)
 
             content = resp.choices[0].message.content
             data = json.loads(content)
