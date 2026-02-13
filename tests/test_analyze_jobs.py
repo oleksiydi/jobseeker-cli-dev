@@ -118,6 +118,21 @@ def test_extract_numbers_basic():
     assert nums == [12.5, 3.2, 99.0]
 
 
+def test_ensure_indexes_uses_versioned_analysis_indexes(base_cfg):
+    db = FakeDB(
+        {
+            "analysis": FakeCollection(),
+            "analysis_prompts": FakeCollection(),
+        }
+    )
+
+    analyze_jobs.ensure_indexes(db, base_cfg)
+
+    analysis_indexes = db["analysis"].indexes
+    assert (([("referenznummer", 1), ("input_hash", 1)],), {"unique": True}) in analysis_indexes
+    assert (([("referenznummer", 1), ("is_latest", 1)],), {}) in analysis_indexes
+
+
 def test_extract_numbers_limit():
     text = "Values 1 2 3 4"
     nums = analyze_jobs.extract_numbers(text, limit=2)

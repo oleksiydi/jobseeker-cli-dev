@@ -35,8 +35,10 @@ from app.db.mongo import get_database, resolve_collection_name
 
 def ensure_indexes(db: Database, cfg: dict):
     col = db[resolve_collection_name(cfg, key="analysis", default="analysen")]
-    col.create_index([("referenznummer", ASCENDING)], unique=True)
-    col.create_index([("input_hash", ASCENDING)])
+    # Pro Referenznummer darf derselbe Input nur einmal gespeichert werden.
+    col.create_index([("referenznummer", ASCENDING), ("input_hash", ASCENDING)], unique=True)
+    # Für Queries auf die aktuelle/alte Versionen pro Stelle.
+    col.create_index([("referenznummer", ASCENDING), ("is_latest", ASCENDING)])
     col.create_index([("prompt_key", ASCENDING), ("prompt_version", ASCENDING)])
     col_prompt = db[resolve_collection_name(cfg, key="analysis_prompts", default="analysis_prompts")]
     col_prompt.create_index([("key", ASCENDING), ("version", ASCENDING)], unique=True)
