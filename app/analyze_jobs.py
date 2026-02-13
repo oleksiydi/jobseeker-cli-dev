@@ -231,6 +231,46 @@ def _create_chat_completion_with_retries(
             )
             time.sleep(delay)
 
+
+def _validate_analysis_response(data: dict) -> dict:
+    if not isinstance(data, dict):
+        raise ValueError("LLM-Antwort muss ein JSON-Objekt sein.")
+
+    required_fields = {
+        "score",
+        "decision",
+        "reasons",
+        "risks",
+        "missing_evidence",
+        "notes",
+    }
+    missing = [field for field in required_fields if field not in data]
+    if missing:
+        raise ValueError(f"Pflichtfelder fehlen: {', '.join(sorted(missing))}")
+
+    try:
+        float(data.get("score"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Feld 'score' muss numerisch sein.") from exc
+
+    decision = data.get("decision")
+    if not isinstance(decision, str) or not decision.strip():
+        raise ValueError("Feld 'decision' muss ein nicht-leerer String sein.")
+
+    notes = data.get("notes")
+    if not isinstance(notes, str):
+        raise ValueError("Feld 'notes' muss ein String sein.")
+
+    # Für Listenfelder akzeptieren wir nur String-Elemente, damit Snapshot und UI stabil bleiben.
+    for field_name in ("reasons", "risks", "missing_evidence"):
+        field_value = data.get(field_name)
+        if not isinstance(field_value, list):
+            raise ValueError(f"Feld '{field_name}' muss eine Liste sein.")
+        if not all(isinstance(item, str) for item in field_value):
+            raise ValueError(f"Feld '{field_name}' darf nur String-Elemente enthalten.")
+
+    return data
+ 
 # ---------- Hauptlogik ----------
 
 def main():
@@ -370,6 +410,7 @@ def main():
 
             content = resp.choices[0].message.content
             data = json.loads(content)
+            data = _validate_analysis_response(data)
 
         except Exception as e:
             log.error(f"{ref}: Fehler beim OpenAI-Aufruf/Parsing: {e}")
