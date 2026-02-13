@@ -50,6 +50,12 @@ class FakeCollection:
                 return
         raise AssertionError("No document found for update_one")
 
+    def update_many(self, query, update):
+        set_doc = update.get("$set", {})
+        for doc in self.docs:
+            if all(doc.get(k) == v for k, v in query.items()):
+                doc.update(set_doc)
+
 
 class FakeDB:
     def __init__(self, collections):
@@ -274,7 +280,9 @@ def test_main_updates_analysis_when_input_changed(base_cfg, default_prompt_doc):
             }
         ]
     )
-    col_an = FakeCollection([{"_id": "x3", "referenznummer": "ref3", "input_hash": "old-hash", "notes": "old"}])
+    col_an = FakeCollection(
+        [{"_id": "x3", "referenznummer": "ref3", "version": 1, "is_latest": True, "input_hash": "old-hash", "notes": "old"}]
+    )
     col_prof = FakeCollection([{"key": "p1", "name": "User"}])
     db = FakeDB(
         {
@@ -306,11 +314,15 @@ def test_main_updates_analysis_when_input_changed(base_cfg, default_prompt_doc):
     ):
         analyze_jobs.main()
 
-    assert len(col_an.inserted) == 0
-    updated = col_an.docs[0]
-    assert updated["referenznummer"] == "ref3"
-    assert updated["notes"] == "updated"
-    assert "input_hash" in updated
+    assert len(col_an.inserted) == 1
+    previous = col_an.docs[0]
+    saved = col_an.inserted[0]
+    assert previous["is_latest"] is False
+    assert saved["referenznummer"] == "ref3"
+    assert saved["version"] == 2
+    assert saved["is_latest"] is True
+    assert saved["notes"] == "updated"
+    assert "input_hash" in saved
 
 
 def test_main_skips_inactive_vacancies(base_cfg, default_prompt_doc):

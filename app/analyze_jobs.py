@@ -272,14 +272,26 @@ def main():
             "model": model,
         }
         input_hash = _compute_input_hash(input_hash_payload)
-        existing = col_an.find_one({"referenznummer": ref}, {"_id": 1, "input_hash": 1})
-        if existing and existing.get("input_hash") == input_hash:
+        same_hash_doc = col_an.find_one(
+            {"referenznummer": ref, "input_hash": input_hash},
+            {"_id": 1, "version": 1},
+        )
+        if same_hash_doc:
             log.info(f"{ref}: Eingang unverändert — übersprungen ({title} bei {firma})")
             continue
-        if existing:
+
+        latest_doc = col_an.find_one(
+            {"referenznummer": ref},
+            {"_id": 1, "version": 1},
+            sort=[("version", DESCENDING)],
+        )
+        if latest_doc:
             log.info(f"{ref}: Eingang geändert — erneute Analyse ({title} bei {firma})")
         else:
             log.info(f"{ref}: neue Stelle — {title} bei {firma}")
+
+        latest_version = latest_doc.get("version") if latest_doc else None
+        next_version = int(latest_version) + 1 if latest_version else 1
 
 
         user_payload = {
@@ -343,9 +355,13 @@ def main():
                 probabilities.append(n)
         probabilities = probabilities[:3]
 
+        now_utc = datetime.now(timezone.utc)
         out_doc = {
             "referenznummer": ref,
-            "updated_at": datetime.now(timezone.utc),
+            "version": next_version,
+            "is_latest": True,
+            "updated_at": now_utc,
+            "created_at": now_utc,
             "candidate_profile_key": key,
             "model": model,
             "input_hash": input_hash,
@@ -388,11 +404,17 @@ def main():
             "openai_raw": data,     # Modellantwort als JSON
         }
 
-        if existing:
-            col_an.update_one({"_id": existing["_id"]}, {"$set": out_doc})
-        else:
-            out_doc["created_at"] = out_doc["updated_at"]
-            col_an.insert_one(out_doc)
+        if latest_doc:
+            col_an.update_many(
+                {"referenznummer": ref},
+                {
+                    "$set": {
+                        "is_latest": False,
+                        "updated_at": out_doc["updated_at"],
+                    }
+                },
+            )
+        col_an.insert_one(out_doc)
         processed += 1
         log.info(f"{ref}: Analyse gespeichert")
 
