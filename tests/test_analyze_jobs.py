@@ -73,6 +73,7 @@ class FakeOpenAIResponse:
 class FakeOpenAIClient:
     def __init__(self, response):
         self._response = response
+        self.calls = 0
         self.chat = type(
             "Chat",
             (),
@@ -80,6 +81,7 @@ class FakeOpenAIClient:
         )
 
     def _create(self, **kwargs):
+        self.calls += 1
         return self._response
 
 
@@ -338,6 +340,65 @@ def test_main_updates_analysis_when_input_changed(base_cfg, default_prompt_doc):
     assert saved["is_latest"] is True
     assert saved["notes"] == "updated"
     assert "input_hash" in saved
+
+
+def test_main_creates_next_version_and_flips_latest_marker(base_cfg, default_prompt_doc):
+    # Mehrere alte Versionen vorhanden: neue Version muss latest+1 sein.
+    col_list = FakeCollection(
+        [
+            {
+                "referenznummer": "ref-versioned",
+                "stellenangebotsTitel": "Engineer",
+                "arbeitgeber": "Example",
+                "details": {"desc": "changed"},
+                "is_active": True,
+            }
+        ]
+    )
+    col_an = FakeCollection(
+        [
+            {"_id": "v1", "referenznummer": "ref-versioned", "version": 1, "is_latest": False, "input_hash": "h1"},
+            {"_id": "v2", "referenznummer": "ref-versioned", "version": 2, "is_latest": True, "input_hash": "h2"},
+        ]
+    )
+    col_prof = FakeCollection([{"key": "p1", "name": "User"}])
+    db = FakeDB(
+        {
+            "list": col_list,
+            "details": FakeCollection(),
+            "analysis": col_an,
+            "profiles": col_prof,
+            "analysis_prompts": FakeCollection([default_prompt_doc]),
+        }
+    )
+
+    response_payload = {
+        "score": 90,
+        "decision": "shortlist",
+        "reasons": ["r1"],
+        "risks": [],
+        "missing_evidence": [],
+        "notes": "new version",
+    }
+    fake_client = FakeOpenAIClient(FakeOpenAIResponse(json.dumps(response_payload)))
+
+    with (
+        patch.object(analyze_jobs, "load_app_config", return_value=base_cfg),
+        patch.object(analyze_jobs, "get_database", return_value=db),
+        patch.object(analyze_jobs, "ensure_indexes"),
+        patch.object(analyze_jobs, "load_dotenv"),
+        patch.object(analyze_jobs, "OpenAI", return_value=fake_client),
+    ):
+        analyze_jobs.main()
+
+    assert fake_client.calls == 1
+    assert len(col_an.inserted) == 1
+    # Alle bisherigen Versionen werden auf is_latest=False gesetzt.
+    assert all(doc["is_latest"] is False for doc in col_an.docs)
+    new_doc = col_an.inserted[0]
+    assert new_doc["referenznummer"] == "ref-versioned"
+    assert new_doc["version"] == 3
+    assert new_doc["is_latest"] is True
 
 
 def test_main_skips_inactive_vacancies(base_cfg, default_prompt_doc):
