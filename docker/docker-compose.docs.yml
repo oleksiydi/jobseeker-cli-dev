@@ -1,4 +1,4 @@
-version: "3.9"
+name: jobseeker-docs
 
 services:
   docs:
@@ -7,6 +7,6 @@ services:
     working_dir: /docs
     command: serve --dev-addr=0.0.0.0:8000
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ../:/docs
