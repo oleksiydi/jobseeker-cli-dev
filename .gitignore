@@ -42,3 +42,6 @@ docker/metabase-data/
 # Misc
 *.tmp
 *.swp
+
+# Local personal drafts
+playgrounds/mongodb/Oleksii Didyk Anschreiben.md
