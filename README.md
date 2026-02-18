@@ -12,6 +12,14 @@ Für Entwicklerdokumentation mit visuellen Schemata:
 
 Alle Diagramme sind in Mermaid in Markdown gehalten und direkt in VS Code (Markdown Preview) lesbar.
 
+Für eine strukturierte Web-Dokumentation aus allen Markdown-Dateien:
+
+```bash
+docker compose -f docker/docker-compose.docs.yml up
+```
+
+Danach unter `http://localhost:8000`.
+
 ## Erster Start (obligatorisch)
 
 Vor dem Start der Pipelines müssen einmalig folgende Daten nach MongoDB geladen werden:

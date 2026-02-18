@@ -1,0 +1,40 @@
+site_name: jobseeker-cli docs
+site_description: Project documentation for jobseeker-cli
+site_url: http://localhost:8000
+repo_name: jobseeker-cli
+
+theme:
+  name: material
+  language: ru
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+
+nav:
+  - Главная: index.md
+  - Архитектура:
+      - Обзор: architecture/README.md
+      - 01 System Overview: architecture/01-system-overview.md
+      - 02 Pipeline Sequence: architecture/02-pipelines-sequence.md
+      - 03 Job Details Decision and State: architecture/03-job-details-decision-and-state.md
+      - 04 Maintenance Playbook: architecture/04-maintenance-playbook.md
+      - 05 Embeddings and LLM Cost Optimization: architecture/05-embeddings-and-llm-cost-optimization-ru.md
+      - 06 Embeddings and LLM Cost Optimization (Explained): architecture/06-embeddings-and-llm-cost-optimization-ru-explained.md
