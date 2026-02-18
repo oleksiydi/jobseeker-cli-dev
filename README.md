@@ -1,5 +1,9 @@
 # jobseeker-cli
 
+## Third-Party Licenses
+
+- `THIRD_PARTY_LICENSES.md`
+
 ## Architektur und Visualisierung
 
 Für Entwicklerdokumentation mit visuellen Schemata:
