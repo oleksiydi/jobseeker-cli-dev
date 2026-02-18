@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mermaid Viewer</title>
+  <style>
+    body { margin:0; padding:24px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+           background:#111827; color:#e5e7eb; }
+    .card { max-width: 1200px; margin: 0 auto; background:#0b1220; border:1px solid #1f2937;
+            border-radius: 14px; padding: 18px; }
+    .hint { opacity:.8; font-size:14px; margin-bottom:12px; }
+    #err { color:#fca5a5; white-space:pre-wrap; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="hint">Mermaid диаграмма</div>
+
+    <div class="mermaid">
+%%{init: {"theme":"dark","themeVariables":{
+  "fontFamily":"Inter, Segoe UI, Arial",
+  "fontSize":"14px",
+  "primaryColor":"#1f2937",
+  "primaryTextColor":"#e5e7eb",
+  "primaryBorderColor":"#374151",
+  "lineColor":"#9ca3af",
+  "tertiaryColor":"#111827"
+}}}%%
+sequenceDiagram
+    autonumber
+    participant L as job_list_collector
+    participant API1 as BA List API
+    participant SA as stellenangebote
+    participant SH as stellenangebote_history
+    participant D as job_details_collector
+    participant API2 as BA Details API
+    participant JD as jobdetails
+    participant JH as jobdetails_history
+    participant A as analyze_jobs
+    participant OAI as OpenAI API
+    participant AN as analysen
+
+    L->>API1: GET page jobs (with timeout/retry limits)
+    API1-->>L: items[]
+    L->>SA: upsert current meta (diff + meta_hash)
+    L->>SH: list_seen/content_change/list_missing/list_restored
+
+    D->>SA: read active vacancies + modifikationsTimestamp(_dt)
+    D->>JD: batch read current details by referenznummer ($in)
+    Note over D: prefilter candidates by SA vs JD timestamps
+    D->>API2: GET details only for candidates
+    API2-->>D: details / 404 / error
+    D->>JD: insert/update only when needed
+    D->>JH: no_content_change/content_change/remote_not_found
+
+    A->>SA: aggregate active meta
+    A->>JD: lookup current details
+    A->>OAI: analyze candidate payload
+    OAI-->>A: strict JSON response
+    A->>AN: versioned upsert by input_hash
+    </div>
+
+    <div id="err"></div>
+  </div>
+
+  <!-- грузим mermaid обычным script -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    (function () {
+      const err = document.getElementById("err");
+
+      // 1) Проверим, загрузился ли mermaid.js
+      if (typeof window.mermaid === "undefined") {
+        err.textContent = "ERROR: Mermaid library did not load. Проверь интернет / блокировку CDN / CSP.";
+        return;
+      }
+
+      try {
+        // 2) Инициализация и рендер
+        window.mermaid.initialize({ startOnLoad: true, theme: "dark" });
+
+        // Для надёжности принудительно рендерим:
+        if (window.mermaid.run) {
+          window.mermaid.run({ querySelector: ".mermaid" });
+        }
+      } catch (e) {
+        err.textContent = "Mermaid render error:\n" + (e && e.stack ? e.stack : e);
+      }
+    })();
+  </script>
+</body>
+</html>

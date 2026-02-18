@@ -1,0 +1,165 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from unittest.mock import patch
+
+import app.job_details_collector as job_details_collector
+
+
+class FakeLogger:
+    def info(self, *args, **kwargs):
+        return None
+
+    def warning(self, *args, **kwargs):
+        return None
+
+
+class FakeListCollection:
+    def __init__(self, docs):
+        self.docs = docs
+        self.find_query = None
+        self.find_projection = None
+
+    def find(self, query=None, projection=None):
+        self.find_query = query
+        self.find_projection = projection
+        return list(self.docs)
+
+
+class FakeDetailsCollection:
+    def __init__(self, docs):
+        self.docs = docs
+        self.find_queries = []
+        self.update_calls = []
+        self.insert_calls = []
+
+    def create_index(self, *args, **kwargs):
+        return None
+
+    def find(self, query=None, projection=None):
+        self.find_queries.append(query)
+        refs = query.get("referenznummer", {}).get("$in", []) if query else []
+        ref_set = set(refs)
+        return [doc for doc in self.docs if doc.get("referenznummer") in ref_set]
+
+    def update_one(self, query, update):
+        self.update_calls.append((query, update))
+        return None
+
+    def insert_one(self, doc):
+        self.insert_calls.append(doc)
+        return None
+
+
+class FakeHistoryCollection:
+    def __init__(self):
+        self.insert_calls = []
+
+    def create_index(self, *args, **kwargs):
+        return None
+
+    def insert_one(self, doc):
+        self.insert_calls.append(doc)
+        return None
+
+
+class FakeDB:
+    def __init__(self, collections):
+        self.collections = collections
+
+    def __getitem__(self, key):
+        return self.collections[key]
+
+
+class FakeResponse:
+    def __init__(self, status_code, payload):
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class FakeSession:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def get(self, url, headers=None, timeout=None):
+        self.calls.append({"url": url, "headers": headers, "timeout": timeout})
+        return self.responses.pop(0)
+
+
+def test_prefilter_skips_guaranteed_and_calls_api_only_for_candidates():
+    list_col = FakeListCollection(
+        [
+            {
+                "referenznummer": "skip-ref",
+                "modifikationsTimestamp": "2026-02-10T08:00:00",
+                "modifikationsTimestamp_dt": datetime(2026, 2, 10, 7, 0, tzinfo=timezone.utc),
+            },
+            {
+                "referenznummer": "verify-ref",
+                "modifikationsTimestamp": "2026-02-10T08:00:00",
+                "modifikationsTimestamp_dt": datetime(2026, 2, 10, 7, 0, tzinfo=timezone.utc),
+            },
+        ]
+    )
+    det_col = FakeDetailsCollection(
+        [
+            {
+                "_id": "skip-id",
+                "referenznummer": "skip-ref",
+                "details_hash": "hash-skip",
+                "last_seen_remote_updated_at_dt": datetime(2026, 2, 10, 7, 0, tzinfo=timezone.utc),
+            },
+            {
+                "_id": "verify-id",
+                "referenznummer": "verify-ref",
+                "details_hash": "old-hash",
+                "titel": "old-title",
+                "last_seen_remote_updated_at_dt": datetime(2026, 2, 10, 6, 0, tzinfo=timezone.utc),
+            },
+        ]
+    )
+    history_col = FakeHistoryCollection()
+    db = FakeDB(
+        {
+            "stellenangebote": list_col,
+            "jobdetails": det_col,
+            "jobdetails_history": history_col,
+        }
+    )
+    cfg = {
+        "collections": {"list": "stellenangebote", "details": "jobdetails"},
+        "history_collections": {"details": "jobdetails_history"},
+        "jobcenter": {"details_api": {"url_template": "https://example/{ref_b64}", "headers": {}}},
+    }
+
+    fake_session = FakeSession(
+        [
+            FakeResponse(
+                200,
+                {
+                    "aenderungsdatum": "2026-02-10T08:00:00",
+                    "titel": "new-title",
+                },
+            )
+        ]
+    )
+
+    with (
+        patch.object(job_details_collector, "load_app_config", return_value=cfg),
+        patch.object(job_details_collector, "get_database", return_value=db),
+        patch.object(job_details_collector, "get_logger", return_value=FakeLogger()),
+        patch.object(job_details_collector.requests, "Session", return_value=fake_session),
+        patch.object(job_details_collector.time, "sleep", return_value=None),
+        patch.object(job_details_collector.random, "uniform", return_value=1.0),
+    ):
+        job_details_collector.main()
+
+    assert list_col.find_query == {"is_active": {"$ne": False}}
+    assert det_col.find_queries == [{"referenznummer": {"$in": ["skip-ref", "verify-ref"]}}]
+    assert len(fake_session.calls) == 1
+    assert "dmVyaWZ5LXJlZg" in fake_session.calls[0]["url"]
+    assert len(det_col.update_calls) == 1

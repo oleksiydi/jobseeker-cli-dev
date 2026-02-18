@@ -56,6 +56,7 @@ SERVICE_FIELDS = {
     "last_checked_at",
 }
 CONTENT_HASH_EXCLUDE_FIELDS = {"aenderungsdatum"}
+DETAILS_PREFILTER_BATCH_SIZE_DEFAULT = 500
 
 
 def _history_collection_name(cfg: dict[str, Any]) -> str:
@@ -174,91 +175,89 @@ def _build_remote_not_found_event(
     }
 
 
-# ---------- Hauptlogik ----------
+def _prefilter_batch_size() -> int:
+    env_value = os.getenv("JOBDETAILS_PREFILTER_BATCH_SIZE")
+    if env_value is None:
+        return DETAILS_PREFILTER_BATCH_SIZE_DEFAULT
+    try:
+        return max(int(env_value), 1)
+    except ValueError:
+        return DETAILS_PREFILTER_BATCH_SIZE_DEFAULT
 
-def main():  # Hauptfunktion, die den Ablauf steuert
-    log = get_logger("job_details_collector")  # Benannter Logger
 
-    cfg = load_app_config()  # Anwendungskonfiguration laden
-    db = get_database(cfg)  # Mit MongoDB verbinden
-    list_collection_name = resolve_collection_name(cfg, key="list", default="stellenangebote")
-    details_collection_name = resolve_collection_name(cfg, key="details", default="jobdetails")
-    history_collection_name = _history_collection_name(cfg)
-    ensure_indexes(db, details_collection_name, history_collection_name)
+def _build_verify_candidates(
+    det_col: Collection, batch: list[dict[str, Any]], log: Any
+) -> tuple[list[dict[str, Any]], int]:
+    refs = [item["referenznummer"] for item in batch]
+    existing_docs = {
+        doc.get("referenznummer"): doc
+        for doc in det_col.find({"referenznummer": {"$in": refs}})
+        if doc.get("referenznummer")
+    }
 
-    list_col: Collection = db[list_collection_name]
-    det_col: Collection = db[details_collection_name]
-    det_history_col: Collection = db[history_collection_name]
-
-    api = cfg["jobcenter"]["details_api"]          # API-Parameter für Details
-    headers = dict(api.get("headers", {}))         # HTTP-Header (kopieren, um Original nicht zu ändern)
-    url_tpl = api["url_template"]                   # URL-Vorlage mit Base64(ref)
-
-    # Nur aktive Stellen (Kompatibilität: fehlendes is_active gilt als aktiv).
-    cursor = list_col.find(
-        {"is_active": {"$ne": False}},
-        {"referenznummer": 1, "refnr": 1, "modifikationsTimestamp": 1, "modifikationsTimestamp_dt": 1},
-    )  # Iterator der Kandidaten zur Detail-Aktualisierung
-    processed = 0  # Zähler für verarbeitete (erstellt/aktualisiert) Detail-Datensätze
-
-    for doc in cursor:  # Durch alle Listen-Dokumente iterieren
-        ref = doc.get("referenznummer") or doc.get("refnr")  # Referenznummer der Stelle
-        if not ref:  # Ohne Referenznummer überspringen
-            continue
-
-        sa_raw = doc.get("modifikationsTimestamp")  # Änderungszeit in der Liste (String)
-        sa_dt = ensure_utc_datetime(doc.get("modifikationsTimestamp_dt"))
-        if sa_dt is None:
-            sa_dt = parse_remote_dt(sa_raw)  # Fallback für ältere Dokumente ohne *_dt
-        if sa_dt is None:  # Ohne parsebares Datum kein korrekter Vergleich möglich
-            log.info(f"{ref}: kein gültiger modifikationsTimestamp in stellenangebote — Request übersprungen")
-            continue
-
-        current = det_col.find_one({"referenznummer": ref})  # Bestehenden Detail-Datensatz suchen
-
-        if current:  # Falls Detail-Datensatz bereits existiert
+    candidates: list[dict[str, Any]] = []
+    skipped_guaranteed = 0
+    for item in batch:
+        ref = item["referenznummer"]
+        current = existing_docs.get(ref)
+        if current:
             jd_raw = current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
             jd_dt = ensure_utc_datetime(
                 current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
             )
             if jd_dt is None:
-                jd_dt = parse_remote_dt(jd_raw)  # Fallback für ältere Dokumente ohne *_dt
-
-            # --- Schlüsselbedingung: API-Aufruf NUR wenn Listen-Datum strikt neuer ist ---
-            if jd_dt is not None and sa_dt <= jd_dt:
+                jd_dt = parse_remote_dt(jd_raw)
+            if jd_dt is not None and item["sa_dt"] <= jd_dt:
+                skipped_guaranteed += 1
                 log.info(f"{ref}: Liste ist nicht neuer (SA<=JD), API wird übersprungen")
                 continue
 
-            # Wenn in Details kein Datum vorhanden ist (jd_dt is None), wird aktualisiert.
-            # Falls sa_dt > jd_dt, wird ebenfalls aktualisiert.
+        candidates.append(
+            {
+                "referenznummer": ref,
+                "list_modifikations_timestamp": item["sa_raw"],
+                "current": current,
+            }
+        )
 
-        else:
-            # Wenn kein Detail-Datensatz existiert, API aufrufen und neu anlegen
-            pass
+    return candidates, skipped_guaranteed
 
-        # --- Ab hier: API-Aufruf erforderlich (kein Datensatz oder Liste neuer) ---
-        
-        ref_b64 = to_b64(ref)  # Referenznummer in Base64 (API-Anforderung)
-        url = url_tpl.format(ref_b64=ref_b64)  # In URL-Vorlage einsetzen
 
-        payload = None  # API-Antwort (Stellendetails)
+def _verify_and_apply_candidates(
+    session: requests.Session,
+    candidates: list[dict[str, Any]],
+    det_col: Collection,
+    det_history_col: Collection,
+    history_collection_name: str,
+    headers: dict[str, Any],
+    url_tpl: str,
+    log: Any,
+) -> int:
+    processed = 0
+    for candidate in candidates:
+        ref = candidate["referenznummer"]
+        sa_raw = candidate["list_modifikations_timestamp"]
+        current = candidate["current"]
+        ref_b64 = to_b64(ref)
+        url = url_tpl.format(ref_b64=ref_b64)
+
+        payload = None
         remote_not_found = False
-        time.sleep(random.uniform(0.5, 2)) # Kurze Pause zur Reduktion von Throttling-Risiko
-        for attempt in range(2):  # Bis zu 2 Versuche bei temporären Fehlern
+        time.sleep(random.uniform(0.5, 2))
+        for attempt in range(2):
             try:
-                r = requests.get(url, headers=headers, timeout=10)  # HTTP GET senden
-                if r.status_code == 200:  # Erfolg
-                    payload = r.json()  # JSON parsen -> dict
+                r = session.get(url, headers=headers, timeout=10)
+                if r.status_code == 200:
+                    payload = r.json()
                     break
                 if r.status_code == 404:
                     remote_not_found = True
                     log.info(f"{ref}: HTTP 404 (Details an der Quelle nicht verfügbar), ohne Retry übersprungen")
                     break
-                else:
-                    log.warning(f"{ref}: HTTP {r.status_code}")
-            except Exception as e:  # Netzwerk-/Timeout-Fehler
+                log.warning(f"{ref}: HTTP {r.status_code}")
+            except Exception as e:
                 log.warning(f"{ref}: Request-Fehler: {e}")
-            time.sleep(2 ** attempt ** random.uniform(0.9, 4))  # Exponentielle Pause zwischen Versuchen
+            time.sleep(2 ** attempt ** random.uniform(0.9, 4))
 
         if remote_not_found:
             now = utcnow_naive()
@@ -274,18 +273,17 @@ def main():  # Hauptfunktion, die den Ablauf steuert
             )
             continue
 
-        if not payload:  # Nach allen Versuchen keine Daten
+        if not payload:
             log.info(f"{ref}: keine Daten von der API (übersprungen)")
             continue
 
-        # Payload normalisieren (referenznummer setzen, aenderungsdatum notfalls auf None)
         payload["referenznummer"] = ref
         payload.setdefault("aenderungsdatum", None)
         remote_updated_raw = payload.get("aenderungsdatum")
         remote_updated_dt = parse_remote_dt(remote_updated_raw)
-        new_dt = remote_updated_dt or datetime.now(timezone.utc)  # Für date-gate Vergleiche
+        new_dt = remote_updated_dt or datetime.now(timezone.utc)
 
-        if current:  # Bei bestehendem Dokument entscheiden: aktualisieren oder überspringen
+        if current:
             cur_dt = ensure_utc_datetime(
                 current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
             )
@@ -294,7 +292,7 @@ def main():  # Hauptfunktion, die den Ablauf steuert
                     current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
                 )
 
-            if cur_dt and new_dt <= cur_dt:  # Zusätzlicher Schutz gegen nicht-neuere Daten
+            if cur_dt and new_dt <= cur_dt:
                 log.info(f"{ref}: API-Details nicht neuer (new<=old), übersprungen")
                 continue
 
@@ -341,11 +339,10 @@ def main():  # Hauptfunktion, die den Ablauf steuert
                 {"_id": current["_id"], "details_hash": {"$ne": new_hash}},
                 _build_diff_update(current, business_payload, new_hash, now),
             )
-            processed += 1  # Zähler erhöhen
+            processed += 1
             log.info(f"{ref}: aktualisiert (vorheriger Zustand in {history_collection_name} archiviert)")
         else:
-            # Kein bestehendes Dokument: neu einfügen
-            now = utcnow_naive()  # Aktuelle UTC-Zeit für Service-Felder
+            now = utcnow_naive()
             business_payload = _details_payload(payload)
             business_payload["referenznummer"] = ref
             business_payload["details_hash"] = _compute_details_hash(_content_payload_for_hash(business_payload))
@@ -359,7 +356,101 @@ def main():  # Hauptfunktion, die den Ablauf steuert
             processed += 1
             log.info(f"{ref}: eingefügt")
 
-    log.info(f"Fertig. Aktualisiert/eingefügt: {processed}")
+    return processed
+
+
+# ---------- Hauptlogik ----------
+
+def main():  # Hauptfunktion, die den Ablauf steuert
+    log = get_logger("job_details_collector")  # Benannter Logger
+
+    cfg = load_app_config()  # Anwendungskonfiguration laden
+    db = get_database(cfg)  # Mit MongoDB verbinden
+    list_collection_name = resolve_collection_name(cfg, key="list", default="stellenangebote")
+    details_collection_name = resolve_collection_name(cfg, key="details", default="jobdetails")
+    history_collection_name = _history_collection_name(cfg)
+    ensure_indexes(db, details_collection_name, history_collection_name)
+
+    list_col: Collection = db[list_collection_name]
+    det_col: Collection = db[details_collection_name]
+    det_history_col: Collection = db[history_collection_name]
+
+    api = cfg["jobcenter"]["details_api"]          # API-Parameter für Details
+    headers = dict(api.get("headers", {}))         # HTTP-Header (kopieren, um Original nicht zu ändern)
+    url_tpl = api["url_template"]                   # URL-Vorlage mit Base64(ref)
+
+    # Nur aktive Stellen (Kompatibilität: fehlendes is_active gilt als aktiv).
+    cursor = list_col.find(
+        {"is_active": {"$ne": False}},
+        {"referenznummer": 1, "refnr": 1, "modifikationsTimestamp": 1, "modifikationsTimestamp_dt": 1},
+    )
+    prefilter_batch_size = _prefilter_batch_size()
+    session = requests.Session()
+    processed = 0
+    skipped_missing_list_dt = 0
+    skipped_guaranteed = 0
+    verify_candidates_total = 0
+    batch: list[dict[str, Any]] = []
+
+    for doc in cursor:
+        ref = doc.get("referenznummer") or doc.get("refnr")
+        if not ref:
+            continue
+
+        sa_raw = doc.get("modifikationsTimestamp")
+        sa_dt = ensure_utc_datetime(doc.get("modifikationsTimestamp_dt"))
+        if sa_dt is None:
+            sa_dt = parse_remote_dt(sa_raw)
+        if sa_dt is None:
+            skipped_missing_list_dt += 1
+            log.info(f"{ref}: kein gültiger modifikationsTimestamp in stellenangebote — Request übersprungen")
+            continue
+
+        batch.append({"referenznummer": ref, "sa_raw": sa_raw, "sa_dt": sa_dt})
+        if len(batch) < prefilter_batch_size:
+            continue
+
+        candidates, skipped = _build_verify_candidates(det_col, batch, log)
+        skipped_guaranteed += skipped
+        verify_candidates_total += len(candidates)
+        processed += _verify_and_apply_candidates(
+            session=session,
+            candidates=candidates,
+            det_col=det_col,
+            det_history_col=det_history_col,
+            history_collection_name=history_collection_name,
+            headers=headers,
+            url_tpl=url_tpl,
+            log=log,
+        )
+        batch = []
+
+    if batch:
+        candidates, skipped = _build_verify_candidates(det_col, batch, log)
+        skipped_guaranteed += skipped
+        verify_candidates_total += len(candidates)
+        processed += _verify_and_apply_candidates(
+            session=session,
+            candidates=candidates,
+            det_col=det_col,
+            det_history_col=det_history_col,
+            history_collection_name=history_collection_name,
+            headers=headers,
+            url_tpl=url_tpl,
+            log=log,
+        )
+
+    close_fn = getattr(session, "close", None)
+    if callable(close_fn):
+        close_fn()
+
+    log.info(
+        "Fertig. Aktualisiert/eingefügt: %s, skipped_guaranteed=%s, skipped_missing_list_dt=%s, verify_candidates=%s",
+        processed,
+        skipped_guaranteed,
+        skipped_missing_list_dt,
+        verify_candidates_total,
+    )
 
 if __name__ == "__main__":  # Bei Direktstart als Hauptprogramm
     main()

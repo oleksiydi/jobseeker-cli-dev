@@ -1,5 +1,17 @@
 # jobseeker-cli
 
+## Architektur und Visualisierung
+
+Für Entwicklerdokumentation mit visuellen Schemata:
+
+- `docs/architecture/README.md`
+- `docs/architecture/01-system-overview.md`
+- `docs/architecture/02-pipelines-sequence.md`
+- `docs/architecture/03-job-details-decision-and-state.md`
+- `docs/architecture/04-maintenance-playbook.md`
+
+Alle Diagramme sind in Mermaid in Markdown gehalten und direkt in VS Code (Markdown Preview) lesbar.
+
 ## Erster Start (obligatorisch)
 
 Vor dem Start der Pipelines müssen einmalig folgende Daten nach MongoDB geladen werden:
