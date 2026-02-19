@@ -240,3 +240,34 @@ result = client.ensure_collection()
 - `docs/architecture/15-embedding-chunking-spec-v1-ru.md`
 - `docs/architecture/16-embedding-chunking-flow-diagram.md`
 - `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`
+
+## 12) Новый запрос: план внедрения стека правил
+
+Добавлен подробный документ:
+- `docs/architecture/19-rules-stack-implementation-plan-ru.md`
+
+Что покрыто:
+1. Что такое `Pydantic`, `Pandera`, `JSONLogic` и их роли в пайплайне.
+2. Кто интерпретирует правила и как они исполняются (rule-engine модуль).
+3. Как обрабатываются реальные кейсы из примеров:
+- `alternativBeruf1="false"`;
+- `description_missing`;
+- `section_label=unknown`;
+- грязные данные.
+4. Production-подход и staged roadmap внедрения (`A -> B -> C`).
+
+## 13) Реализация по запросу: Шаг 0 и Шаг 1 rule stack
+
+Сделано:
+1. Шаг 0 выполнен отдельным коммитом:
+- обновлён `PLANS.md` с новым планом `PLAN-20260219-04`.
+2. Шаг 1 выполнен:
+- добавлен пакет `app/matching`;
+- добавлены Pydantic-модели в `app/matching/models.py`;
+- добавлены unit-тесты `tests/test_matching_models.py`.
+
+Ключевая логика Шага 1:
+1. `MergedVacancyRaw.from_sources(...)` собирает merged объект с fallback-приоритетом.
+2. `normalize_alt_roles(...)` чистит `ALT_ROLES` от псевдо-пустых значений.
+3. `MergedVacancyNormalized.from_raw(...)` выставляет `description_missing`.
+4. `canonical_text()` формирует стабильный текст для будущего hash/chunking.
