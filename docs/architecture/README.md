@@ -18,6 +18,11 @@ Contents:
 - `docs/architecture/11-selection-cache-state.md`: cache lifecycle for `(profile/query/filters/versions)` selection reuse.
 - `docs/architecture/12-top20-expansion-logic.md`: anti-stagnation top-20 expansion to include new candidates.
 - `docs/architecture/13-llm-context-assembly.md`: compact context-building flow for local LLM handoff.
+- `docs/architecture/14-phase2-index-builder-step-by-step-ru.md`: Phase 2 explained in Russian, step-by-step in plain language (what to do, why, and done criteria).
+- `docs/architecture/15-embedding-chunking-spec-v1-ru.md`: strict RU spec for field priority, canonical embedding input, semantic chunking, fallback rules, and reindex criteria.
+- `docs/architecture/16-embedding-chunking-flow-diagram.md`: Mermaid flow of merge -> semantic chunks -> vectors -> Qdrant/Mongo metadata.
+- `docs/architecture/17-embedding-reindex-decision-diagram.md`: Mermaid decision flow for skip/reindex and missing-description fallback.
+- `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`: detailed RU examples of canonical text formation, Qdrant payload, Mongo metadata, and LLM input/output formats.
 
 Rules:
 
