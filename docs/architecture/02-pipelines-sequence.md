@@ -34,11 +34,11 @@ sequenceDiagram
     A->>JD: lookup current details
     A->>OAI: analyze candidate payload
     OAI-->>A: strict JSON response
-    A->>AN: versioned upsert by input_hash
+    A->>AN: versioned upsert by input_hash and candidate_profile_key
 ```
 
 ## Data Freshness Contract
 
 - `job_list_collector` is source of truth for active vacancies.
 - `job_details_collector` respects first-level date gate before details API.
-- `analyze_jobs` creates a new analysis version only when input changes (`input_hash`).
+- `analyze_jobs` creates a new analysis version only when input changes (`input_hash`), scoped by `candidate_profile_key`.

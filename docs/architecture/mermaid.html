@@ -58,7 +58,7 @@ sequenceDiagram
     A->>JD: lookup current details
     A->>OAI: analyze candidate payload
     OAI-->>A: strict JSON response
-    A->>AN: versioned upsert by input_hash
+    A->>AN: versioned upsert by input_hash and candidate_profile_key
     </div>
 
     <div id="err"></div>

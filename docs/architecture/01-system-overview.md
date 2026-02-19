@@ -54,5 +54,5 @@ flowchart LR
 
 - `job_list_collector`: idempotent upsert of vacancy meta, list presence events, active/inactive state transitions.
 - `job_details_collector`: early date-based prefilter, API verification only for candidates, hash-based update and history.
-- `analyze_jobs`: joins current meta+details, computes `input_hash`, skips unchanged inputs, versioned writes to `analysen`.
+- `analyze_jobs`: joins current meta+details, computes `input_hash`, skips unchanged inputs, versioned writes to `analysen` per `(referenznummer, candidate_profile_key)`.
 - `ui_grouped`: read-only grouped presentation of analysis results.

@@ -3,6 +3,7 @@
 ## Purpose
 
 Defines when vacancy embeddings should be recomputed and when processing can be skipped.
+State transitions are tracked per `(referenznummer, candidate_profile_key)` to avoid cross-profile interference.
 
 ```mermaid
 stateDiagram-v2

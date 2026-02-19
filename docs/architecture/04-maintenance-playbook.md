@@ -14,7 +14,7 @@
 - Diagram: `03-job-details-decision-and-state.md`.
 
 - Symptom: repeated analysis duplicates.
-- Check: `input_hash` generation and `analysen` unique index behavior.
+- Check: `input_hash` generation and `analysen` unique index behavior per `(referenznummer, candidate_profile_key)`.
 - Diagram: `02-pipelines-sequence.md`.
 
 - Symptom: vacancy missing in analysis.
