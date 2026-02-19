@@ -46,3 +46,10 @@ nav:
       - 04 Maintenance Playbook: architecture/04-maintenance-playbook.md
       - 05 Embeddings and LLM Cost Optimization: architecture/05-embeddings-and-llm-cost-optimization-ru.md
       - 06 Embeddings and LLM Cost Optimization (Explained): architecture/06-embeddings-and-llm-cost-optimization-ru-explained.md
+      - 07 Local Matching Plan (Beginner): architecture/07-local-matching-plan-ru-beginner.md
+      - 08 Local Matching Implementation Plan: architecture/08-local-matching-implementation-plan.md
+      - 09 Retrieval Pipeline: architecture/09-retrieval-pipeline.md
+      - 10 Vacancy Version State: architecture/10-vacancy-version-state.md
+      - 11 Selection Cache State: architecture/11-selection-cache-state.md
+      - 12 Top-20 Expansion Logic: architecture/12-top20-expansion-logic.md
+      - 13 LLM Context Assembly: architecture/13-llm-context-assembly.md
