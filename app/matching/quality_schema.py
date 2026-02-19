@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 from pandera.errors import SchemaErrors
 from pydantic import BaseModel, Field
 
@@ -124,8 +124,11 @@ def run_quality_checks(
         # Ограничиваем количество ошибок, чтобы отчет оставался читаемым.
         max_errors = 20
         for _, row in failure_cases.head(max_errors).iterrows():
+            check_name = row.get("check")
+            check_text = str(check_name) if check_name is not None else "check_failed"
             hard_errors.append(
-                f"{row.get('column', 'unknown')}: {row.get('failure_case', 'invalid')}"
+                f"{row.get('column', 'unknown')} | {check_text} | "
+                f"{row.get('failure_case', 'invalid')}"
             )
 
     unknown_ratio = float((dataframe["section_label"] == "unknown").mean())
@@ -169,4 +172,3 @@ def run_quality_checks(
             "short_text_non_missing_count": short_non_missing_count,
         },
     )
-
