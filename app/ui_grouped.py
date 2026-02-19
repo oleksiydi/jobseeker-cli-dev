@@ -17,12 +17,21 @@ def safe_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, default=str, indent=2)
 
 
-def build_pipeline(min_score: int, limit_groups: int, limit_jobs_per_group: int) -> List[Dict[str, Any]]:
+def build_pipeline(
+    min_score: int,
+    limit_groups: int,
+    limit_jobs_per_group: int,
+    profile_key: Optional[str],
+) -> List[Dict[str, Any]]:
+    match_query: Dict[str, Any] = {
+        "is_latest": True,
+        "score": {"$gt": int(min_score)},
+    }
+    if profile_key:
+        match_query["candidate_profile_key"] = profile_key
+
     pipeline: List[Dict[str, Any]] = [
-        {"$sort": {"referenznummer": 1, "version": -1}},
-        {"$group": {"_id": "$referenznummer", "doc": {"$first": "$$ROOT"}}},
-        {"$replaceRoot": {"newRoot": "$doc"}},
-        {"$match": {"score": {"$gt": int(min_score)}}},
+        {"$match": match_query},
         {"$sort": {"job_payload.meta.arbeitgeber": 1, "score": -1}},
         {
             "$project": {
@@ -32,6 +41,7 @@ def build_pipeline(min_score: int, limit_groups: int, limit_jobs_per_group: int)
                 "version": 1,
                 "prompt_version": 1,
                 "model": 1,
+                "candidate_profile_key": 1,
                 "arbeitgeber": "$job_payload.meta.arbeitgeber",
                 "beruf": "$job_payload.meta.beruf",
                 "stellenangebotsTitel": "$job_payload.details.stellenangebotsTitel",
@@ -68,12 +78,28 @@ def get_cfg() -> Dict[str, Any]:
 
 
 @st.cache_data(show_spinner=True, ttl=30)
-def load_grouped(min_score: int, limit_groups: int, limit_jobs_per_group: int) -> List[Dict[str, Any]]:
+def load_profile_keys() -> List[str]:
     cfg = get_cfg()
     db = get_database(cfg)
     analysis_collection = resolve_collection_name(cfg, key="analysis", default="analysen")
     col = db[analysis_collection]
-    pipeline = build_pipeline(min_score, limit_groups, limit_jobs_per_group)
+    keys = col.distinct("candidate_profile_key")
+    values = sorted([k for k in keys if isinstance(k, str) and k.strip()])
+    return values
+
+
+@st.cache_data(show_spinner=True, ttl=30)
+def load_grouped(
+    min_score: int,
+    limit_groups: int,
+    limit_jobs_per_group: int,
+    profile_key: Optional[str],
+) -> List[Dict[str, Any]]:
+    cfg = get_cfg()
+    db = get_database(cfg)
+    analysis_collection = resolve_collection_name(cfg, key="analysis", default="analysen")
+    col = db[analysis_collection]
+    pipeline = build_pipeline(min_score, limit_groups, limit_jobs_per_group, profile_key)
     return list(col.aggregate(pipeline))
 
 
@@ -108,16 +134,23 @@ with st.sidebar:
     min_score = st.number_input("Score >", min_value=0, max_value=1000, value=50, step=1)
     limit_groups = st.number_input("Limit Arbeitgeber", min_value=1, max_value=2000, value=200, step=10)
     limit_jobs = st.number_input("Limit Stellen pro Gruppe", min_value=1, max_value=500, value=50, step=5)
+    profile_options = load_profile_keys()
+    selected_profile = st.selectbox(
+        "Profil (candidate_profile_key)",
+        options=["(alle)"] + profile_options,
+        index=1 if profile_options else 0,
+    )
+    selected_profile_key = None if selected_profile == "(alle)" else selected_profile
 
     if st.button("Aktualisieren"):
         st.cache_data.clear()
         st.cache_resource.clear()
         st.rerun()
 
-pipeline = build_pipeline(min_score, limit_groups, limit_jobs)
+pipeline = build_pipeline(min_score, limit_groups, limit_jobs, selected_profile_key)
 
 try:
-    groups = load_grouped(min_score, limit_groups, limit_jobs)
+    groups = load_grouped(min_score, limit_groups, limit_jobs, selected_profile_key)
 except Exception as exc:
     st.error(f"Fehler bei der Abfrage: {exc}")
     st.code(traceback.format_exc())
