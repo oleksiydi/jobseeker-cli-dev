@@ -138,7 +138,7 @@
 
 Статус:
 - [x] Запланировано
-- [ ] В работе
+- [x] В работе
 - [ ] Завершено
 
 Итог:
@@ -146,8 +146,12 @@
 - Сформированы два подробных плана в `docs/architecture`:
 - beginner-версия с пояснениями;
 - implementation-версия с фазами, метриками и acceptance criteria.
+- Начата реализация Phase 1:
+- добавлен `matching`-блок в `conf/app.json`;
+- добавлен резолвер ENV override `app/core/matching_config.py`;
+- добавлен bootstrap Qdrant (`app/vector/qdrant_client.py`, `app/bootstrap_qdrant.py`).
 - Что не сделано:
-- Кодовая реализация pipeline пока не начата.
+- Индексация/чанкинг/retrieval/rerank пока не реализованы (следующие фазы).
 - Следующие действия:
 - Перейти к реализации фазы 1 (инфраструктура и конфиги) по документу implementation plan.
 
