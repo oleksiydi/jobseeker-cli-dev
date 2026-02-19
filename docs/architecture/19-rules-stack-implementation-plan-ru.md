@@ -291,7 +291,7 @@
 5. Контрактные модели `ChunkRecord` и `RuleEvaluationResult` как база для следующих шагов.
 
 Следующий шаг:
-1. Интегрировать запись audit в реальные pipeline-этапы (index/search), где принимаются решения `skip/reindex`.
+1. Перейти к реализации инкрементального индексатора вакансий (`app/build_job_index.py`) и использовать уже готовый audit API в местах `skip/reindex`.
 
 Прогресс по Шагу 3:
 1. Добавлен модуль `app/matching/quality_schema.py`.
@@ -313,3 +313,7 @@
 - `build_matching_audit_entry(...)` — сбор audit payload;
 - `write_matching_audit_entry(...)` — запись в Mongo-коллекцию (через `insert_one`).
 4. Добавлены unit-тесты `tests/test_matching_audit.py`.
+5. Подключение в decision-point:
+- `MatchingRuleEngine.evaluate_vacancy(...)` теперь опционально принимает:
+  `run_id`, `audit_collection`, `audit_stage`;
+- при передаче этих параметров правило автоматически пишет audit-запись.

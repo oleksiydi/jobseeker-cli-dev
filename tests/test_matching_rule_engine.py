@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+from typing import Any
+
 from app.core.config import load_app_config
 from app.matching.models import MergedVacancyNormalized
 from app.matching.rule_engine import MatchingRuleEngine, SimpleJsonLogicEvaluator
+
+
+class _FakeAuditCollection:
+    def __init__(self) -> None:
+        self.docs: list[dict[str, Any]] = []
+
+    def insert_one(self, document: dict[str, Any]) -> None:
+        self.docs.append(document)
 
 
 def _vacancy(description: str, alt_roles: list[str] | None = None) -> MergedVacancyNormalized:
@@ -59,6 +69,26 @@ def test_rule_engine_marks_alt_roles_empty() -> None:
     result = engine.evaluate_vacancy(vacancy, change_flags={"hash_changed": True})
     assert result.flags["alt_roles_empty"] is True
     assert "flag_alt_roles_empty" in result.applied_rules
+
+
+def test_rule_engine_writes_audit_when_collection_and_run_id_are_provided() -> None:
+    cfg = load_app_config()
+    engine = MatchingRuleEngine(cfg)
+    vacancy = _vacancy(description="Wir suchen eine Fachkraft.")
+    audit_collection = _FakeAuditCollection()
+
+    result = engine.evaluate_vacancy(
+        vacancy,
+        change_flags={"hash_changed": True},
+        run_id="run-qa-1",
+        audit_collection=audit_collection,
+    )
+
+    assert result.needs_reindex is True
+    assert len(audit_collection.docs) == 1
+    assert audit_collection.docs[0]["event_type"] == "matching_rule_decision"
+    assert audit_collection.docs[0]["referenznummer"] == "R-42"
+    assert audit_collection.docs[0]["run_id"] == "run-qa-1"
 
 
 def test_infer_section_label_requirements() -> None:

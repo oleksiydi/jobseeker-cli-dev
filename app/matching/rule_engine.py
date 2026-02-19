@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from app.core.config import project_root
+from app.matching.audit import MongoInsertOneLike, write_matching_audit_entry
 from app.matching.models import MergedVacancyNormalized, RuleEvaluationResult, normalize_text
 
 
@@ -291,6 +292,9 @@ class MatchingRuleEngine:
         self,
         vacancy: MergedVacancyNormalized,
         change_flags: Context | None = None,
+        run_id: str | None = None,
+        audit_collection: MongoInsertOneLike | None = None,
+        audit_stage: str = "rule_engine",
     ) -> RuleEvaluationResult:
         context = {
             "referenznummer": vacancy.referenznummer,
@@ -318,6 +322,16 @@ class MatchingRuleEngine:
 
         if bool(result.flags.get("create_synthetic_chunk", False)):
             result.flags["synthetic_chunk_text"] = self.build_synthetic_chunk(vacancy)
+
+        # Опциональная запись аудита: подключается только когда передана коллекция.
+        if run_id and audit_collection is not None:
+            write_matching_audit_entry(
+                audit_collection,
+                run_id=run_id,
+                vacancy=vacancy,
+                evaluation=result,
+                stage=audit_stage,
+            )
 
         return result
 

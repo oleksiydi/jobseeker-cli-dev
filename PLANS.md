@@ -127,7 +127,7 @@
 Статус:
 - [x] Запланировано
 - [x] В работе
-- [ ] Завершено
+- [x] Завершено
 
 Итог:
 - Что сделано:
@@ -137,9 +137,9 @@
 - Шаг 3: добавлен `Pandera` quality-check слой (`app/matching/quality_schema.py`) + unit-тесты.
 - Шаг 4: добавлен базовый audit trail (`app/matching/audit.py`) + unit-тесты.
 - Что не сделано:
-- Интеграция audit-записей в полный index/search pipeline еще не подключена.
+- Отдельная интеграция в `build index/search` будет выполнена вместе с реализацией этих модулей.
 - Следующие действия:
-- Подключить audit write в pipeline-шаги (build index/search), где принимается решение skip/reindex.
+- Перейти к `PLAN-20260219-03`: реализация инкрементального индексатора (`app/build_job_index.py`).
 
 ### [PLAN-20260219-03] Локальный matching-конвейер (CPU, high-quality, nightly)
 
