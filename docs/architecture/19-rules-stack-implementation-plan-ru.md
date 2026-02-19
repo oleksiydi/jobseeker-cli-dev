@@ -274,6 +274,13 @@
 2. Шаг 1 (базовые Pydantic-модели + нормализация + unit-тесты):
 - `app/matching/models.py`
 - `tests/test_matching_models.py`
+3. Шаг 2 (JSONLogic rule engine + rule files + unit-тесты):
+- `app/matching/rule_engine.py`
+- `conf/rules/normalize_rules.v1.json`
+- `conf/rules/fallback_rules.v1.json`
+- `conf/rules/label_rules.v1.json`
+- `conf/rules/reindex_rules.v1.json`
+- `tests/test_matching_rule_engine.py`
 
 Реализовано в коде Шага 1:
 1. `MergedVacancyRaw.from_sources(...)` с fallback-приоритетом `details -> meta`.
@@ -284,4 +291,4 @@
 5. Контрактные модели `ChunkRecord` и `RuleEvaluationResult` как база для следующих шагов.
 
 Следующий шаг:
-1. Шаг 2: `JSONLogic` rule engine (`app/matching/rule_engine.py` + `conf/rules/*.json`).
+1. Шаг 3: `Pandera` quality checks (`app/matching/quality_schema.py`).

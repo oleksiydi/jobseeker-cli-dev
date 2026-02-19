@@ -1,0 +1,30 @@
+{
+  "rule_set_version": "v1",
+  "rules": [
+    {
+      "id": "reindex_if_hash_changed",
+      "when": { "==": [ { "var": "hash_changed" }, true ] },
+      "set": { "needs_reindex": true },
+      "reason": "embedding_input_hash_changed"
+    },
+    {
+      "id": "reindex_if_model_changed",
+      "when": { "==": [ { "var": "embedding_model_changed" }, true ] },
+      "set": { "needs_reindex": true },
+      "reason": "embedding_model_changed"
+    },
+    {
+      "id": "reindex_if_chunking_changed",
+      "when": { "==": [ { "var": "chunking_version_changed" }, true ] },
+      "set": { "needs_reindex": true },
+      "reason": "chunking_version_changed"
+    },
+    {
+      "id": "reindex_if_preprocess_changed",
+      "when": { "==": [ { "var": "preprocess_version_changed" }, true ] },
+      "set": { "needs_reindex": true },
+      "reason": "preprocess_version_changed"
+    }
+  ],
+  "default_skip_reason": "unchanged_inputs"
+}

@@ -132,10 +132,12 @@
 Итог:
 - Что сделано:
 - Шаг 0: план добавлен.
+- Шаг 1: добавлены Pydantic-модели и нормализация (`app/matching/models.py`) + unit-тесты.
+- Шаг 2: добавлен JSONLogic engine (`app/matching/rule_engine.py`) + rule-files в `conf/rules` + unit-тесты.
 - Что не сделано:
-- Шаги 1-4 в работе.
+- Шаги 3-4 в работе.
 - Следующие действия:
-- Выполнить Шаг 1 (Pydantic модели + тесты + docs).
+- Выполнить Шаг 3 (Pandera quality checks).
 
 ### [PLAN-20260219-03] Локальный matching-конвейер (CPU, high-quality, nightly)
 

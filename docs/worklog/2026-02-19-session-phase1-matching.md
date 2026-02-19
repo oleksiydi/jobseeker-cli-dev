@@ -271,3 +271,43 @@ result = client.ensure_collection()
 2. `normalize_alt_roles(...)` чистит `ALT_ROLES` от псевдо-пустых значений.
 3. `MergedVacancyNormalized.from_raw(...)` выставляет `description_missing`.
 4. `canonical_text()` формирует стабильный текст для будущего hash/chunking.
+
+## 14) Реализация по запросу: Шаг 2 rule stack (JSONLogic)
+
+Сделано:
+1. Добавлены rule files:
+- `conf/rules/normalize_rules.v1.json`
+- `conf/rules/fallback_rules.v1.json`
+- `conf/rules/label_rules.v1.json`
+- `conf/rules/reindex_rules.v1.json`
+2. Добавлен модуль:
+- `app/matching/rule_engine.py`
+3. Добавлены unit-тесты:
+- `tests/test_matching_rule_engine.py`
+
+Ключевая логика:
+1. `evaluate_vacancy(...)` применяет normalize/fallback/reindex правила к нормализованной вакансии.
+2. `infer_section_label(...)` выставляет `tasks/requirements/benefits` по marker-эвристикам, иначе `unknown`.
+3. На выходе формируется объяснимый результат:
+- `applied_rules`
+- `decision_reasons`
+- `flags`
+- `needs_reindex/skip_reason`
+
+## 15) Рефакторинг rule engine + обновление учебного пособия
+
+Сделано в коде:
+1. `app/matching/rule_engine.py`:
+- dispatch-таблица операторов вместо длинной if-цепочки;
+- type aliases (`JSONValue`, `Context`);
+- compile-step ruleset в dataclass-структуры;
+- кэш чтения rule-файлов;
+- защитный лимит глубины рекурсии.
+2. `tests/test_matching_rule_engine.py`:
+- добавлен тест на depth limit evaluator.
+
+Сделано в обучающих материалах:
+1. `docs/learning/python/01_rule_engine_explained_ru.py`:
+- добавлен блок "что изменилось в production v2".
+2. `docs/learning/python/01_rule_engine_line_by_line_ru.md`:
+- добавлен раздел с разбором отличий v2 и причин этих изменений.

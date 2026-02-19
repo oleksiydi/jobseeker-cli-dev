@@ -104,6 +104,17 @@
       "hnsw_m": 16,
       "hnsw_ef_construct": 100,
       "timeout_seconds": 10
+    },
+    "rules": {
+      "enabled": true,
+      "ruleset_version": "v1",
+      "path": "conf/rules",
+      "files": {
+        "normalize": "normalize_rules.v1.json",
+        "fallback": "fallback_rules.v1.json",
+        "label": "label_rules.v1.json",
+        "reindex": "reindex_rules.v1.json"
+      }
     }
   }
 }
