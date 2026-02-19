@@ -137,9 +137,9 @@
 - Шаг 3: добавлен `Pandera` quality-check слой (`app/matching/quality_schema.py`) + unit-тесты.
 - Шаг 4: добавлен базовый audit trail (`app/matching/audit.py`) + unit-тесты.
 - Что не сделано:
-- Отдельная интеграция в `build index/search` будет выполнена вместе с реализацией этих модулей.
+- Интеграция audit в будущий `search`-контур будет сделана при реализации retrieval API/CLI.
 - Следующие действия:
-- Перейти к `PLAN-20260219-03`: реализация инкрементального индексатора (`app/build_job_index.py`).
+- Продолжить `PLAN-20260219-03`: добавить реальный embedding-upsert в Qdrant и провести smoke-тест на реальных данных.
 
 ### [PLAN-20260219-03] Локальный matching-конвейер (CPU, high-quality, nightly)
 
@@ -182,6 +182,15 @@
 Критерий готовности: вектора пересчитываются только при изменениях (input hash/model/chunking/preprocess version).
 Риски: ложные изменения из-за нестабильной нормализации текста.
 Откат: временно отключить нестабильные поля из hash-input.
+
+2.1 Провести smoke-тест на реальных данных после реализации embedding-upsert.
+Критерий готовности:
+- запуск `python3 -m app.build_job_index` на реальном наборе (не тестовые моки);
+- в отчете есть прозрачные метрики: `scanned`, `reindexed`, `skipped`, `failed_quality`;
+- повторный запуск без изменений показывает доминирующий `skipped`;
+- время прогона и доля ошибок зафиксированы в worklog.
+Риски: длительный прогон/шумные данные могут скрыть регрессии.
+Откат: запуск на ограниченной выборке (например, по `referenznummer`) и пошаговый разбор метрик.
 
 3. Реализовать retrieval + rerank + декомпозированный scoring.
 Критерий готовности: сохраняются `pre_llm_score`, `rerank_score`, компоненты score и метаданные confidence.
@@ -237,13 +246,16 @@
 - добавлен `matching`-блок в `conf/app.json`;
 - добавлен резолвер ENV override `app/core/matching_config.py`;
 - добавлен bootstrap Qdrant (`app/vector/qdrant_client.py`, `app/bootstrap_qdrant.py`).
+- Добавлен `qdrant`-сервис в `docker/docker-compose.yml` с локальным bind `127.0.0.1:6333`.
 - Добавлен baseline-инкрементальный индексатор `app/build_job_index.py`:
 - merged active вакансий, skip/reindex по hash+versions, quality-check, audit/state запись.
 - Что не сделано:
 - Полный embedding-расчет и upsert point-векторов в Qdrant (следующий шаг).
+- Smoke-тест на реальных данных после embedding-upsert еще не выполнен.
 - Retrieval/rerank/cache/LLM handoff пока не реализованы (следующие фазы).
 - Следующие действия:
 - Добавить реальный embedding-калькулятор в `build_job_index` и upsert чанков в Qdrant.
+- Выполнить smoke-тест на реальных данных и зафиксировать метрики в `docs/worklog/...`.
 - Перейти к реализации retrieval/rerank API/CLI.
 
 ### [PLAN-20260216-01] Оптимизация раннего отсева в `job_details_collector`

@@ -218,6 +218,35 @@ result = client.ensure_collection()
 
 Что добавлено в документ:
 1. Пошаговый разбор, как формируется каноничный текст вакансии.
+
+## 11) Актуализация статуса после последующих этапов
+
+После изначальной фиксации Phase 1 были выполнены дополнительные шаги:
+1. Добавлен `qdrant`-сервис в `docker/docker-compose.yml` с локальным bind `127.0.0.1:6333`.
+2. Проверен реальный запуск Qdrant:
+- `docker compose ... up -d qdrant`;
+- `curl http://127.0.0.1:6333/healthz`;
+- `.venv/bin/python -m app.bootstrap_qdrant`.
+3. Реализован `Pandera` quality-check слой:
+- `app/matching/quality_schema.py`;
+- `tests/test_matching_quality_schema.py`.
+4. Реализован audit слой:
+- `app/matching/audit.py`;
+- `tests/test_matching_audit.py`.
+5. Audit подключен в decision-point rule engine:
+- `MatchingRuleEngine.evaluate_vacancy(...)` поддерживает `run_id + audit_collection`.
+6. Реализован baseline инкрементальный индексатор:
+- `app/build_job_index.py`;
+- `tests/test_build_job_index.py`.
+
+Текущий контрольный результат тестов:
+```text
+50 passed
+```
+
+Что осталось по roadmap:
+1. Подключить реальный embedding-расчет и upsert векторов в Qdrant в `build_job_index`.
+2. Провести smoke-тест на реальных данных и зафиксировать метрики (`scanned/reindexed/skipped/failed_quality`).
 2. Примеры для:
 - полных данных;
 - избыточных (много "воды");

@@ -291,7 +291,10 @@
 5. Контрактные модели `ChunkRecord` и `RuleEvaluationResult` как база для следующих шагов.
 
 Следующий шаг:
-1. Перейти к реализации инкрементального индексатора вакансий (`app/build_job_index.py`) и использовать уже готовый audit API в местах `skip/reindex`.
+1. Rule-stack ядро завершено (Шаги 0-4).
+2. Дальше — интеграция в full pipeline по `PLAN-20260219-03`:
+- embedding-upsert в Qdrant в `app/build_job_index.py`;
+- smoke-тест на реальных данных с фиксацией метрик.
 
 Прогресс по Шагу 3:
 1. Добавлен модуль `app/matching/quality_schema.py`.
