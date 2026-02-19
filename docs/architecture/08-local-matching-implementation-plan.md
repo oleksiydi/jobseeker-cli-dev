@@ -212,6 +212,8 @@ v2 extension (soft decay):
 2. Semantic chunking:
 - preserve section coherence (`Aufgaben`, `Anforderungen`, `Benefits`).
 - keep chunk sizes in practical bounds for embedding model throughput.
+- first criterion is semantic coherence between neighboring sentences;
+- char limits are hard safety bounds, not primary split logic.
 
 3. Chunk metadata:
 - `job_id`, `chunk_id`, `chunk_index`, `section_label`, `description_missing`.
@@ -236,8 +238,14 @@ Done criteria:
 Current implementation notes:
 1. `conf/app.json` now contains a dedicated `matching` block with defaults for:
 - preprocess/chunking/embeddings/retrieval/rerank/cache/llm/qdrant.
-2. ENV override resolution is centralized in `app/core/matching_config.py`.
-3. Qdrant REST bootstrap is implemented in:
+2. Two run modes are configurable:
+- `run_mode=nightly` for scheduled batch
+- `run_mode=on_demand` for immediate/manual execution.
+3. Semantic chunking config now separates:
+- semantic parameters (`semantic_*`)
+- hard fallback bounds (`hard_*`, `fallback_overlap_chars`).
+4. ENV override resolution is centralized in `app/core/matching_config.py`.
+5. Qdrant REST bootstrap is implemented in:
 - `app/vector/qdrant_client.py`
 - `app/bootstrap_qdrant.py`
 

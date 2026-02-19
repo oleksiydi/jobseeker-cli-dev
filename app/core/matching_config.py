@@ -14,6 +14,10 @@ def _parse_int(raw_value: str) -> int:
     return int(raw_value.strip())
 
 
+def _parse_float(raw_value: str) -> float:
+    return float(raw_value.strip())
+
+
 def _set_nested(config: dict[str, Any], path: tuple[str, ...], value: Any) -> None:
     current = config
     for key in path[:-1]:
@@ -41,14 +45,29 @@ def resolve_matching_config(app_cfg: dict[str, Any]) -> dict[str, Any]:
 
     env_overrides: dict[str, tuple[tuple[str, ...], Any]] = {
         "MATCHING_ENABLED": (("enabled",), _parse_bool),
-        "MATCHING_NIGHTLY_MODE": (("nightly_mode",), _parse_bool),
+        "MATCHING_RUN_MODE": (("run_mode",), str),
+        "MATCHING_ALLOW_MANUAL_RUN": (("allow_manual_run",), _parse_bool),
+        "MATCHING_NIGHTLY_SCHEDULE_CRON": (("nightly_schedule_cron",), str),
         "MATCHING_PREPROCESS_STRATEGY": (("preprocess", "strategy"), str),
         "MATCHING_PREPROCESS_VERSION": (("preprocess", "version"), str),
         "MATCHING_CHUNKING_STRATEGY": (("chunking", "strategy"), str),
         "MATCHING_CHUNKING_VERSION": (("chunking", "version"), str),
-        "MATCHING_CHUNKING_MAX_CHARS": (("chunking", "max_chunk_chars"), _parse_int),
-        "MATCHING_CHUNKING_MIN_CHARS": (("chunking", "min_chunk_chars"), _parse_int),
-        "MATCHING_CHUNKING_OVERLAP_CHARS": (("chunking", "overlap_chars"), _parse_int),
+        "MATCHING_SEMANTIC_SIMILARITY_THRESHOLD": (
+            ("chunking", "semantic_similarity_threshold"),
+            _parse_float,
+        ),
+        "MATCHING_SEMANTIC_SENTENCE_WINDOW": (
+            ("chunking", "semantic_sentence_window"),
+            _parse_int,
+        ),
+        "MATCHING_SEMANTIC_MIN_SENTENCES": (("chunking", "semantic_min_sentences"), _parse_int),
+        "MATCHING_SEMANTIC_MAX_SENTENCES": (("chunking", "semantic_max_sentences"), _parse_int),
+        "MATCHING_CHUNKING_HARD_MAX_CHARS": (("chunking", "hard_max_chunk_chars"), _parse_int),
+        "MATCHING_CHUNKING_HARD_MIN_CHARS": (("chunking", "hard_min_chunk_chars"), _parse_int),
+        "MATCHING_CHUNKING_FALLBACK_OVERLAP_CHARS": (
+            ("chunking", "fallback_overlap_chars"),
+            _parse_int,
+        ),
         "MATCHING_EMBEDDING_MODEL": (("embeddings", "model_name"), str),
         "MATCHING_EMBEDDING_VECTOR_SIZE": (("embeddings", "vector_size"), _parse_int),
         "MATCHING_RETRIEVAL_TOP_K": (("retrieval", "top_k"), _parse_int),

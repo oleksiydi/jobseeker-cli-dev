@@ -55,7 +55,9 @@
   },
   "matching": {
     "enabled": false,
-    "nightly_mode": true,
+    "run_mode": "nightly",
+    "allow_manual_run": true,
+    "nightly_schedule_cron": "0 2 * * *",
     "preprocess": {
       "strategy": "spacy_de_trf",
       "version": "v1"
@@ -63,9 +65,13 @@
     "chunking": {
       "strategy": "semantic",
       "version": "v1",
-      "max_chunk_chars": 1800,
-      "min_chunk_chars": 500,
-      "overlap_chars": 120
+      "semantic_similarity_threshold": 0.72,
+      "semantic_sentence_window": 2,
+      "semantic_min_sentences": 2,
+      "semantic_max_sentences": 14,
+      "hard_max_chunk_chars": 2200,
+      "hard_min_chunk_chars": 300,
+      "fallback_overlap_chars": 120
     },
     "embeddings": {
       "model_name": "intfloat/multilingual-e5-large",

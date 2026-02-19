@@ -119,6 +119,9 @@ Dieser Schritt bereitet nur die Infrastruktur vor (Konfig + Qdrant Collection),
 noch ohne eigentliche Embedding-Berechnung.
 
 1. Matching-Parameter in `conf/app.json` prüfen:
+- `matching.run_mode` (`nightly` oder `on_demand`)
+- `matching.allow_manual_run`
+- `matching.nightly_schedule_cron`
 - `matching.embeddings.model_name`
 - `matching.embeddings.vector_size`
 - `matching.chunking.strategy`
@@ -130,6 +133,7 @@ noch ohne eigentliche Embedding-Berechnung.
 export MATCHING_QDRANT_URL=http://127.0.0.1:6333
 export MATCHING_QDRANT_COLLECTION=job_chunks_v1
 export MATCHING_EMBEDDING_VECTOR_SIZE=1024
+export MATCHING_RUN_MODE=on_demand
 ```
 
 3. Qdrant bootstrap starten:
@@ -143,6 +147,12 @@ Was die Kommando macht:
 - erstellt die Collection nur falls nötig.
 
 Damit ist der Schritt idempotent und sicher für wiederholte Ausführung.
+
+Hinweis zu semantic chunking:
+- Bei `matching.chunking.strategy=semantic` wird primär nach zusammenhängenden
+  Sinnblöcken (benachbarte Sätze mit hoher semantischer Ähnlichkeit) segmentiert.
+- Die Parameter `hard_*_chunk_chars` und `fallback_overlap_chars` dienen nur als
+  Schutzgrenzen, falls ein Block zu kurz/zu lang wird.
 
 ## Diagnose von `404` in `jobdetails`
 

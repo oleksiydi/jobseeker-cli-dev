@@ -160,3 +160,26 @@ result = client.ensure_collection()
 2. При необходимости добавить smoke-команду/проверку Qdrant в CI или локальный check script.
 3. Перейти к Phase 2 (Incremental Index Builder).
 
+## 7) Дополнение после запроса про режимы запуска и semantic chunking
+
+По запросу пользователя добавлены:
+1. Два режима запуска matching:
+- `run_mode=nightly`
+- `run_mode=on_demand`
+2. Флаг `allow_manual_run` и расписание `nightly_schedule_cron`.
+3. Параметры semantic chunking, где основной критерий — смысловая связность предложений:
+- `semantic_similarity_threshold`
+- `semantic_sentence_window`
+- `semantic_min_sentences`
+- `semantic_max_sentences`
+4. Отдельные hard-ограничители для fallback:
+- `hard_max_chunk_chars`
+- `hard_min_chunk_chars`
+- `fallback_overlap_chars`
+
+Обновлены файлы:
+- `conf/app.json`
+- `app/core/matching_config.py`
+- `tests/test_matching_config.py`
+- `README.md`
+- `docs/architecture/08-local-matching-implementation-plan.md`
