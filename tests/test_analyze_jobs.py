@@ -166,7 +166,10 @@ def test_ensure_indexes_uses_versioned_analysis_indexes(base_cfg):
 
     analysis_indexes = db["analysis"].indexes
     assert (([("referenznummer", 1), ("input_hash", 1)],), {"unique": True}) in analysis_indexes
-    assert (([("referenznummer", 1), ("is_latest", 1)],), {}) in analysis_indexes
+    assert (
+        (([("referenznummer", 1), ("candidate_profile_key", 1), ("is_latest", 1)],), {})
+        in analysis_indexes
+    )
 
 
 def test_extract_numbers_limit():
@@ -379,7 +382,17 @@ def test_main_updates_analysis_when_input_changed(base_cfg, default_prompt_doc):
         ]
     )
     col_an = FakeCollection(
-        [{"_id": "x3", "referenznummer": "ref3", "version": 1, "is_latest": True, "input_hash": "old-hash", "notes": "old"}]
+        [
+            {
+                "_id": "x3",
+                "referenznummer": "ref3",
+                "candidate_profile_key": "p1",
+                "version": 1,
+                "is_latest": True,
+                "input_hash": "old-hash",
+                "notes": "old",
+            }
+        ]
     )
     col_prof = FakeCollection([{"key": "p1", "name": "User"}])
     db = FakeDB(
@@ -438,8 +451,30 @@ def test_main_creates_next_version_and_flips_latest_marker(base_cfg, default_pro
     )
     col_an = FakeCollection(
         [
-            {"_id": "v1", "referenznummer": "ref-versioned", "version": 1, "is_latest": False, "input_hash": "h1"},
-            {"_id": "v2", "referenznummer": "ref-versioned", "version": 2, "is_latest": True, "input_hash": "h2"},
+            {
+                "_id": "v1",
+                "referenznummer": "ref-versioned",
+                "candidate_profile_key": "p1",
+                "version": 1,
+                "is_latest": False,
+                "input_hash": "h1",
+            },
+            {
+                "_id": "v2",
+                "referenznummer": "ref-versioned",
+                "candidate_profile_key": "p1",
+                "version": 2,
+                "is_latest": True,
+                "input_hash": "h2",
+            },
+            {
+                "_id": "v-foreign-profile",
+                "referenznummer": "ref-versioned",
+                "candidate_profile_key": "p2",
+                "version": 7,
+                "is_latest": True,
+                "input_hash": "h-p2",
+            },
         ]
     )
     col_prof = FakeCollection([{"key": "p1", "name": "User"}])
@@ -474,12 +509,67 @@ def test_main_creates_next_version_and_flips_latest_marker(base_cfg, default_pro
 
     assert fake_client.calls == 1
     assert len(col_an.inserted) == 1
-    # Alle bisherigen Versionen werden auf is_latest=False gesetzt.
-    assert all(doc["is_latest"] is False for doc in col_an.docs)
+    # Nur bisherige Versionen dieses Profils werden auf is_latest=False gesetzt.
+    p1_docs = [doc for doc in col_an.docs if doc.get("candidate_profile_key") == "p1"]
+    assert all(doc["is_latest"] is False for doc in p1_docs)
+    p2_doc = [doc for doc in col_an.docs if doc.get("candidate_profile_key") == "p2"][0]
+    assert p2_doc["is_latest"] is True
     new_doc = col_an.inserted[0]
     assert new_doc["referenznummer"] == "ref-versioned"
+    assert new_doc["candidate_profile_key"] == "p1"
     assert new_doc["version"] == 3
     assert new_doc["is_latest"] is True
+
+
+def test_main_uses_profile_key_override_from_env(base_cfg, default_prompt_doc, monkeypatch):
+    col_list = FakeCollection(
+        [
+            {
+                "referenznummer": "ref-env-profile",
+                "stellenangebotsTitel": "Engineer",
+                "arbeitgeber": "Example",
+                "details": {"desc": "x"},
+                "is_active": True,
+            }
+        ]
+    )
+    col_an = FakeCollection()
+    col_prof = FakeCollection([{"key": "p1", "name": "User 1"}, {"key": "p2", "name": "User 2"}])
+    db = FakeDB(
+        {
+            "list": col_list,
+            "details": FakeCollection(),
+            "analysis": col_an,
+            "profiles": col_prof,
+            "analysis_prompts": FakeCollection([default_prompt_doc]),
+        }
+    )
+
+    response_payload = {
+        "score": "81.5",
+        "decision": "shortlist",
+        "reasons": ["r1"],
+        "risks": [],
+        "missing_evidence": [],
+        "notes": "ok",
+    }
+    fake_client = FakeOpenAIClient(FakeOpenAIResponse(json.dumps(response_payload)))
+    monkeypatch.setenv("ANALYZER_PROFILE_KEY", "p2")
+
+    with (
+        patch.object(analyze_jobs, "load_app_config", return_value=base_cfg),
+        patch.object(analyze_jobs, "get_database", return_value=db),
+        patch.object(analyze_jobs, "ensure_indexes"),
+        patch.object(analyze_jobs, "load_dotenv"),
+        patch.object(analyze_jobs, "OpenAI", return_value=fake_client),
+    ):
+        analyze_jobs.main()
+
+    assert len(col_an.inserted) == 1
+    saved = col_an.inserted[0]
+    assert saved["candidate_profile_key"] == "p2"
+    assert saved["score"] == 81.5
+    assert saved["score_"] == 81
 
 
 def test_main_skips_inactive_vacancies(base_cfg, default_prompt_doc):

@@ -38,8 +38,8 @@ def ensure_indexes(db: Database, cfg: dict):
     col = db[resolve_collection_name(cfg, key="analysis", default="analysen")]
     # Pro Referenznummer darf derselbe Input nur einmal gespeichert werden.
     col.create_index([("referenznummer", ASCENDING), ("input_hash", ASCENDING)], unique=True)
-    # Für Queries auf die aktuelle/alte Versionen pro Stelle.
-    col.create_index([("referenznummer", ASCENDING), ("is_latest", ASCENDING)])
+    # Für Queries auf die aktuelle/alte Versionen pro Stelle und Kandidatenprofil.
+    col.create_index([("referenznummer", ASCENDING), ("candidate_profile_key", ASCENDING), ("is_latest", ASCENDING)])
     col.create_index([("prompt_key", ASCENDING), ("prompt_version", ASCENDING)])
     col_prompt = db[resolve_collection_name(cfg, key="analysis_prompts", default="analysis_prompts")]
     col_prompt.create_index([("key", ASCENDING), ("version", ASCENDING)], unique=True)
@@ -148,6 +148,14 @@ def _resolve_prompt_key(cfg: dict) -> str:
     if env_value:
         return env_value.strip()
     key = str(cfg.get("analyzer", {}).get("prompt_key", "default")).strip()
+    return key or "default"
+
+
+def _resolve_profile_key(cfg: dict) -> str:
+    env_value = os.getenv("ANALYZER_PROFILE_KEY")
+    if env_value:
+        return env_value.strip()
+    key = str(cfg.get("analyzer", {}).get("profile_key", "default")).strip()
     return key or "default"
 
 
@@ -288,7 +296,7 @@ def main():
     ]  # analysis_prompts
 
     # Kandidatenprofil
-    key = cfg["analyzer"]["profile_key"]
+    key = _resolve_profile_key(cfg)
     profile = col_prof.find_one({"key": key}, {"_id": 0})
     if not profile:
         profiles_collection_name = resolve_collection_name(cfg, key="profiles", default="profiles")
@@ -334,7 +342,12 @@ def main():
         if not ref:
             continue
 
-        title = (doc.get("stellenangebotsTitel") or "").strip()
+        title = (
+            doc.get("stellenangebotsTitel")
+            or (doc.get("details") or {}).get("stellenangebotsTitel")
+            or doc.get("titel")
+            or ""
+        ).strip()
         firma = (doc.get("arbeitgeber") or doc.get("firma") or "").strip()
 
         details = doc.get("details") or {}
@@ -372,7 +385,7 @@ def main():
             continue
 
         latest_doc = col_an.find_one(
-            {"referenznummer": ref},
+            {"referenznummer": ref, "candidate_profile_key": key},
             {"_id": 1, "version": 1},
             sort=[("version", DESCENDING)],
         )
@@ -475,7 +488,7 @@ def main():
             #"candidate_profile": make_json_safe(profile),  # kann entfernt werden, falls das Dokument zu groß wird
            
             "score": score,
-            "score_": int(data.get("score", 0)),
+            "score_": int(score) if score is not None else 0,
             #"wahrscheinlichkeit": score,
             #"probabilities": probabilities,
             "decision": data.get("decision", "hold"),
@@ -490,7 +503,7 @@ def main():
 
         if latest_doc:
             col_an.update_many(
-                {"referenznummer": ref},
+                {"referenznummer": ref, "candidate_profile_key": key},
                 {
                     "$set": {
                         "is_latest": False,
