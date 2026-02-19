@@ -237,12 +237,14 @@
 - добавлен `matching`-блок в `conf/app.json`;
 - добавлен резолвер ENV override `app/core/matching_config.py`;
 - добавлен bootstrap Qdrant (`app/vector/qdrant_client.py`, `app/bootstrap_qdrant.py`).
+- Добавлен baseline-инкрементальный индексатор `app/build_job_index.py`:
+- merged active вакансий, skip/reindex по hash+versions, quality-check, audit/state запись.
 - Что не сделано:
-- Индексация/чанкинг/retrieval/rerank пока не реализованы (следующие фазы).
-- Явное добавление сервиса `qdrant` в `docker/docker-compose.yml` еще не сделано.
+- Полный embedding-расчет и upsert point-векторов в Qdrant (следующий шаг).
+- Retrieval/rerank/cache/LLM handoff пока не реализованы (следующие фазы).
 - Следующие действия:
-- Добавить `qdrant` в compose и зафиксировать команды запуска/проверки.
-- Перейти к реализации фазы 1 (инфраструктура и конфиги) по документу implementation plan.
+- Добавить реальный embedding-калькулятор в `build_job_index` и upsert чанков в Qdrant.
+- Перейти к реализации retrieval/rerank API/CLI.
 
 ### [PLAN-20260216-01] Оптимизация раннего отсева в `job_details_collector`
 

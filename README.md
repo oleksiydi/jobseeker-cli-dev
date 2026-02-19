@@ -158,6 +158,18 @@ Was die Kommando macht:
 
 Damit ist der Schritt idempotent und sicher für wiederholte Ausführung.
 
+5. Inkrementellen Index-Build starten (Baseline):
+```bash
+.venv/bin/python -m app.build_job_index
+```
+
+Aktueller Stand von `build_job_index`:
+- merged aktive Jobs (`stellenangebote + jobdetails`);
+- berechnet `embedding_input_hash` + Versionen;
+- entscheidet `skip/reindex` über Rule-Engine;
+- schreibt Audit-Ereignisse in `matching_audit`;
+- schreibt Index-Status in `matching_index_state`.
+
 Hinweis zu semantic chunking:
 - Bei `matching.chunking.strategy=semantic` wird primär nach zusammenhängenden
   Sinnblöcken (benachbarte Sätze mit hoher semantischer Ähnlichkeit) segmentiert.
