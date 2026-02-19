@@ -5,3 +5,4 @@ openai>=1.30,<2
 pytest>=8.0,<9
 streamlit>=1.39,<2
 pandas>=2.2,<3
+pandera>=0.20,<1

@@ -134,10 +134,12 @@
 - Шаг 0: план добавлен.
 - Шаг 1: добавлены Pydantic-модели и нормализация (`app/matching/models.py`) + unit-тесты.
 - Шаг 2: добавлен JSONLogic engine (`app/matching/rule_engine.py`) + rule-files в `conf/rules` + unit-тесты.
+- Шаг 3: добавлен `Pandera` quality-check слой (`app/matching/quality_schema.py`) + unit-тесты.
+- Шаг 4: добавлен базовый audit trail (`app/matching/audit.py`) + unit-тесты.
 - Что не сделано:
-- Шаги 3-4 в работе.
+- Интеграция audit-записей в полный index/search pipeline еще не подключена.
 - Следующие действия:
-- Выполнить Шаг 3 (Pandera quality checks).
+- Подключить audit write в pipeline-шаги (build index/search), где принимается решение skip/reindex.
 
 ### [PLAN-20260219-03] Локальный matching-конвейер (CPU, high-quality, nightly)
 

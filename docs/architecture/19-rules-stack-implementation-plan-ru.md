@@ -291,4 +291,25 @@
 5. Контрактные модели `ChunkRecord` и `RuleEvaluationResult` как база для следующих шагов.
 
 Следующий шаг:
-1. Шаг 3: `Pandera` quality checks (`app/matching/quality_schema.py`).
+1. Интегрировать запись audit в реальные pipeline-этапы (index/search), где принимаются решения `skip/reindex`.
+
+Прогресс по Шагу 3:
+1. Добавлен модуль `app/matching/quality_schema.py`.
+2. Добавлен `QualityReport` (hard/soft checks + метрики).
+3. Реализованы hard checks через `Pandera`:
+- обязательные поля и типы;
+- границы `chunk_index` и `section_confidence`;
+- правило: `text` не может быть пустым при `description_missing=false`.
+4. Реализованы soft checks:
+- контроль доли `section_label=unknown`;
+- контроль слишком коротких чанков без fallback;
+- диагностика нестандартных `section_label`.
+5. Добавлены unit-тесты `tests/test_matching_quality_schema.py`.
+
+Прогресс по Шагу 4:
+1. Добавлен модуль `app/matching/audit.py`.
+2. Добавлена модель `MatchingAuditEntry` со стабильным форматом события.
+3. Добавлены функции:
+- `build_matching_audit_entry(...)` — сбор audit payload;
+- `write_matching_audit_entry(...)` — запись в Mongo-коллекцию (через `insert_one`).
+4. Добавлены unit-тесты `tests/test_matching_audit.py`.
