@@ -118,7 +118,17 @@ grep -E '^MONGODB_URI=' .env
 Dieser Schritt bereitet nur die Infrastruktur vor (Konfig + Qdrant Collection),
 noch ohne eigentliche Embedding-Berechnung.
 
-1. Matching-Parameter in `conf/app.json` prüfen:
+1. Lokalen Qdrant-Service starten:
+```bash
+docker compose -f docker/docker-compose.yml up -d qdrant
+```
+
+Optional prüfen:
+```bash
+curl -s http://127.0.0.1:6333/healthz
+```
+
+2. Matching-Parameter in `conf/app.json` prüfen:
 - `matching.run_mode` (`nightly` oder `on_demand`)
 - `matching.allow_manual_run`
 - `matching.nightly_schedule_cron`
@@ -128,7 +138,7 @@ noch ohne eigentliche Embedding-Berechnung.
 - `matching.qdrant.url`
 - `matching.qdrant.collection_name`
 
-2. Optional per ENV überschreiben (z. B. für Docker):
+3. Optional per ENV überschreiben (z. B. für Docker):
 ```bash
 export MATCHING_QDRANT_URL=http://127.0.0.1:6333
 export MATCHING_QDRANT_COLLECTION=job_chunks_v1
@@ -136,7 +146,7 @@ export MATCHING_EMBEDDING_VECTOR_SIZE=1024
 export MATCHING_RUN_MODE=on_demand
 ```
 
-3. Qdrant bootstrap starten:
+4. Qdrant bootstrap starten:
 ```bash
 .venv/bin/python -m app.bootstrap_qdrant
 ```
