@@ -233,6 +233,14 @@ Done criteria:
 1. Feature flags controllable from config + ENV override.
 2. Qdrant reachable and collection bootstrap works.
 
+Current implementation notes:
+1. `conf/app.json` now contains a dedicated `matching` block with defaults for:
+- preprocess/chunking/embeddings/retrieval/rerank/cache/llm/qdrant.
+2. ENV override resolution is centralized in `app/core/matching_config.py`.
+3. Qdrant REST bootstrap is implemented in:
+- `app/vector/qdrant_client.py`
+- `app/bootstrap_qdrant.py`
+
 ### Phase 2: Index Builder (Nightly, Incremental)
 
 Tasks:

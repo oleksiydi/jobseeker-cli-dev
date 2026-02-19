@@ -4,6 +4,11 @@
 
 - `THIRD_PARTY_LICENSES.md`
 
+## Arbeitsjournal (Worklog)
+
+- `docs/worklog/README.md`
+- `docs/worklog/2026-02-19-session-phase1-matching.md`
+
 ## Architektur und Visualisierung
 
 Für Entwicklerdokumentation mit visuellen Schemata:
@@ -107,6 +112,37 @@ grep -E '^MONGODB_URI=' .env
 - Wichtig:
 - `config/` wird nicht als aktive Konfigurationsquelle verwendet.
 - Projektstandard ist `conf/`.
+
+## Local Matching Phase 1 (Qdrant Bootstrap)
+
+Dieser Schritt bereitet nur die Infrastruktur vor (Konfig + Qdrant Collection),
+noch ohne eigentliche Embedding-Berechnung.
+
+1. Matching-Parameter in `conf/app.json` prüfen:
+- `matching.embeddings.model_name`
+- `matching.embeddings.vector_size`
+- `matching.chunking.strategy`
+- `matching.qdrant.url`
+- `matching.qdrant.collection_name`
+
+2. Optional per ENV überschreiben (z. B. für Docker):
+```bash
+export MATCHING_QDRANT_URL=http://127.0.0.1:6333
+export MATCHING_QDRANT_COLLECTION=job_chunks_v1
+export MATCHING_EMBEDDING_VECTOR_SIZE=1024
+```
+
+3. Qdrant bootstrap starten:
+```bash
+.venv/bin/python -m app.bootstrap_qdrant
+```
+
+Was die Kommando macht:
+- prüft, ob Qdrant erreichbar ist (`healthcheck`);
+- prüft, ob Collection bereits existiert;
+- erstellt die Collection nur falls nötig.
+
+Damit ist der Schritt idempotent und sicher für wiederholte Ausführung.
 
 ## Diagnose von `404` in `jobdetails`
 
