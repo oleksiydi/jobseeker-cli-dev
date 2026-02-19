@@ -183,3 +183,60 @@ result = client.ensure_collection()
 - `tests/test_matching_config.py`
 - `README.md`
 - `docs/architecture/08-local-matching-implementation-plan.md`
+
+## 8) Запрос на "человеческое" описание Phase 2
+
+По запросу пользователя добавлен отдельный пошаговый документ:
+- `docs/architecture/14-phase2-index-builder-step-by-step-ru.md`
+
+Что в нём:
+1. Простое объяснение цели Phase 2.
+2. Подробный пошаговый сценарий от загрузки данных до отчёта батча.
+3. Критерии готовности каждого шага.
+4. Частые ошибки и мини-чеклист перед реализацией.
+
+Также обновлён индекс архитектурных документов:
+- `docs/architecture/README.md`
+
+## 9) Новый запрос: строгий spec по chunking/embedding + схемы
+
+По запросу пользователя добавлены:
+1. Строгий документ правил:
+- `docs/architecture/15-embedding-chunking-spec-v1-ru.md`
+2. Схема полного потока chunking/vectorization:
+- `docs/architecture/16-embedding-chunking-flow-diagram.md`
+3. Схема решения skip/reindex:
+- `docs/architecture/17-embedding-reindex-decision-diagram.md`
+
+Дополнительно:
+- Обновлён `docs/architecture/README.md` с ссылками на новые документы.
+
+## 10) Дополнение: расширенный документ с реалистичными примерами
+
+По дополнительному запросу пользователя добавлен:
+- `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`
+
+Что добавлено в документ:
+1. Пошаговый разбор, как формируется каноничный текст вакансии.
+2. Примеры для:
+- полных данных;
+- избыточных (много "воды");
+- неполных (без описания);
+- плохих/грязных данных.
+3. Примеры Qdrant payload и записи служебных метаданных в Mongo.
+4. Примеры входа в LLM для режимов `compact` и `full_context`.
+5. Пример унифицированного JSON-ответа LLM.
+
+## 11) Уточнение по реалистичности section_label и нормализации ALT_ROLES
+
+По вопросу пользователя добавлены уточнения:
+1. В `ALT_ROLES` значения `null`, `""`, `"false"`, `"none"`, `"null"` и т.п. исключаются как псевдозначения.
+2. `section_label` больше не трактуется как "гарантированно известная" секция.
+3. Введено правило:
+- heuristic label, если есть достаточные текстовые маркеры;
+- иначе `section_label="unknown"` и низкий `section_confidence`.
+
+Обновлены файлы:
+- `docs/architecture/15-embedding-chunking-spec-v1-ru.md`
+- `docs/architecture/16-embedding-chunking-flow-diagram.md`
+- `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`
