@@ -230,10 +230,13 @@ Tasks:
 - model names, chunking strategy, thresholds, cache TTL, nightly schedule flags.
 2. Add Qdrant client module and health checks.
 3. Add storage for embedding metadata/hash in Mongo.
+4. Add `qdrant` service to `docker/docker-compose.yml` for local reproducible startup.
+5. Bind Qdrant to localhost only (`127.0.0.1:6333:6333`) to keep service local.
 
 Done criteria:
 1. Feature flags controllable from config + ENV override.
 2. Qdrant reachable and collection bootstrap works.
+3. `docker compose` starts Qdrant locally without manual one-off container commands.
 
 Current implementation notes:
 1. `conf/app.json` now contains a dedicated `matching` block with defaults for:
@@ -248,6 +251,8 @@ Current implementation notes:
 5. Qdrant REST bootstrap is implemented in:
 - `app/vector/qdrant_client.py`
 - `app/bootstrap_qdrant.py`
+6. Pending explicit infra step:
+- add `qdrant` service in `docker/docker-compose.yml` (currently not present).
 
 ### Phase 2: Index Builder (Nightly, Incremental)
 
