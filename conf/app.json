@@ -52,5 +52,52 @@
     "profile_key": "default",
     "prompt_key": "default",
     "prompt_version": null
+  },
+  "matching": {
+    "enabled": false,
+    "nightly_mode": true,
+    "preprocess": {
+      "strategy": "spacy_de_trf",
+      "version": "v1"
+    },
+    "chunking": {
+      "strategy": "semantic",
+      "version": "v1",
+      "max_chunk_chars": 1800,
+      "min_chunk_chars": 500,
+      "overlap_chars": 120
+    },
+    "embeddings": {
+      "model_name": "intfloat/multilingual-e5-large",
+      "vector_size": 1024
+    },
+    "retrieval": {
+      "top_k": 100
+    },
+    "rerank": {
+      "enabled": true,
+      "model_name": "BAAI/bge-reranker-v2-m3",
+      "top_n": 50
+    },
+    "selection_cache": {
+      "enabled": true,
+      "ttl_hours": 24,
+      "top_base": 20,
+      "extra_min": 5,
+      "top_cap": 50
+    },
+    "llm": {
+      "provider_mode": "local",
+      "input_mode": "compact",
+      "fallback_provider_mode": null
+    },
+    "qdrant": {
+      "url": "http://127.0.0.1:6333",
+      "collection_name": "job_chunks_v1",
+      "distance": "Cosine",
+      "hnsw_m": 16,
+      "hnsw_ef_construct": 100,
+      "timeout_seconds": 10
+    }
   }
 }
