@@ -172,16 +172,26 @@ Aktueller Stand von `build_job_index`:
 - schreibt Audit-Ereignisse in `matching_audit`;
 - schreibt Index-Status in `matching_index_state`.
 
+Nur Normalisierung/Qualitätsprüfung (ohne Embeddings/Upsert) ist auch möglich:
+```bash
+MATCHING_SKIP_EMBEDDINGS=true .venv/bin/python -m app.build_job_index
+```
+
+Optional kombiniert mit begrenzter Realdaten-Stichprobe:
+```bash
+MATCHING_SKIP_EMBEDDINGS=true MATCHING_BUILD_MAX_DOCS=200 .venv/bin/python -m app.build_job_index
+```
+
 Hinweis zur Qdrant-Anbindung:
 - primär wird der offizielle Python-SDK `qdrant-client` verwendet (industry standard);
 - falls die Abhängigkeit im lokalen/offline-Umfeld nicht installiert ist,
   nutzt der Adapter automatisch einen REST-Fallback über `requests`.
 
 Hinweis zu semantic chunking:
-- Bei `matching.chunking.strategy=semantic` wird primär nach zusammenhängenden
-  Sinnblöcken (benachbarte Sätze mit hoher semantischer Ähnlichkeit) segmentiert.
-- Die Parameter `hard_*_chunk_chars` und `fallback_overlap_chars` dienen nur als
-  Schutzgrenzen, falls ein Block zu kurz/zu lang wird.
+- Das ist der Zielzustand für die nächste Phase (noch nicht im Baseline-Indexer umgesetzt).
+- Aktuell verwendet der Baseline-Indexer robustes Fallback-Chunking (ein stabiler Chunk pro Vakanz).
+- Die Parameter `hard_*_chunk_chars` und `fallback_overlap_chars` bleiben als Schutzgrenzen
+  für die geplante semantische Segmentierung.
 
 ## Diagnose von `404` in `jobdetails`
 
