@@ -167,8 +167,15 @@ Aktueller Stand von `build_job_index`:
 - merged aktive Jobs (`stellenangebote + jobdetails`);
 - berechnet `embedding_input_hash` + Versionen;
 - entscheidet `skip/reindex` über Rule-Engine;
+- berechnet lokale Embeddings via `fastembed`;
+- macht delete+upsert der Chunk-Vektoren in Qdrant;
 - schreibt Audit-Ereignisse in `matching_audit`;
 - schreibt Index-Status in `matching_index_state`.
+
+Hinweis zur Qdrant-Anbindung:
+- primär wird der offizielle Python-SDK `qdrant-client` verwendet (industry standard);
+- falls die Abhängigkeit im lokalen/offline-Umfeld nicht installiert ist,
+  nutzt der Adapter automatisch einen REST-Fallback über `requests`.
 
 Hinweis zu semantic chunking:
 - Bei `matching.chunking.strategy=semantic` wird primär nach zusammenhängenden

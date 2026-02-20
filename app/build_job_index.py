@@ -12,6 +12,7 @@ from app.core.matching_config import resolve_matching_config
 from app.db.mongo import get_database, resolve_collection_name
 from app.matching.models import ChunkRecord, MergedVacancyNormalized, MergedVacancyRaw
 from app.matching.rule_engine import MatchingRuleEngine
+from app.vector.embedder import build_text_embedder
 from app.vector.qdrant_client import QdrantRestClient, parse_qdrant_settings
 
 log = logging.getLogger(__name__)
@@ -121,6 +122,55 @@ def _now_utc() -> datetime:
     return datetime.now(UTC)
 
 
+def _build_point_id(referenznummer: str, chunk_id: str, embedding_input_hash: str) -> int:
+    """
+    Детерминированный uint64 id для Qdrant point.
+
+    Qdrant стабильно принимает integer id; используем хеш-композицию вместо
+    случайных значений, чтобы повторный upsert был предсказуемым.
+    """
+    source = f"{referenznummer}|{chunk_id}|{embedding_input_hash}"
+    digest = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    return int(digest[:16], 16)
+
+
+def _build_qdrant_points(
+    *,
+    referenznummer: str,
+    chunks: list[ChunkRecord],
+    vectors: list[list[float]],
+    embedding_input_hash: str,
+    versions: IndexVersions,
+) -> list[dict[str, Any]]:
+    if len(chunks) != len(vectors):
+        raise ValueError("chunks/vectors length mismatch")
+
+    points: list[dict[str, Any]] = []
+    indexed_at_iso = _now_utc().isoformat()
+    for chunk, vector in zip(chunks, vectors, strict=True):
+        point_id = _build_point_id(referenznummer, chunk.chunk_id, embedding_input_hash)
+        points.append(
+            {
+                "id": point_id,
+                "vector": vector,
+                "payload": {
+                    "referenznummer": referenznummer,
+                    "chunk_id": chunk.chunk_id,
+                    "chunk_index": chunk.chunk_index,
+                    "section_label": chunk.section_label,
+                    "section_confidence": chunk.section_confidence,
+                    "description_missing": chunk.description_missing,
+                    "embedding_input_hash": embedding_input_hash,
+                    "embedding_model": versions.embedding_model,
+                    "chunking_version": versions.chunking_version,
+                    "preprocess_version": versions.preprocess_version,
+                    "indexed_at": indexed_at_iso,
+                },
+            }
+        )
+    return points
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
 
@@ -159,12 +209,17 @@ def main() -> int:
 
     versions = _build_index_versions(matching_cfg)
     engine = MatchingRuleEngine(cfg)
+    embedder = build_text_embedder(
+        versions.embedding_model,
+        batch_size=int(matching_cfg.get("embeddings", {}).get("batch_size", 32)),
+    )
     run_id = f"build-job-index-{_now_utc().strftime('%Y%m%dT%H%M%SZ')}"
 
     scanned = 0
     reindexed = 0
     skipped = 0
     failed_quality = 0
+    failed_qdrant = 0
 
     cursor = col_list.find({"is_active": True})
     for meta in cursor:
@@ -230,8 +285,34 @@ def main() -> int:
             )
             continue
 
-        # В этой версии индексатора фиксируем state и quality.
-        # Отдельный шаг: подключение реального embedding расчета и upsert points в Qdrant.
+        try:
+            vectors = embedder.embed_texts([chunk.text for chunk in chunks])
+            points = _build_qdrant_points(
+                referenznummer=ref,
+                chunks=chunks,
+                vectors=vectors,
+                embedding_input_hash=new_hash,
+                versions=versions,
+            )
+            qdrant_client.delete_points_by_referenznummer(ref)
+            qdrant_client.upsert_points(points)
+        except Exception as exc:
+            failed_qdrant += 1
+            col_state.update_one(
+                {"referenznummer": ref},
+                {
+                    "$set": {
+                        "referenznummer": ref,
+                        "index_status": "qdrant_failed",
+                        "qdrant_error": str(exc),
+                        "updated_at": _now_utc(),
+                    }
+                },
+                upsert=True,
+            )
+            log.exception("Qdrant upsert failed for ref=%s", ref)
+            continue
+
         reindexed += 1
         col_state.update_one(
             {"referenznummer": ref},
@@ -245,7 +326,8 @@ def main() -> int:
                     "preprocess_version": versions.preprocess_version,
                     "rule_set_version": decision.rule_set_version,
                     "indexed_at": _now_utc(),
-                    "index_status": "ready_for_vector_upsert",
+                    "index_status": "indexed",
+                    "vector_upserted": True,
                     "chunks_count": len(chunks),
                     "quality_hard_passed": quality.hard_passed,
                     "quality_soft_passed": quality.soft_passed,
@@ -264,6 +346,7 @@ def main() -> int:
         skipped,
         failed_quality,
     )
+    log.info("build_job_index qdrant metrics: failed_qdrant=%s", failed_qdrant)
     return 0
 
 

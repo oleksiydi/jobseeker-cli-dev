@@ -139,7 +139,7 @@
 - Что не сделано:
 - Интеграция audit в будущий `search`-контур будет сделана при реализации retrieval API/CLI.
 - Следующие действия:
-- Продолжить `PLAN-20260219-03`: добавить реальный embedding-upsert в Qdrant и провести smoke-тест на реальных данных.
+- Продолжить `PLAN-20260219-03`: провести smoke-тест на реальных данных и зафиксировать метрики в worklog.
 
 ### [PLAN-20260219-03] Локальный matching-конвейер (CPU, high-quality, nightly)
 
@@ -249,12 +249,14 @@
 - Добавлен `qdrant`-сервис в `docker/docker-compose.yml` с локальным bind `127.0.0.1:6333`.
 - Добавлен baseline-инкрементальный индексатор `app/build_job_index.py`:
 - merged active вакансий, skip/reindex по hash+versions, quality-check, audit/state запись.
+- Добавлен реальный embedding+upsert шаг в `app/build_job_index.py`:
+- локальный embedder (`fastembed`) для чанков;
+- delete+upsert points в Qdrant при reindex;
+- фиксация `qdrant_failed`/`indexed` статусов в `matching_index_state`.
 - Что не сделано:
-- Полный embedding-расчет и upsert point-векторов в Qdrant (следующий шаг).
 - Smoke-тест на реальных данных после embedding-upsert еще не выполнен.
 - Retrieval/rerank/cache/LLM handoff пока не реализованы (следующие фазы).
 - Следующие действия:
-- Добавить реальный embedding-калькулятор в `build_job_index` и upsert чанков в Qdrant.
 - Выполнить smoke-тест на реальных данных и зафиксировать метрики в `docs/worklog/...`.
 - Перейти к реализации retrieval/rerank API/CLI.
 

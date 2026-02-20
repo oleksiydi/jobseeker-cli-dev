@@ -293,8 +293,8 @@
 Следующий шаг:
 1. Rule-stack ядро завершено (Шаги 0-4).
 2. Дальше — интеграция в full pipeline по `PLAN-20260219-03`:
-- embedding-upsert в Qdrant в `app/build_job_index.py`;
-- smoke-тест на реальных данных с фиксацией метрик.
+- embedding-upsert в Qdrant уже реализован в `app/build_job_index.py`;
+- следующий практический шаг: smoke-тест на реальных данных с фиксацией метрик.
 
 Прогресс по Шагу 3:
 1. Добавлен модуль `app/matching/quality_schema.py`.

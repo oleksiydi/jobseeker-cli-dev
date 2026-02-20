@@ -2,8 +2,11 @@ from app.build_job_index import (
     IndexVersions,
     _build_change_flags,
     _build_chunk_records,
+    _build_point_id,
+    _build_qdrant_points,
     _compute_embedding_input_hash,
 )
+from app.matching.models import ChunkRecord
 from app.matching.models import MergedVacancyNormalized
 
 
@@ -99,3 +102,41 @@ def test_build_chunk_records_uses_engine_label_for_regular_text() -> None:
     assert records[0].section_label == "requirements"
     assert records[0].section_confidence == 0.9
 
+
+def test_build_point_id_is_deterministic() -> None:
+    first = _build_point_id("R-1", "R-1:0", "abc")
+    second = _build_point_id("R-1", "R-1:0", "abc")
+    assert first == second
+
+
+def test_build_qdrant_points_builds_payload_and_vector() -> None:
+    versions = IndexVersions(
+        embedding_model="intfloat/multilingual-e5-large",
+        embedding_vector_size=1024,
+        chunking_version="v1",
+        preprocess_version="v1",
+        ruleset_version="v1",
+    )
+    chunks = [
+        ChunkRecord(
+            referenznummer="R-1",
+            chunk_id="R-1:0",
+            chunk_index=0,
+            text="Text",
+            section_label="requirements",
+            section_confidence=0.8,
+            description_missing=False,
+        )
+    ]
+    vectors = [[0.1, 0.2, 0.3]]
+    points = _build_qdrant_points(
+        referenznummer="R-1",
+        chunks=chunks,
+        vectors=vectors,
+        embedding_input_hash="hash-1",
+        versions=versions,
+    )
+    assert len(points) == 1
+    assert points[0]["payload"]["referenznummer"] == "R-1"
+    assert points[0]["payload"]["section_label"] == "requirements"
+    assert points[0]["vector"] == [0.1, 0.2, 0.3]
