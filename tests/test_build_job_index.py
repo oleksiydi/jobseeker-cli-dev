@@ -50,6 +50,7 @@ def test_build_change_flags_for_new_record_marks_all_as_changed() -> None:
         "embedding_model_changed": True,
         "chunking_version_changed": True,
         "preprocess_version_changed": True,
+        "not_indexed_yet": True,
     }
 
 
@@ -66,6 +67,7 @@ def test_build_change_flags_for_same_state_marks_no_changes() -> None:
         "embedding_model": "m1",
         "chunking_version": "v1",
         "preprocess_version": "v1",
+        "index_status": "indexed",
     }
     flags = _build_change_flags(state_doc, new_hash="h1", versions=versions)
     assert flags == {
@@ -73,7 +75,28 @@ def test_build_change_flags_for_same_state_marks_no_changes() -> None:
         "embedding_model_changed": False,
         "chunking_version_changed": False,
         "preprocess_version_changed": False,
+        "not_indexed_yet": False,
     }
+
+
+def test_build_change_flags_for_normalized_only_marks_not_indexed_yet_true() -> None:
+    versions = IndexVersions(
+        embedding_model="m1",
+        embedding_vector_size=1024,
+        chunking_version="v1",
+        preprocess_version="v1",
+        ruleset_version="v1",
+    )
+    state_doc = {
+        "embedding_input_hash": "h1",
+        "embedding_model": "m1",
+        "chunking_version": "v1",
+        "preprocess_version": "v1",
+        "index_status": "normalized_only",
+    }
+    flags = _build_change_flags(state_doc, new_hash="h1", versions=versions)
+    assert flags["hash_changed"] is False
+    assert flags["not_indexed_yet"] is True
 
 
 def test_build_chunk_records_uses_synthetic_chunk_when_flag_set() -> None:

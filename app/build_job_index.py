@@ -52,6 +52,8 @@ def _build_change_flags(
             "embedding_model_changed": True,
             "chunking_version_changed": True,
             "preprocess_version_changed": True,
+            # Для новых вакансий индекса еще нет, значит нужен реальный reindex.
+            "not_indexed_yet": True,
         }
 
     return {
@@ -60,6 +62,9 @@ def _build_change_flags(
         "chunking_version_changed": state_doc.get("chunking_version") != versions.chunking_version,
         "preprocess_version_changed": state_doc.get("preprocess_version")
         != versions.preprocess_version,
+        # Важно: normalized_only/quality_failed/qdrant_failed не должны "зависать" в skip.
+        # Если статус не indexed, вакансию нужно догонять до реального upsert в Qdrant.
+        "not_indexed_yet": state_doc.get("index_status") != "indexed",
     }
 
 
@@ -218,14 +223,23 @@ def main() -> int:
     run_id = f"build-job-index-{_now_utc().strftime('%Y%m%dT%H%M%SZ')}"
     max_docs_raw = os.getenv("MATCHING_BUILD_MAX_DOCS", "").strip()
     max_docs = int(max_docs_raw) if max_docs_raw else None
+    skip_embeddings = os.getenv("MATCHING_SKIP_EMBEDDINGS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     if max_docs is not None:
         log.info("build_job_index smoke mode enabled: max_docs=%s", max_docs)
+    if skip_embeddings:
+        log.info("build_job_index normalization-only mode: embeddings and qdrant upsert are skipped")
 
     scanned = 0
     reindexed = 0
     skipped = 0
     failed_quality = 0
     failed_qdrant = 0
+    normalized_only = 0
 
     cursor = col_list.find({"is_active": True})
     if max_docs is not None:
@@ -293,6 +307,32 @@ def main() -> int:
             )
             continue
 
+        if skip_embeddings:
+            normalized_only += 1
+            col_state.update_one(
+                {"referenznummer": ref},
+                {
+                    "$set": {
+                        "referenznummer": ref,
+                        "embedding_input_hash": new_hash,
+                        "embedding_model": versions.embedding_model,
+                        "embedding_vector_size": versions.embedding_vector_size,
+                        "chunking_version": versions.chunking_version,
+                        "preprocess_version": versions.preprocess_version,
+                        "rule_set_version": decision.rule_set_version,
+                        "indexed_at": _now_utc(),
+                        "index_status": "normalized_only",
+                        "chunks_count": len(chunks),
+                        "quality_hard_passed": quality.hard_passed,
+                        "quality_soft_passed": quality.soft_passed,
+                        "quality_soft_warnings": quality.soft_warnings,
+                        "skip_reason": None,
+                    }
+                },
+                upsert=True,
+            )
+            continue
+
         try:
             vectors = embedder.embed_texts([chunk.text for chunk in chunks])
             points = _build_qdrant_points(
@@ -347,12 +387,13 @@ def main() -> int:
         )
 
     log.info(
-        "build_job_index finished: run_id=%s scanned=%s reindexed=%s skipped=%s failed_quality=%s",
+        "build_job_index finished: run_id=%s scanned=%s reindexed=%s skipped=%s failed_quality=%s normalized_only=%s",
         run_id,
         scanned,
         reindexed,
         skipped,
         failed_quality,
+        normalized_only,
     )
     log.info("build_job_index qdrant metrics: failed_qdrant=%s", failed_qdrant)
     return 0
