@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -173,6 +174,7 @@ def _build_qdrant_points(
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     cfg = load_app_config()
     matching_cfg = resolve_matching_config(cfg)
@@ -214,6 +216,10 @@ def main() -> int:
         batch_size=int(matching_cfg.get("embeddings", {}).get("batch_size", 32)),
     )
     run_id = f"build-job-index-{_now_utc().strftime('%Y%m%dT%H%M%SZ')}"
+    max_docs_raw = os.getenv("MATCHING_BUILD_MAX_DOCS", "").strip()
+    max_docs = int(max_docs_raw) if max_docs_raw else None
+    if max_docs is not None:
+        log.info("build_job_index smoke mode enabled: max_docs=%s", max_docs)
 
     scanned = 0
     reindexed = 0
@@ -222,6 +228,8 @@ def main() -> int:
     failed_qdrant = 0
 
     cursor = col_list.find({"is_active": True})
+    if max_docs is not None:
+        cursor = cursor.limit(max_docs)
     for meta in cursor:
         scanned += 1
         ref = str(meta.get("referenznummer") or "").strip()

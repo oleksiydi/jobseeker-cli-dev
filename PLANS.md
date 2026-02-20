@@ -254,10 +254,10 @@
 - delete+upsert points в Qdrant при reindex;
 - фиксация `qdrant_failed`/`indexed` статусов в `matching_index_state`.
 - Что не сделано:
-- Smoke-тест на реальных данных после embedding-upsert еще не выполнен.
+- Полноразмерный smoke-тест на полном nightly-объеме еще не выполнен.
 - Retrieval/rerank/cache/LLM handoff пока не реализованы (следующие фазы).
 - Следующие действия:
-- Выполнить smoke-тест на реальных данных и зафиксировать метрики в `docs/worklog/...`.
+- Выполнить полноразмерный smoke-тест на реальных данных и зафиксировать метрики в `docs/worklog/...`.
 - Перейти к реализации retrieval/rerank API/CLI.
 
 ### [PLAN-20260216-01] Оптимизация раннего отсева в `job_details_collector`

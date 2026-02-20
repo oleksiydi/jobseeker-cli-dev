@@ -247,6 +247,31 @@ result = client.ensure_collection()
 Что осталось по roadmap:
 1. Подключить реальный embedding-расчет и upsert векторов в Qdrant в `build_job_index`.
 2. Провести smoke-тест на реальных данных и зафиксировать метрики (`scanned/reindexed/skipped/failed_quality`).
+
+## 16) Smoke после embedding+upsert (реальные данные, контролируемый режим)
+
+После внедрения реального embedding+upsert шага выполнен smoke на реальных данных
+в ограниченном режиме (для быстрой проверки инкрементальности):
+
+Команда:
+```bash
+MATCHING_BUILD_MAX_DOCS=120 .venv/bin/python -m app.build_job_index
+```
+
+Результат прогона #1:
+```text
+scanned=120 reindexed=0 skipped=120 failed_quality=0 failed_qdrant=0 elapsed=~5.84s
+```
+
+Результат прогона #2 (повтор):
+```text
+scanned=120 reindexed=0 skipped=120 failed_quality=0 failed_qdrant=0 elapsed=~5.87s
+```
+
+Вывод:
+1. Инкрементальность подтверждена: повторный запуск идет через `skip` на реальной выборке.
+2. Ошибок `quality` и `qdrant` в контролируемом smoke не зафиксировано.
+3. Полноразмерный smoke на полном nightly-объеме остается отдельным шагом roadmap.
 2. Примеры для:
 - полных данных;
 - избыточных (много "воды");
