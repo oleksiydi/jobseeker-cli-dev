@@ -99,13 +99,20 @@ def _validate_matching_config(matching_cfg: dict[str, Any]) -> None:
         ("chunk", 0.30),
         ("profile", 0.20),
         ("metadata", 0.10),
+        ("chunk_top1", 0.60),
+        ("chunk_top2", 0.30),
+        ("chunk_top3", 0.10),
         ("rerank_pre_llm", 0.75),
         ("rerank_lexical", 0.25),
+        ("role_mismatch_threshold", 0.08),
+        ("role_mismatch_penalty", 0.65),
     )
     for weight_key, default in score_weight_keys:
         value = float(_get_nested(matching_cfg, ("rerank", "weights", weight_key), default))
         if value < 0:
             raise ValueError(f"matching.rerank.weights.{weight_key} must be >= 0")
+        if weight_key in {"role_mismatch_threshold", "role_mismatch_penalty"} and value > 1:
+            raise ValueError(f"matching.rerank.weights.{weight_key} must be <= 1")
 
 
 def resolve_matching_config(app_cfg: dict[str, Any]) -> dict[str, Any]:
@@ -173,8 +180,19 @@ def resolve_matching_config(app_cfg: dict[str, Any]) -> dict[str, Any]:
         "MATCHING_RERANK_WEIGHT_CHUNK": (("rerank", "weights", "chunk"), _parse_float),
         "MATCHING_RERANK_WEIGHT_PROFILE": (("rerank", "weights", "profile"), _parse_float),
         "MATCHING_RERANK_WEIGHT_METADATA": (("rerank", "weights", "metadata"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_CHUNK_TOP1": (("rerank", "weights", "chunk_top1"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_CHUNK_TOP2": (("rerank", "weights", "chunk_top2"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_CHUNK_TOP3": (("rerank", "weights", "chunk_top3"), _parse_float),
         "MATCHING_RERANK_WEIGHT_PRE_LLM": (("rerank", "weights", "rerank_pre_llm"), _parse_float),
         "MATCHING_RERANK_WEIGHT_LEXICAL": (("rerank", "weights", "rerank_lexical"), _parse_float),
+        "MATCHING_RERANK_ROLE_MISMATCH_THRESHOLD": (
+            ("rerank", "weights", "role_mismatch_threshold"),
+            _parse_float,
+        ),
+        "MATCHING_RERANK_ROLE_MISMATCH_PENALTY": (
+            ("rerank", "weights", "role_mismatch_penalty"),
+            _parse_float,
+        ),
     }
 
     # Параметры selection-cache (reuse top-N выдачи).

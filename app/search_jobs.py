@@ -142,8 +142,13 @@ def _parse_score_weights(rerank_cfg: dict[str, Any]) -> ScoreWeights:
         chunk=float(weights_cfg.get("chunk", 0.30)),
         profile=float(weights_cfg.get("profile", 0.20)),
         metadata=float(weights_cfg.get("metadata", 0.10)),
+        chunk_top1=float(weights_cfg.get("chunk_top1", 0.60)),
+        chunk_top2=float(weights_cfg.get("chunk_top2", 0.30)),
+        chunk_top3=float(weights_cfg.get("chunk_top3", 0.10)),
         rerank_pre_llm=float(weights_cfg.get("rerank_pre_llm", 0.75)),
         rerank_lexical=float(weights_cfg.get("rerank_lexical", 0.25)),
+        role_mismatch_threshold=float(weights_cfg.get("role_mismatch_threshold", 0.08)),
+        role_mismatch_penalty=float(weights_cfg.get("role_mismatch_penalty", 0.65)),
     )
 
 

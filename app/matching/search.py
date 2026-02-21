@@ -67,8 +67,13 @@ class ScoreWeights:
     chunk: float = 0.30
     profile: float = 0.20
     metadata: float = 0.10
+    chunk_top1: float = 0.60
+    chunk_top2: float = 0.30
+    chunk_top3: float = 0.10
     rerank_pre_llm: float = 0.75
     rerank_lexical: float = 0.25
+    role_mismatch_threshold: float = 0.08
+    role_mismatch_penalty: float = 0.65
 
 
 @dataclass(frozen=True)
@@ -108,6 +113,23 @@ def aggregate_chunk_hits(hits: list[dict[str, Any]]) -> dict[str, CandidateAggre
     return grouped
 
 
+def _aggregate_chunk_score(aggregate: CandidateAggregate, weights: ScoreWeights) -> float:
+    top_scores = [hit.score for hit in aggregate.chunk_hits[:3]]
+    if not top_scores:
+        return 0.0
+    coeffs = [weights.chunk_top1, weights.chunk_top2, weights.chunk_top3]
+    weighted_sum = 0.0
+    coeff_sum = 0.0
+    for score, coeff in zip(top_scores, coeffs, strict=False):
+        if coeff <= 0:
+            continue
+        weighted_sum += score * coeff
+        coeff_sum += coeff
+    if coeff_sum <= 0:
+        return top_scores[0]
+    return weighted_sum / coeff_sum
+
+
 def compute_scores(
     *,
     aggregate: CandidateAggregate,
@@ -119,6 +141,7 @@ def compute_scores(
     weights: ScoreWeights | None = None,
 ) -> CandidateScores:
     score_weights = weights or ScoreWeights()
+    chunk_score = _aggregate_chunk_score(aggregate, score_weights)
     role_score = max(
         lexical_overlap_score(query_text, title_text),
         lexical_overlap_score(query_text, role_text),
@@ -128,7 +151,7 @@ def compute_scores(
 
     pre_llm = (
         score_weights.role * role_score
-        + score_weights.chunk * aggregate.chunk_score
+        + score_weights.chunk * chunk_score
         + score_weights.profile * profile_score
         + score_weights.metadata * metadata_score
     )
@@ -136,13 +159,15 @@ def compute_scores(
     top_chunk_text = aggregate.chunk_hits[0].chunk_text if aggregate.chunk_hits else ""
     lexical_boost = lexical_overlap_score(query_text, top_chunk_text)
     rerank = score_weights.rerank_pre_llm * pre_llm + score_weights.rerank_lexical * lexical_boost
+    if role_score < score_weights.role_mismatch_threshold:
+        rerank *= score_weights.role_mismatch_penalty
     confidence = min(1.0, max(0.0, math.sqrt(max(rerank, 0.0))))
 
     return CandidateScores(
         role_score=role_score,
         profile_score=profile_score,
         metadata_score=metadata_score,
-        chunk_score=aggregate.chunk_score,
+        chunk_score=chunk_score,
         pre_llm_score=pre_llm,
         rerank_score=rerank,
         confidence=confidence,

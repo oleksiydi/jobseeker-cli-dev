@@ -96,8 +96,13 @@
         "chunk": 0.3,
         "profile": 0.2,
         "metadata": 0.1,
+        "chunk_top1": 0.6,
+        "chunk_top2": 0.3,
+        "chunk_top3": 0.1,
         "rerank_pre_llm": 0.75,
-        "rerank_lexical": 0.25
+        "rerank_lexical": 0.25,
+        "role_mismatch_threshold": 0.08,
+        "role_mismatch_penalty": 0.65
       }
     },
     "selection_cache": {
