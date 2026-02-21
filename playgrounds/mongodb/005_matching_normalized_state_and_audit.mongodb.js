@@ -102,5 +102,55 @@ if (latestRun.length > 0) {
     { $group: { _id: "$decision_reasons", count: { $sum: 1 } } },
     { $sort: { count: -1 } }
   ]);
-}
 
+  // 5.3) Подробные кейсы по проблемной причине title_or_role_missing
+  // Показываем не только номер вакансии, но и содержимое для ручного разбора.
+  db.getCollection("matching_audit").aggregate([
+    {
+      $match: {
+        run_id: runId,
+        decision_reasons: "title_or_role_missing"
+      }
+    },
+    {
+      $lookup: {
+        from: "stellenangebote",
+        localField: "referenznummer",
+        foreignField: "referenznummer",
+        as: "meta"
+      }
+    },
+    {
+      $lookup: {
+        from: "jobdetails",
+        localField: "referenznummer",
+        foreignField: "referenznummer",
+        as: "details"
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        run_id: 1,
+        created_at: 1,
+        referenznummer: 1,
+        applied_rules: 1,
+        decision_reasons: 1,
+        flags: 1,
+        skip_reason: 1,
+        meta_title: { $ifNull: [{ $arrayElemAt: ["$meta.titel", 0] }, null] },
+        meta_beruf: { $ifNull: [{ $arrayElemAt: ["$meta.beruf", 0] }, null] },
+        meta_arbeitgeber: { $ifNull: [{ $arrayElemAt: ["$meta.arbeitgeber", 0] }, null] },
+        meta_arbeitsort: { $ifNull: [{ $arrayElemAt: ["$meta.arbeitsort", 0] }, null] },
+        details_title: { $ifNull: [{ $arrayElemAt: ["$details.stellenangebotsTitel", 0] }, null] },
+        details_role: { $ifNull: [{ $arrayElemAt: ["$details.hauptberuf", 0] }, null] },
+        details_desc: {
+          $ifNull: [{ $arrayElemAt: ["$details.stellenangebotsBeschreibung", 0] }, null]
+        },
+        details_firma: { $ifNull: [{ $arrayElemAt: ["$details.firma", 0] }, null] }
+      }
+    },
+    { $sort: { created_at: -1 } },
+    { $limit: 50 }
+  ]);
+}
