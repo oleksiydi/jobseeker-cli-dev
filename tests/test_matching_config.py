@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from app.core.matching_config import resolve_matching_config
 
 
@@ -80,3 +82,32 @@ def test_resolve_matching_config_applies_run_mode_and_semantic_overrides(monkeyp
     assert resolved["chunking"]["tokenizer_model_name"] == "intfloat/multilingual-e5-large"
     assert resolved["chunking"]["max_tokens_per_chunk"] == 256
     assert resolved["chunking"]["overlap_tokens"] == 32
+
+
+def test_resolve_matching_config_raises_on_invalid_top_k(monkeypatch) -> None:
+    cfg = {"matching": {"retrieval": {"top_k": 100}}}
+    monkeypatch.setenv("MATCHING_RETRIEVAL_TOP_K", "0")
+    with pytest.raises(ValueError, match="retrieval.top_k"):
+        resolve_matching_config(cfg)
+
+
+def test_resolve_matching_config_raises_on_invalid_semantic_threshold(monkeypatch) -> None:
+    cfg = {"matching": {"chunking": {"semantic_similarity_threshold": 0.72}}}
+    monkeypatch.setenv("MATCHING_SEMANTIC_SIMILARITY_THRESHOLD", "1.5")
+    with pytest.raises(ValueError, match="semantic_similarity_threshold"):
+        resolve_matching_config(cfg)
+
+
+def test_resolve_matching_config_raises_on_invalid_overlap(monkeypatch) -> None:
+    cfg = {"matching": {"chunking": {"max_tokens_per_chunk": 128, "overlap_tokens": 16}}}
+    monkeypatch.setenv("MATCHING_MAX_TOKENS_PER_CHUNK", "64")
+    monkeypatch.setenv("MATCHING_OVERLAP_TOKENS", "64")
+    with pytest.raises(ValueError, match="overlap_tokens"):
+        resolve_matching_config(cfg)
+
+
+def test_resolve_matching_config_raises_on_negative_qdrant_retries(monkeypatch) -> None:
+    cfg = {"matching": {"qdrant": {"max_retries": 2}}}
+    monkeypatch.setenv("MATCHING_QDRANT_MAX_RETRIES", "-1")
+    with pytest.raises(ValueError, match="qdrant.max_retries"):
+        resolve_matching_config(cfg)
