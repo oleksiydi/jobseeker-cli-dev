@@ -1,3 +1,4 @@
+import app.build_job_index as build_job_index_module
 from app.build_job_index import (
     IndexVersions,
     _build_change_flags,
@@ -5,6 +6,7 @@ from app.build_job_index import (
     _build_point_id,
     _build_qdrant_points,
     _compute_embedding_input_hash,
+    _split_text_to_sentences,
 )
 from app.matching.models import ChunkRecord
 from app.matching.models import MergedVacancyNormalized
@@ -28,6 +30,16 @@ class _FakeEmbedder:
             else:
                 vectors.append([0.8, 0.2])
         return vectors
+
+
+class _FakeTokenizer:
+    def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
+        del add_special_tokens
+        return list(range(len(text.split())))
+
+    def decode(self, ids: list[int], skip_special_tokens: bool = True) -> str:
+        del skip_special_tokens
+        return " ".join([f"tok{value}" for value in ids])
 
 
 def _vacancy(description: str, *, missing: bool = False) -> MergedVacancyNormalized:
@@ -162,6 +174,7 @@ def test_build_chunk_records_semantic_splits_text_by_similarity() -> None:
             "fallback_overlap_chars": 50,
         },
         embedder=_FakeEmbedder(),
+        embedding_model="intfloat/multilingual-e5-large",
     )
     assert len(records) == 2
     assert "Oracle Erfahrung" in records[0].text
@@ -176,9 +189,48 @@ def test_build_chunk_records_semantic_falls_back_when_embedder_missing() -> None
         engine=_FakeEngine(),
         chunking_cfg={"strategy": "semantic"},
         embedder=None,
+        embedding_model="intfloat/multilingual-e5-large",
     )
     assert len(records) == 1
     assert records[0].chunk_index == 0
+
+
+def test_build_chunk_records_semantic_applies_token_aware_splitting(monkeypatch) -> None:
+    monkeypatch.setattr(
+        build_job_index_module,
+        "_get_transformers_tokenizer",
+        lambda _model_name: _FakeTokenizer(),
+    )
+    vacancy = _vacancy(
+        description="eins zwei drei vier funf sechs sieben acht neun zehn elf zwolf",
+    )
+    records = _build_chunk_records(
+        vacancy=vacancy,
+        rule_flags={},
+        engine=_FakeEngine(),
+        chunking_cfg={
+            "strategy": "semantic",
+            "token_aware_enabled": True,
+            "max_tokens_per_chunk": 5,
+            "overlap_tokens": 1,
+            "hard_max_chunk_chars": 9999,
+            "hard_min_chunk_chars": 1,
+        },
+        embedder=None,
+        embedding_model="intfloat/multilingual-e5-large",
+    )
+    assert len(records) == 3
+
+
+def test_split_text_to_sentences_uses_regex_when_spacy_pipeline_unavailable(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(build_job_index_module, "_get_spacy_pipeline", lambda _model_name: None)
+    parts = _split_text_to_sentences(
+        "Erster Satz. Zweiter Satz.",
+        chunking_cfg={"sentence_splitter": "spacy", "spacy_model": "de_core_news_md"},
+    )
+    assert parts == ["Erster Satz.", "Zweiter Satz."]
 
 
 def test_build_point_id_is_deterministic() -> None:

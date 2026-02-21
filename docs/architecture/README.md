@@ -24,6 +24,8 @@ Contents:
 - `docs/architecture/17-embedding-reindex-decision-diagram.md`: Mermaid decision flow for skip/reindex and missing-description fallback.
 - `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`: detailed RU examples of canonical text formation, Qdrant payload, Mongo metadata, and LLM input/output formats.
 - `docs/architecture/19-rules-stack-implementation-plan-ru.md`: practical plan for production-style rules stack (`Pydantic + Pandera + JSONLogic`), including execution model, responsibilities, and migration steps.
+- `docs/architecture/20-phase2-chunking-runtime-flow.md`: sequence diagram for runtime chunk construction (`rule flags -> spaCy -> semantic merge -> token-aware -> hard limits -> labels`).
+- `docs/architecture/21-phase2-chunking-system-integration.md`: system-level map of how chunking interacts with audit/state/Qdrant/retrieval.
 
 Rules:
 

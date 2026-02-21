@@ -7,8 +7,9 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from math import sqrt
 from typing import Any
+
+import numpy as np
 
 from app.core.config import load_app_config
 from app.core.matching_config import resolve_matching_config
@@ -19,6 +20,8 @@ from app.vector.embedder import TextEmbedder, build_text_embedder
 from app.vector.qdrant_client import QdrantRestClient, parse_qdrant_settings
 
 log = logging.getLogger(__name__)
+_SPACY_PIPELINES: dict[str, Any] = {}
+_TOKENIZERS: dict[str, Any] = {}
 
 
 @dataclass(frozen=True)
@@ -91,6 +94,7 @@ def _build_chunk_records(
     engine: MatchingRuleEngine,
     chunking_cfg: dict[str, Any] | None = None,
     embedder: TextEmbedder | None = None,
+    embedding_model: str | None = None,
 ) -> list[ChunkRecord]:
     """
     Построить chunk records для индексации.
@@ -123,6 +127,7 @@ def _build_chunk_records(
             source_text=source_text,
             chunking_cfg=chunking_cfg or {},
             embedder=embedder,
+            embedding_model=embedding_model,
         )
 
     records: list[ChunkRecord] = []
@@ -147,6 +152,7 @@ def _build_semantic_chunk_texts(
     source_text: str,
     chunking_cfg: dict[str, Any],
     embedder: TextEmbedder | None,
+    embedding_model: str | None = None,
 ) -> list[str]:
     """
     Собрать смысловые chunks из текста вакансии.
@@ -159,9 +165,14 @@ def _build_semantic_chunk_texts(
     if not text:
         return [source_text]
 
-    sentences = _split_text_to_sentences(text)
+    sentences = _split_text_to_sentences(text, chunking_cfg=chunking_cfg)
     if len(sentences) <= 1 or embedder is None:
-        return _enforce_hard_chunk_limits([text], chunking_cfg)
+        token_limited = _enforce_token_aware_chunk_limits(
+            [text],
+            chunking_cfg=chunking_cfg,
+            embedding_model=embedding_model,
+        )
+        return _enforce_hard_chunk_limits(token_limited, chunking_cfg)
 
     threshold = float(chunking_cfg.get("semantic_similarity_threshold", 0.72))
     window = max(1, int(chunking_cfg.get("semantic_sentence_window", 2)))
@@ -170,7 +181,12 @@ def _build_semantic_chunk_texts(
 
     vectors = embedder.embed_texts([f"passage: {sentence}" for sentence in sentences])
     if len(vectors) != len(sentences):
-        return _enforce_hard_chunk_limits([text], chunking_cfg)
+        token_limited = _enforce_token_aware_chunk_limits(
+            [text],
+            chunking_cfg=chunking_cfg,
+            embedding_model=embedding_model,
+        )
+        return _enforce_hard_chunk_limits(token_limited, chunking_cfg)
 
     chunks: list[list[str]] = []
     current_chunk: list[str] = [sentences[0]]
@@ -196,40 +212,165 @@ def _build_semantic_chunk_texts(
 
     chunks.append(current_chunk)
     chunk_texts = [" ".join(sentences_group).strip() for sentences_group in chunks if sentences_group]
-    return _enforce_hard_chunk_limits(chunk_texts, chunking_cfg)
+    token_limited = _enforce_token_aware_chunk_limits(
+        chunk_texts,
+        chunking_cfg=chunking_cfg,
+        embedding_model=embedding_model,
+    )
+    return _enforce_hard_chunk_limits(token_limited, chunking_cfg)
 
 
-def _split_text_to_sentences(text: str) -> list[str]:
+def _split_text_to_sentences(text: str, *, chunking_cfg: dict[str, Any]) -> list[str]:
     """
-    Разбить описание на предложения через простой и устойчивый regex fallback.
+    Разбить описание на предложения.
 
-    Почему без жесткой привязки к spaCy здесь:
-    - текущий шаг должен работать в оффлайн/легком окружении без дополнительной модели;
-    - при подключении spaCy этот helper можно заменить/расширить без изменения API.
+    Основной путь: spaCy sentence segmentation.
+    Fallback: regex-деление, чтобы пайплайн оставался рабочим даже в легком/offline окружении.
     """
+    splitter = str(chunking_cfg.get("sentence_splitter", "spacy")).strip().lower()
+    if splitter == "spacy":
+        model_name = str(chunking_cfg.get("spacy_model", "de_core_news_md")).strip()
+        sentences = _split_text_to_sentences_spacy(text, model_name=model_name)
+        if sentences:
+            return sentences
+
+    return _split_text_to_sentences_regex(text)
+
+
+def _split_text_to_sentences_spacy(text: str, *, model_name: str) -> list[str]:
+    nlp = _get_spacy_pipeline(model_name)
+    if nlp is None:
+        return []
+    doc = nlp(text)
+    sentences = [sentence.text.strip() for sentence in doc.sents if sentence.text.strip()]
+    return sentences
+
+
+def _split_text_to_sentences_regex(text: str) -> list[str]:
     raw_parts = re.split(r"(?<=[.!?])\s+|\n+", text)
     sentences = [part.strip() for part in raw_parts if part and part.strip()]
     return sentences if sentences else [text.strip()]
 
 
+def _get_spacy_pipeline(model_name: str) -> Any | None:
+    if model_name in _SPACY_PIPELINES:
+        return _SPACY_PIPELINES[model_name]
+
+    try:
+        import spacy
+    except ModuleNotFoundError:
+        log.warning("spaCy is not installed; sentence split fallback=regex")
+        return None
+
+    try:
+        nlp = spacy.load(
+            model_name,
+            disable=[
+                "ner",
+                "tagger",
+                "lemmatizer",
+                "attribute_ruler",
+            ],
+        )
+    except Exception:
+        log.warning("spaCy model '%s' unavailable; fallback to lightweight sentencizer", model_name)
+        nlp = spacy.blank("de")
+
+    if "parser" not in nlp.pipe_names and "senter" not in nlp.pipe_names:
+        if "sentencizer" not in nlp.pipe_names:
+            nlp.add_pipe("sentencizer")
+
+    _SPACY_PIPELINES[model_name] = nlp
+    return nlp
+
+
 def _mean_similarity(vector: list[float], others: list[list[float]]) -> float:
     if not others:
         return 1.0
-    values = [_cosine_similarity(vector, other) for other in others]
-    return sum(values) / len(values)
+    values = np.array([_cosine_similarity(vector, other) for other in others], dtype=np.float32)
+    return float(values.mean()) if values.size else 0.0
 
 
 def _cosine_similarity(first: list[float], second: list[float]) -> float:
-    dot = 0.0
-    norm_first = 0.0
-    norm_second = 0.0
-    for left, right in zip(first, second, strict=True):
-        dot += left * right
-        norm_first += left * left
-        norm_second += right * right
-    if norm_first == 0.0 or norm_second == 0.0:
+    left = np.asarray(first, dtype=np.float32)
+    right = np.asarray(second, dtype=np.float32)
+    if left.shape != right.shape or left.size == 0:
         return 0.0
-    return dot / (sqrt(norm_first) * sqrt(norm_second))
+    denominator = float(np.linalg.norm(left) * np.linalg.norm(right))
+    if denominator == 0.0:
+        return 0.0
+    return float(np.dot(left, right) / denominator)
+
+
+def _enforce_token_aware_chunk_limits(
+    chunks: list[str],
+    *,
+    chunking_cfg: dict[str, Any],
+    embedding_model: str | None,
+) -> list[str]:
+    enabled = bool(chunking_cfg.get("token_aware_enabled", False))
+    if not enabled:
+        return chunks
+
+    tokenizer_model_name = str(
+        chunking_cfg.get("tokenizer_model_name") or embedding_model or ""
+    ).strip()
+    if not tokenizer_model_name:
+        return chunks
+
+    tokenizer = _get_transformers_tokenizer(tokenizer_model_name)
+    if tokenizer is None:
+        return chunks
+
+    max_tokens = max(1, int(chunking_cfg.get("max_tokens_per_chunk", 320)))
+    overlap_tokens = max(0, int(chunking_cfg.get("overlap_tokens", 48)))
+    step = max(1, max_tokens - overlap_tokens)
+
+    result: list[str] = []
+    for chunk in chunks:
+        text = chunk.strip()
+        if not text:
+            continue
+
+        token_ids = tokenizer.encode(text, add_special_tokens=False)
+        if len(token_ids) <= max_tokens:
+            result.append(text)
+            continue
+
+        start = 0
+        while start < len(token_ids):
+            piece_ids = token_ids[start : start + max_tokens]
+            piece = tokenizer.decode(piece_ids, skip_special_tokens=True).strip()
+            if piece:
+                result.append(piece)
+            if start + max_tokens >= len(token_ids):
+                break
+            start += step
+
+    return result if result else chunks
+
+
+def _get_transformers_tokenizer(model_name: str) -> Any | None:
+    if model_name in _TOKENIZERS:
+        return _TOKENIZERS[model_name]
+
+    try:
+        from transformers import AutoTokenizer
+    except ModuleNotFoundError:
+        log.warning("transformers is not installed; token-aware split disabled")
+        return None
+
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    except Exception:
+        log.warning(
+            "Tokenizer '%s' is unavailable in current environment; token-aware split disabled",
+            model_name,
+        )
+        return None
+
+    _TOKENIZERS[model_name] = tokenizer
+    return tokenizer
 
 
 def _enforce_hard_chunk_limits(chunks: list[str], chunking_cfg: dict[str, Any]) -> list[str]:
@@ -442,6 +583,7 @@ def main() -> int:
             engine=engine,
             chunking_cfg=matching_cfg.get("chunking", {}),
             embedder=embedder,
+            embedding_model=versions.embedding_model,
         )
         quality = run_quality_checks(chunks)
         if not quality.hard_passed:

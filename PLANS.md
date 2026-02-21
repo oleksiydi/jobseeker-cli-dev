@@ -255,8 +255,11 @@
 - фиксация `qdrant_failed`/`indexed` статусов в `matching_index_state`.
 - Начат следующий этап chunking:
 - в `app/build_job_index.py` включен `strategy=semantic` с объединением предложений по смысловой близости;
+- сегментация предложений переведена на `spaCy` с regex-fallback для offline окружений;
+- similarity расчеты переведены на `numpy`;
+- добавлен token-aware split по tokenizer (`max_tokens_per_chunk`, `overlap_tokens`) перед hard char limits;
 - добавлен безопасный fallback на baseline chunking при недоступности semantic-шага;
-- добавлены unit-тесты на semantic split и fallback в `tests/test_build_job_index.py`.
+- добавлены unit-тесты на semantic split, token-aware и fallback в `tests/test_build_job_index.py`.
 - Что не сделано:
 - Полноразмерный smoke-тест на полном nightly-объеме еще не выполнен.
 - Retrieval/rerank/cache/LLM handoff пока не реализованы (следующие фазы).

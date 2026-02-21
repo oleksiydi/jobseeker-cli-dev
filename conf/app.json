@@ -65,13 +65,19 @@
     "chunking": {
       "strategy": "semantic",
       "version": "v1",
+      "sentence_splitter": "spacy",
+      "spacy_model": "de_core_news_md",
       "semantic_similarity_threshold": 0.72,
       "semantic_sentence_window": 2,
       "semantic_min_sentences": 2,
       "semantic_max_sentences": 14,
       "hard_max_chunk_chars": 2200,
       "hard_min_chunk_chars": 300,
-      "fallback_overlap_chars": 120
+      "fallback_overlap_chars": 120,
+      "token_aware_enabled": true,
+      "tokenizer_model_name": "intfloat/multilingual-e5-large",
+      "max_tokens_per_chunk": 320,
+      "overlap_tokens": 48
     },
     "embeddings": {
       "model_name": "intfloat/multilingual-e5-large",

@@ -5,8 +5,8 @@
 Shows how merged vacancy data is transformed into chunks and vectors.
 
 Current implementation status:
-- Baseline chunking is implemented (single robust chunk per vacancy).
-- `spaCy + semantic chunking` is planned as next phase.
+- `spaCy + semantic chunking` is implemented.
+- token-aware chunk cap is enabled before hard char limits.
 
 ```mermaid
 flowchart TD
@@ -16,8 +16,11 @@ flowchart TD
     D --> E{Description exists?}
 
     E -- no --> F[Create synthetic chunk from title role location employment]
-    E -- yes --> G[Build baseline chunk from description or canonical text]
-    G --> S[Assign section_label by rules or unknown with confidence]
+    E -- yes --> P[Sentence segmentation via spaCy]
+    P --> Q[Semantic chunking by sentence similarity]
+    Q --> T[Token-aware cap by tokenizer max/overlap]
+    T --> U[Hard char limits merge split]
+    U --> S[Assign section_label by rules or unknown with confidence]
 
     F --> K[Build chunk payload metadata]
     S --> K
@@ -25,9 +28,4 @@ flowchart TD
     K --> L[Compute chunk embeddings passage prefix]
     L --> N[Upsert chunk points to Qdrant]
     N --> O[Persist embedding metadata/hash/version in Mongo]
-
-    %% Planned path (not implemented yet):
-    G -. future .-> P[Sentence segmentation via spaCy]
-    P -. future .-> Q[Semantic chunking by sentence similarity]
-    Q -. future .-> S
 ```
