@@ -712,6 +712,7 @@ def _build_qdrant_points(
                     "section_label": chunk.section_label,
                     "section_confidence": chunk.section_confidence,
                     "description_missing": chunk.description_missing,
+                    "chunk_text": chunk.text,
                     "embedding_input_hash": embedding_input_hash,
                     "embedding_model": versions.embedding_model,
                     "chunking_version": versions.chunking_version,
