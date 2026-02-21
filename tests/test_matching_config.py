@@ -67,6 +67,11 @@ def test_resolve_matching_config_applies_run_mode_and_semantic_overrides(monkeyp
     monkeypatch.setenv("MATCHING_TOKENIZER_MODEL_NAME", "intfloat/multilingual-e5-large")
     monkeypatch.setenv("MATCHING_MAX_TOKENS_PER_CHUNK", "256")
     monkeypatch.setenv("MATCHING_OVERLAP_TOKENS", "32")
+    monkeypatch.setenv("MATCHING_RERANK_WEIGHT_CHUNK_TOP1", "0.5")
+    monkeypatch.setenv("MATCHING_RERANK_WEIGHT_CHUNK_TOP2", "0.3")
+    monkeypatch.setenv("MATCHING_RERANK_WEIGHT_CHUNK_TOP3", "0.2")
+    monkeypatch.setenv("MATCHING_RERANK_ROLE_MISMATCH_THRESHOLD", "0.1")
+    monkeypatch.setenv("MATCHING_RERANK_ROLE_MISMATCH_PENALTY", "0.7")
 
     resolved = resolve_matching_config(cfg)
 
@@ -82,6 +87,11 @@ def test_resolve_matching_config_applies_run_mode_and_semantic_overrides(monkeyp
     assert resolved["chunking"]["tokenizer_model_name"] == "intfloat/multilingual-e5-large"
     assert resolved["chunking"]["max_tokens_per_chunk"] == 256
     assert resolved["chunking"]["overlap_tokens"] == 32
+    assert resolved["rerank"]["weights"]["chunk_top1"] == 0.5
+    assert resolved["rerank"]["weights"]["chunk_top2"] == 0.3
+    assert resolved["rerank"]["weights"]["chunk_top3"] == 0.2
+    assert resolved["rerank"]["weights"]["role_mismatch_threshold"] == 0.1
+    assert resolved["rerank"]["weights"]["role_mismatch_penalty"] == 0.7
 
 
 def test_resolve_matching_config_raises_on_invalid_top_k(monkeypatch) -> None:
@@ -110,4 +120,11 @@ def test_resolve_matching_config_raises_on_negative_qdrant_retries(monkeypatch) 
     cfg = {"matching": {"qdrant": {"max_retries": 2}}}
     monkeypatch.setenv("MATCHING_QDRANT_MAX_RETRIES", "-1")
     with pytest.raises(ValueError, match="qdrant.max_retries"):
+        resolve_matching_config(cfg)
+
+
+def test_resolve_matching_config_raises_on_invalid_role_mismatch_penalty(monkeypatch) -> None:
+    cfg = {"matching": {"rerank": {"weights": {"role_mismatch_penalty": 0.65}}}}
+    monkeypatch.setenv("MATCHING_RERANK_ROLE_MISMATCH_PENALTY", "1.5")
+    with pytest.raises(ValueError, match="role_mismatch_penalty"):
         resolve_matching_config(cfg)

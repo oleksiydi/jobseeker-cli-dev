@@ -1,4 +1,5 @@
 from app.matching.search import (
+    ScoreWeights,
     aggregate_chunk_hits,
     build_compact_chunks,
     compute_scores,
@@ -171,10 +172,101 @@ def test_parse_score_weights_reads_rerank_config() -> None:
                 "chunk": 0.2,
                 "profile": 0.2,
                 "metadata": 0.1,
+                "chunk_top1": 0.7,
+                "chunk_top2": 0.2,
+                "chunk_top3": 0.1,
                 "rerank_pre_llm": 0.8,
                 "rerank_lexical": 0.2,
+                "role_mismatch_threshold": 0.05,
+                "role_mismatch_penalty": 0.6,
             }
         }
     )
     assert weights.role == 0.5
     assert weights.rerank_lexical == 0.2
+    assert weights.chunk_top1 == 0.7
+    assert weights.role_mismatch_penalty == 0.6
+
+
+def test_compute_scores_uses_top3_chunk_aggregation() -> None:
+    grouped = aggregate_chunk_hits(
+        [
+            {
+                "score": 0.9,
+                "payload": {
+                    "referenznummer": "R-5",
+                    "chunk_id": "R-5:0",
+                    "chunk_index": 0,
+                    "section_label": "requirements",
+                    "chunk_text": "python",
+                },
+            },
+            {
+                "score": 0.6,
+                "payload": {
+                    "referenznummer": "R-5",
+                    "chunk_id": "R-5:1",
+                    "chunk_index": 1,
+                    "section_label": "tasks",
+                    "chunk_text": "sql",
+                },
+            },
+            {
+                "score": 0.3,
+                "payload": {
+                    "referenznummer": "R-5",
+                    "chunk_id": "R-5:2",
+                    "chunk_index": 2,
+                    "section_label": "benefits",
+                    "chunk_text": "remote",
+                },
+            },
+        ]
+    )
+    scores = compute_scores(
+        aggregate=grouped["R-5"],
+        query_text="python",
+        profile_text="python",
+        title_text="python engineer",
+        role_text="engineer",
+        location_text="regensburg",
+        weights=ScoreWeights(chunk_top1=0.6, chunk_top2=0.3, chunk_top3=0.1),
+    )
+    assert round(scores.chunk_score, 6) == round((0.9 * 0.6 + 0.6 * 0.3 + 0.3 * 0.1), 6)
+
+
+def test_compute_scores_applies_role_mismatch_penalty() -> None:
+    grouped = aggregate_chunk_hits(
+        [
+            {
+                "score": 0.8,
+                "payload": {
+                    "referenznummer": "R-6",
+                    "chunk_id": "R-6:0",
+                    "chunk_index": 0,
+                    "section_label": "requirements",
+                    "chunk_text": "python sql",
+                },
+            }
+        ]
+    )
+    without_penalty = compute_scores(
+        aggregate=grouped["R-6"],
+        query_text="python",
+        profile_text="python",
+        title_text="python engineer",
+        role_text="engineer",
+        location_text="regensburg",
+        weights=ScoreWeights(role_mismatch_threshold=0.0, role_mismatch_penalty=0.65),
+    )
+    with_penalty = compute_scores(
+        aggregate=grouped["R-6"],
+        query_text="python",
+        profile_text="python",
+        title_text="java architect",
+        role_text="sales manager",
+        location_text="regensburg",
+        weights=ScoreWeights(role_mismatch_threshold=0.2, role_mismatch_penalty=0.65),
+    )
+    assert with_penalty.role_score < 0.2
+    assert with_penalty.rerank_score < without_penalty.rerank_score
