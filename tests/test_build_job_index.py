@@ -43,6 +43,24 @@ class _FakeTokenizer:
         del skip_special_tokens
         return " ".join([f"tok{value}" for value in ids])
 
+    def __call__(
+        self,
+        text: str,
+        add_special_tokens: bool = False,
+        return_offsets_mapping: bool = False,
+    ) -> dict[str, list[tuple[int, int]]]:
+        del add_special_tokens
+        if not return_offsets_mapping:
+            return {}
+        offsets: list[tuple[int, int]] = []
+        start = 0
+        for token in text.split():
+            token_start = text.find(token, start)
+            token_end = token_start + len(token)
+            offsets.append((token_start, token_end))
+            start = token_end
+        return {"offset_mapping": offsets}
+
 
 def _vacancy(description: str, *, missing: bool = False) -> MergedVacancyNormalized:
     return MergedVacancyNormalized(
@@ -222,6 +240,9 @@ def test_build_chunk_records_semantic_applies_token_aware_splitting(monkeypatch)
         embedding_model="intfloat/multilingual-e5-large",
     )
     assert len(records) == 3
+    assert records[0].text == "eins zwei drei vier funf"
+    assert records[1].text == "funf sechs sieben acht neun"
+    assert records[2].text == "neun zehn elf zwolf"
 
 
 def test_split_text_to_sentences_uses_regex_when_spacy_pipeline_unavailable(
@@ -248,6 +269,27 @@ def test_build_chunk_records_with_runtime_exposes_fallback_reason() -> None:
     assert len(records) == 1
     assert runtime.sentence_splitter_used == "regex"
     assert "embedder_unavailable_for_semantic" in runtime.fallback_reasons
+
+
+def test_build_chunk_records_with_runtime_respects_char_token_splitter() -> None:
+    vacancy = _vacancy(description="eins zwei drei vier funf sechs sieben")
+    records, runtime = _build_chunk_records_with_runtime(
+        vacancy=vacancy,
+        rule_flags={},
+        engine=_FakeEngine(),
+        chunking_cfg={
+            "strategy": "semantic",
+            "sentence_splitter": "regex",
+            "token_aware_enabled": True,
+            "token_splitter": "char",
+            "max_tokens_per_chunk": 2,
+        },
+        embedder=None,
+        embedding_model="intfloat/multilingual-e5-large",
+    )
+    assert len(records) == 1
+    assert runtime.token_splitter_used == "char"
+    assert runtime.token_aware_applied is False
 
 
 def test_warn_once_logs_only_first_time(caplog) -> None:

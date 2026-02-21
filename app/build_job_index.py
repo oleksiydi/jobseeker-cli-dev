@@ -243,18 +243,19 @@ def _build_semantic_chunk_texts(
         )
         return _enforce_hard_chunk_limits(token_limited, chunking_cfg)
 
+    vectors_np = np.asarray(vectors, dtype=np.float32)
     chunks: list[list[str]] = []
     current_chunk: list[str] = [sentences[0]]
-    current_vector_window: list[list[float]] = [vectors[0]]
+    current_vector_window: list[np.ndarray] = [vectors_np[0]]
 
-    for sentence, vector in zip(sentences[1:], vectors[1:], strict=True):
+    for sentence, vector in zip(sentences[1:], vectors_np[1:], strict=True):
         if len(current_chunk) >= max_sentences:
             chunks.append(current_chunk)
             current_chunk = [sentence]
             current_vector_window = [vector]
             continue
 
-        similarity = _mean_similarity(vector, current_vector_window[-window:])
+        similarity = _mean_similarity_vectorized(vector, current_vector_window[-window:])
         # Держим минимум предложений в chunk, чтобы не дробить слишком агрессивно.
         if similarity >= threshold or len(current_chunk) < min_sentences:
             current_chunk.append(sentence)
@@ -401,6 +402,23 @@ def _mean_similarity(vector: list[float], others: list[list[float]]) -> float:
     return float(values.mean()) if values.size else 0.0
 
 
+def _mean_similarity_vectorized(vector: np.ndarray, others: list[np.ndarray]) -> float:
+    if not others:
+        return 1.0
+    target_norm = float(np.linalg.norm(vector))
+    if target_norm == 0.0:
+        return 0.0
+
+    others_matrix = np.vstack(others)
+    others_norm = np.linalg.norm(others_matrix, axis=1)
+    denominator = target_norm * others_norm
+    safe = denominator > 0
+    scores = np.zeros_like(others_norm, dtype=np.float32)
+    if np.any(safe):
+        scores[safe] = np.dot(others_matrix[safe], vector) / denominator[safe]
+    return float(scores.mean())
+
+
 def _cosine_similarity(first: list[float], second: list[float]) -> float:
     left = np.asarray(first, dtype=np.float32)
     right = np.asarray(second, dtype=np.float32)
@@ -452,7 +470,6 @@ def _enforce_token_aware_chunk_limits(
 
     max_tokens = max(1, int(chunking_cfg.get("max_tokens_per_chunk", 320)))
     overlap_tokens = max(0, int(chunking_cfg.get("overlap_tokens", 48)))
-    step = max(1, max_tokens - overlap_tokens)
 
     result: list[str] = []
     for chunk in chunks:
@@ -460,24 +477,102 @@ def _enforce_token_aware_chunk_limits(
         if not text:
             continue
 
-        token_ids = tokenizer.encode(text, add_special_tokens=False)
-        if len(token_ids) <= max_tokens:
+        offset_chunks = _split_text_by_token_offsets(
+            text=text,
+            tokenizer=tokenizer,
+            max_tokens=max_tokens,
+            overlap_tokens=overlap_tokens,
+        )
+        if not offset_chunks:
+            if runtime is not None:
+                runtime.fallback_reasons.append("token_offsets_unavailable")
+            token_ids = tokenizer.encode(text, add_special_tokens=False)
+            if len(token_ids) <= max_tokens:
+                result.append(text)
+                continue
+            pieces = _split_token_ids_by_budget(
+                token_ids=token_ids,
+                tokenizer=tokenizer,
+                max_tokens=max_tokens,
+                overlap_tokens=overlap_tokens,
+            )
+            if pieces:
+                if runtime is not None:
+                    runtime.token_aware_applied = True
+                result.extend(pieces)
+                continue
             result.append(text)
             continue
+
+        if len(offset_chunks) <= 1:
+            result.append(text)
+            continue
+
         if runtime is not None:
             runtime.token_aware_applied = True
-
-        start = 0
-        while start < len(token_ids):
-            piece_ids = token_ids[start : start + max_tokens]
-            piece = tokenizer.decode(piece_ids, skip_special_tokens=True).strip()
-            if piece:
-                result.append(piece)
-            if start + max_tokens >= len(token_ids):
-                break
-            start += step
+        result.extend(offset_chunks)
 
     return result if result else chunks
+
+
+def _split_text_by_token_offsets(
+    *,
+    text: str,
+    tokenizer: Any,
+    max_tokens: int,
+    overlap_tokens: int,
+) -> list[str]:
+    try:
+        encoded = tokenizer(
+            text,
+            add_special_tokens=False,
+            return_offsets_mapping=True,
+        )
+    except Exception:
+        return []
+
+    offsets = encoded.get("offset_mapping")
+    if not offsets:
+        return []
+    valid_offsets = [(start, end) for start, end in offsets if end > start]
+    if not valid_offsets:
+        return []
+
+    step = max(1, max_tokens - overlap_tokens)
+    chunks: list[str] = []
+    start_idx = 0
+    while start_idx < len(valid_offsets):
+        end_idx = min(len(valid_offsets), start_idx + max_tokens)
+        char_start = valid_offsets[start_idx][0]
+        char_end = valid_offsets[end_idx - 1][1]
+        piece = text[char_start:char_end].strip()
+        if piece:
+            chunks.append(piece)
+        if end_idx >= len(valid_offsets):
+            break
+        start_idx += step
+    return chunks
+
+
+def _split_token_ids_by_budget(
+    *,
+    token_ids: list[int],
+    tokenizer: Any,
+    max_tokens: int,
+    overlap_tokens: int,
+) -> list[str]:
+    step = max(1, max_tokens - overlap_tokens)
+    pieces: list[str] = []
+    start = 0
+    while start < len(token_ids):
+        piece_ids = token_ids[start : start + max_tokens]
+        piece = tokenizer.decode(piece_ids, skip_special_tokens=True).strip()
+        if piece:
+            pieces.append(piece)
+        if start + max_tokens >= len(token_ids):
+            break
+        start += step
+    return pieces
 
 
 def _get_transformers_tokenizer(model_name: str) -> Any | None:
