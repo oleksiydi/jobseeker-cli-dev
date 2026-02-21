@@ -28,6 +28,8 @@ Contents:
 - `docs/architecture/21-phase2-chunking-system-integration.md`: system-level map of how chunking interacts with audit/state/Qdrant/retrieval.
 - `docs/architecture/22-chunking-smoke-scenarios.md`: practical smoke runbook for `spacy`, `syntok`, and `regex+char` modes with expected `matching_index_state` fields.
 - `docs/architecture/23-retrieval-rerank-runtime-flow.md`: runtime flow of implemented `app/search_jobs.py` (`query/profile -> Qdrant -> aggregate -> score -> rerank -> top_chunks`).
+- `docs/architecture/24-cache-llm-handoff-explained-ru.md`: Russian practical explanation of significant input/version changes, selection cache invalidation, long/short vacancy handoff payload, chunk-group impact, and current baseline rerank formula.
+- `docs/architecture/25-cache-index-invalidation-overview-ru.md`: Russian end-to-end map of project cache/index contours, invalidation triggers by domain, and target retrieval cache key lifecycle.
 
 Rules:
 
