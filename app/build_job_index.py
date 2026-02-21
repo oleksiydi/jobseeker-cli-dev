@@ -486,7 +486,17 @@ def _enforce_token_aware_chunk_limits(
         if not offset_chunks:
             if runtime is not None:
                 runtime.fallback_reasons.append("token_offsets_unavailable")
-            token_ids = tokenizer.encode(text, add_special_tokens=False)
+            try:
+                encoded = tokenizer(
+                    text,
+                    add_special_tokens=False,
+                    truncation=False,
+                    max_length=None,
+                    verbose=False,
+                )
+                token_ids = encoded.get("input_ids", [])
+            except Exception:
+                token_ids = tokenizer.encode(text, add_special_tokens=False)
             if len(token_ids) <= max_tokens:
                 result.append(text)
                 continue
@@ -527,6 +537,9 @@ def _split_text_by_token_offsets(
             text,
             add_special_tokens=False,
             return_offsets_mapping=True,
+            truncation=False,
+            max_length=None,
+            verbose=False,
         )
     except Exception:
         return []

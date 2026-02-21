@@ -48,8 +48,11 @@ class _FakeTokenizer:
         text: str,
         add_special_tokens: bool = False,
         return_offsets_mapping: bool = False,
+        truncation: bool = False,
+        max_length: int | None = None,
+        verbose: bool = True,
     ) -> dict[str, list[tuple[int, int]]]:
-        del add_special_tokens
+        del add_special_tokens, truncation, max_length, verbose
         if not return_offsets_mapping:
             return {}
         offsets: list[tuple[int, int]] = []
