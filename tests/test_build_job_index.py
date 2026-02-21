@@ -16,6 +16,20 @@ class _FakeEngine:
         return ("requirements", 0.9, "fake")
 
 
+class _FakeEmbedder:
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        vectors: list[list[float]] = []
+        for text in texts:
+            lower = text.lower()
+            if "oracle" in lower or "sql" in lower or "postgres" in lower:
+                vectors.append([1.0, 0.0])
+            elif "urlaub" in lower or "benefits" in lower:
+                vectors.append([0.0, 1.0])
+            else:
+                vectors.append([0.8, 0.2])
+        return vectors
+
+
 def _vacancy(description: str, *, missing: bool = False) -> MergedVacancyNormalized:
     return MergedVacancyNormalized(
         referenznummer="R-1",
@@ -124,6 +138,47 @@ def test_build_chunk_records_uses_engine_label_for_regular_text() -> None:
     assert len(records) == 1
     assert records[0].section_label == "requirements"
     assert records[0].section_confidence == 0.9
+
+
+def test_build_chunk_records_semantic_splits_text_by_similarity() -> None:
+    vacancy = _vacancy(
+        description=(
+            "Wir suchen Oracle Erfahrung. SQL Kenntnisse sind wichtig. "
+            "Wir bieten 30 Tage Urlaub. Benefits und Zuschuesse sind vorhanden."
+        )
+    )
+    records = _build_chunk_records(
+        vacancy=vacancy,
+        rule_flags={},
+        engine=_FakeEngine(),
+        chunking_cfg={
+            "strategy": "semantic",
+            "semantic_similarity_threshold": 0.8,
+            "semantic_sentence_window": 1,
+            "semantic_min_sentences": 1,
+            "semantic_max_sentences": 8,
+            "hard_max_chunk_chars": 4000,
+            "hard_min_chunk_chars": 1,
+            "fallback_overlap_chars": 50,
+        },
+        embedder=_FakeEmbedder(),
+    )
+    assert len(records) == 2
+    assert "Oracle Erfahrung" in records[0].text
+    assert "Benefits" in records[1].text
+
+
+def test_build_chunk_records_semantic_falls_back_when_embedder_missing() -> None:
+    vacancy = _vacancy(description="Aufgaben mit SQL. Benefits und Urlaub.")
+    records = _build_chunk_records(
+        vacancy=vacancy,
+        rule_flags={},
+        engine=_FakeEngine(),
+        chunking_cfg={"strategy": "semantic"},
+        embedder=None,
+    )
+    assert len(records) == 1
+    assert records[0].chunk_index == 0
 
 
 def test_build_point_id_is_deterministic() -> None:

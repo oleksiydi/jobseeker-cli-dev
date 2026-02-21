@@ -253,6 +253,10 @@
 - локальный embedder (`fastembed`) для чанков;
 - delete+upsert points в Qdrant при reindex;
 - фиксация `qdrant_failed`/`indexed` статусов в `matching_index_state`.
+- Начат следующий этап chunking:
+- в `app/build_job_index.py` включен `strategy=semantic` с объединением предложений по смысловой близости;
+- добавлен безопасный fallback на baseline chunking при недоступности semantic-шага;
+- добавлены unit-тесты на semantic split и fallback в `tests/test_build_job_index.py`.
 - Что не сделано:
 - Полноразмерный smoke-тест на полном nightly-объеме еще не выполнен.
 - Retrieval/rerank/cache/LLM handoff пока не реализованы (следующие фазы).

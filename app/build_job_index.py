@@ -4,8 +4,10 @@ import hashlib
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from math import sqrt
 from typing import Any
 
 from app.core.config import load_app_config
@@ -13,7 +15,7 @@ from app.core.matching_config import resolve_matching_config
 from app.db.mongo import get_database, resolve_collection_name
 from app.matching.models import ChunkRecord, MergedVacancyNormalized, MergedVacancyRaw
 from app.matching.rule_engine import MatchingRuleEngine
-from app.vector.embedder import build_text_embedder
+from app.vector.embedder import TextEmbedder, build_text_embedder
 from app.vector.qdrant_client import QdrantRestClient, parse_qdrant_settings
 
 log = logging.getLogger(__name__)
@@ -87,13 +89,16 @@ def _build_chunk_records(
     vacancy: MergedVacancyNormalized,
     rule_flags: dict[str, Any],
     engine: MatchingRuleEngine,
+    chunking_cfg: dict[str, Any] | None = None,
+    embedder: TextEmbedder | None = None,
 ) -> list[ChunkRecord]:
     """
-    Baseline chunk builder для первого инкрементального индексатора.
+    Построить chunk records для индексации.
 
-    Важно:
-    - semantic/spacy chunking будет отдельным шагом следующей итерации;
-    - здесь делаем надежный стартовый вариант с fallback поведением.
+    Поведение:
+    - synthetic chunk из rule-engine всегда имеет приоритет;
+    - при `strategy=semantic` используем смысловое объединение предложений;
+    - если semantic шаг не сработал, откатываемся к baseline (один стабильный chunk).
     """
     if bool(rule_flags.get("create_synthetic_chunk", False)):
         text = str(rule_flags.get("synthetic_chunk_text", "")).strip()
@@ -110,18 +115,161 @@ def _build_chunk_records(
         ]
 
     source_text = vacancy.description.strip() or vacancy.canonical_text()
-    label, confidence, _reason = engine.infer_section_label(source_text)
-    return [
-        ChunkRecord(
-            referenznummer=vacancy.referenznummer,
-            chunk_id=f"{vacancy.referenznummer}:0",
-            chunk_index=0,
-            text=source_text,
-            section_label=label,
-            section_confidence=confidence,
-            description_missing=vacancy.description_missing,
+    strategy = str((chunking_cfg or {}).get("strategy", "baseline")).strip().lower()
+
+    chunk_texts = [source_text]
+    if strategy == "semantic":
+        chunk_texts = _build_semantic_chunk_texts(
+            source_text=source_text,
+            chunking_cfg=chunking_cfg or {},
+            embedder=embedder,
         )
-    ]
+
+    records: list[ChunkRecord] = []
+    for chunk_index, chunk_text in enumerate(chunk_texts):
+        label, confidence, _reason = engine.infer_section_label(chunk_text)
+        records.append(
+            ChunkRecord(
+                referenznummer=vacancy.referenznummer,
+                chunk_id=f"{vacancy.referenznummer}:{chunk_index}",
+                chunk_index=chunk_index,
+                text=chunk_text,
+                section_label=label,
+                section_confidence=confidence,
+                description_missing=vacancy.description_missing,
+            )
+        )
+    return records
+
+
+def _build_semantic_chunk_texts(
+    *,
+    source_text: str,
+    chunking_cfg: dict[str, Any],
+    embedder: TextEmbedder | None,
+) -> list[str]:
+    """
+    Собрать смысловые chunks из текста вакансии.
+
+    Важно для новичка:
+    - если embedding недоступен или предложений слишком мало, делаем безопасный fallback;
+    - hard-* параметры ограничивают только "крайние" случаи длины chunk.
+    """
+    text = source_text.strip()
+    if not text:
+        return [source_text]
+
+    sentences = _split_text_to_sentences(text)
+    if len(sentences) <= 1 or embedder is None:
+        return _enforce_hard_chunk_limits([text], chunking_cfg)
+
+    threshold = float(chunking_cfg.get("semantic_similarity_threshold", 0.72))
+    window = max(1, int(chunking_cfg.get("semantic_sentence_window", 2)))
+    min_sentences = max(1, int(chunking_cfg.get("semantic_min_sentences", 2)))
+    max_sentences = max(min_sentences, int(chunking_cfg.get("semantic_max_sentences", 14)))
+
+    vectors = embedder.embed_texts([f"passage: {sentence}" for sentence in sentences])
+    if len(vectors) != len(sentences):
+        return _enforce_hard_chunk_limits([text], chunking_cfg)
+
+    chunks: list[list[str]] = []
+    current_chunk: list[str] = [sentences[0]]
+    current_vector_window: list[list[float]] = [vectors[0]]
+
+    for sentence, vector in zip(sentences[1:], vectors[1:], strict=True):
+        if len(current_chunk) >= max_sentences:
+            chunks.append(current_chunk)
+            current_chunk = [sentence]
+            current_vector_window = [vector]
+            continue
+
+        similarity = _mean_similarity(vector, current_vector_window[-window:])
+        # Держим минимум предложений в chunk, чтобы не дробить слишком агрессивно.
+        if similarity >= threshold or len(current_chunk) < min_sentences:
+            current_chunk.append(sentence)
+            current_vector_window.append(vector)
+            continue
+
+        chunks.append(current_chunk)
+        current_chunk = [sentence]
+        current_vector_window = [vector]
+
+    chunks.append(current_chunk)
+    chunk_texts = [" ".join(sentences_group).strip() for sentences_group in chunks if sentences_group]
+    return _enforce_hard_chunk_limits(chunk_texts, chunking_cfg)
+
+
+def _split_text_to_sentences(text: str) -> list[str]:
+    """
+    Разбить описание на предложения через простой и устойчивый regex fallback.
+
+    Почему без жесткой привязки к spaCy здесь:
+    - текущий шаг должен работать в оффлайн/легком окружении без дополнительной модели;
+    - при подключении spaCy этот helper можно заменить/расширить без изменения API.
+    """
+    raw_parts = re.split(r"(?<=[.!?])\s+|\n+", text)
+    sentences = [part.strip() for part in raw_parts if part and part.strip()]
+    return sentences if sentences else [text.strip()]
+
+
+def _mean_similarity(vector: list[float], others: list[list[float]]) -> float:
+    if not others:
+        return 1.0
+    values = [_cosine_similarity(vector, other) for other in others]
+    return sum(values) / len(values)
+
+
+def _cosine_similarity(first: list[float], second: list[float]) -> float:
+    dot = 0.0
+    norm_first = 0.0
+    norm_second = 0.0
+    for left, right in zip(first, second, strict=True):
+        dot += left * right
+        norm_first += left * left
+        norm_second += right * right
+    if norm_first == 0.0 or norm_second == 0.0:
+        return 0.0
+    return dot / (sqrt(norm_first) * sqrt(norm_second))
+
+
+def _enforce_hard_chunk_limits(chunks: list[str], chunking_cfg: dict[str, Any]) -> list[str]:
+    max_chars = max(1, int(chunking_cfg.get("hard_max_chunk_chars", 2200)))
+    min_chars = max(1, int(chunking_cfg.get("hard_min_chunk_chars", 300)))
+    overlap = max(0, int(chunking_cfg.get("fallback_overlap_chars", 120)))
+    step = max(1, max_chars - overlap)
+
+    split_chunks: list[str] = []
+    for chunk in chunks:
+        text = chunk.strip()
+        if not text:
+            continue
+        if len(text) <= max_chars:
+            split_chunks.append(text)
+            continue
+
+        start = 0
+        while start < len(text):
+            piece = text[start : start + max_chars].strip()
+            if piece:
+                split_chunks.append(piece)
+            if start + max_chars >= len(text):
+                break
+            start += step
+
+    if not split_chunks:
+        return chunks
+
+    merged_chunks: list[str] = []
+    for chunk in split_chunks:
+        if len(chunk) >= min_chars or not merged_chunks:
+            merged_chunks.append(chunk)
+            continue
+        candidate = f"{merged_chunks[-1]} {chunk}".strip()
+        if len(candidate) <= max_chars:
+            merged_chunks[-1] = candidate
+        else:
+            merged_chunks.append(chunk)
+    return merged_chunks
 
 
 def _now_utc() -> datetime:
@@ -288,7 +436,13 @@ def main() -> int:
             )
             continue
 
-        chunks = _build_chunk_records(vacancy=vacancy, rule_flags=decision.flags, engine=engine)
+        chunks = _build_chunk_records(
+            vacancy=vacancy,
+            rule_flags=decision.flags,
+            engine=engine,
+            chunking_cfg=matching_cfg.get("chunking", {}),
+            embedder=embedder,
+        )
         quality = run_quality_checks(chunks)
         if not quality.hard_passed:
             failed_quality += 1
