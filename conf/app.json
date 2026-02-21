@@ -75,6 +75,7 @@
       "hard_min_chunk_chars": 300,
       "fallback_overlap_chars": 120,
       "token_aware_enabled": true,
+      "token_splitter": "transformers",
       "tokenizer_model_name": "intfloat/multilingual-e5-large",
       "max_tokens_per_chunk": 320,
       "overlap_tokens": 48

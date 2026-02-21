@@ -71,6 +71,7 @@ def resolve_matching_config(app_cfg: dict[str, Any]) -> dict[str, Any]:
             _parse_int,
         ),
         "MATCHING_TOKEN_AWARE_ENABLED": (("chunking", "token_aware_enabled"), _parse_bool),
+        "MATCHING_TOKEN_SPLITTER": (("chunking", "token_splitter"), str),
         "MATCHING_TOKENIZER_MODEL_NAME": (("chunking", "tokenizer_model_name"), str),
         "MATCHING_MAX_TOKENS_PER_CHUNK": (("chunking", "max_tokens_per_chunk"), _parse_int),
         "MATCHING_OVERLAP_TOKENS": (("chunking", "overlap_tokens"), _parse_int),

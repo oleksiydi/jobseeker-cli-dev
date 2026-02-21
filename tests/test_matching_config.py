@@ -61,6 +61,7 @@ def test_resolve_matching_config_applies_run_mode_and_semantic_overrides(monkeyp
     monkeypatch.setenv("MATCHING_SENTENCE_SPLITTER", "spacy")
     monkeypatch.setenv("MATCHING_SPACY_MODEL", "de_core_news_md")
     monkeypatch.setenv("MATCHING_TOKEN_AWARE_ENABLED", "true")
+    monkeypatch.setenv("MATCHING_TOKEN_SPLITTER", "char")
     monkeypatch.setenv("MATCHING_TOKENIZER_MODEL_NAME", "intfloat/multilingual-e5-large")
     monkeypatch.setenv("MATCHING_MAX_TOKENS_PER_CHUNK", "256")
     monkeypatch.setenv("MATCHING_OVERLAP_TOKENS", "32")
@@ -75,6 +76,7 @@ def test_resolve_matching_config_applies_run_mode_and_semantic_overrides(monkeyp
     assert resolved["chunking"]["sentence_splitter"] == "spacy"
     assert resolved["chunking"]["spacy_model"] == "de_core_news_md"
     assert resolved["chunking"]["token_aware_enabled"] is True
+    assert resolved["chunking"]["token_splitter"] == "char"
     assert resolved["chunking"]["tokenizer_model_name"] == "intfloat/multilingual-e5-large"
     assert resolved["chunking"]["max_tokens_per_chunk"] == 256
     assert resolved["chunking"]["overlap_tokens"] == 32

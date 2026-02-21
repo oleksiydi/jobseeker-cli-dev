@@ -11,3 +11,4 @@ qdrant-client>=1.11,<2
 numpy>=1.26,<3
 spacy>=3.7,<4
 transformers>=4.44,<5
+syntok>=1.4,<2

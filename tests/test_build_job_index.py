@@ -3,10 +3,12 @@ from app.build_job_index import (
     IndexVersions,
     _build_change_flags,
     _build_chunk_records,
+    _build_chunk_records_with_runtime,
     _build_point_id,
     _build_qdrant_points,
     _compute_embedding_input_hash,
     _split_text_to_sentences,
+    _warn_once,
 )
 from app.matching.models import ChunkRecord
 from app.matching.models import MergedVacancyNormalized
@@ -231,6 +233,49 @@ def test_split_text_to_sentences_uses_regex_when_spacy_pipeline_unavailable(
         chunking_cfg={"sentence_splitter": "spacy", "spacy_model": "de_core_news_md"},
     )
     assert parts == ["Erster Satz.", "Zweiter Satz."]
+
+
+def test_build_chunk_records_with_runtime_exposes_fallback_reason() -> None:
+    vacancy = _vacancy(description="Nur ein Satz ohne Trennung")
+    records, runtime = _build_chunk_records_with_runtime(
+        vacancy=vacancy,
+        rule_flags={},
+        engine=_FakeEngine(),
+        chunking_cfg={"strategy": "semantic", "sentence_splitter": "regex"},
+        embedder=None,
+        embedding_model="intfloat/multilingual-e5-large",
+    )
+    assert len(records) == 1
+    assert runtime.sentence_splitter_used == "regex"
+    assert "embedder_unavailable_for_semantic" in runtime.fallback_reasons
+
+
+def test_warn_once_logs_only_first_time(caplog) -> None:
+    caplog.set_level("WARNING")
+    key = "test_warn_once_logs_only_first_time"
+    build_job_index_module._WARNED_KEYS.discard(key)
+    _warn_once(key, "single warning")
+    _warn_once(key, "single warning")
+    assert sum(1 for line in caplog.messages if line == "single warning") == 1
+
+
+def test_split_text_to_sentences_uses_syntok_when_enabled(monkeypatch) -> None:
+    class _FakeToken:
+        def __init__(self, spacing: str, value: str) -> None:
+            self.spacing = spacing
+            self.value = value
+
+    class _FakeSegmenter:
+        @staticmethod
+        def process(_text: str):
+            return [[[ _FakeToken("", "Hallo"), _FakeToken(" ", "Welt.") ]]]
+
+    monkeypatch.setitem(__import__("sys").modules, "syntok", type("_M", (), {"segmenter": _FakeSegmenter})())
+    parts = _split_text_to_sentences(
+        "Hallo Welt.",
+        chunking_cfg={"sentence_splitter": "syntok"},
+    )
+    assert parts == ["Hallo Welt."]
 
 
 def test_build_point_id_is_deterministic() -> None:

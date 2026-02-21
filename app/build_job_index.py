@@ -22,6 +22,11 @@ from app.vector.qdrant_client import QdrantRestClient, parse_qdrant_settings
 log = logging.getLogger(__name__)
 _SPACY_PIPELINES: dict[str, Any] = {}
 _TOKENIZERS: dict[str, Any] = {}
+_UNAVAILABLE_SPACY_MODELS: set[str] = set()
+_UNAVAILABLE_TOKENIZER_MODELS: set[str] = set()
+_WARNED_KEYS: set[str] = set()
+_SPACY_IMPORT_FAILED = False
+_TRANSFORMERS_IMPORT_FAILED = False
 
 
 @dataclass(frozen=True)
@@ -31,6 +36,19 @@ class IndexVersions:
     chunking_version: str
     preprocess_version: str
     ruleset_version: str
+
+
+@dataclass
+class ChunkingRuntimeInfo:
+    sentence_splitter_used: str = "unknown"
+    token_splitter_used: str = "disabled"
+    token_aware_applied: bool = False
+    tokenizer_model_used: str | None = None
+    fallback_reasons: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.fallback_reasons is None:
+            self.fallback_reasons = []
 
 
 def _compute_embedding_input_hash(payload: dict[str, Any]) -> str:
@@ -96,6 +114,26 @@ def _build_chunk_records(
     embedder: TextEmbedder | None = None,
     embedding_model: str | None = None,
 ) -> list[ChunkRecord]:
+    records, _runtime = _build_chunk_records_with_runtime(
+        vacancy=vacancy,
+        rule_flags=rule_flags,
+        engine=engine,
+        chunking_cfg=chunking_cfg,
+        embedder=embedder,
+        embedding_model=embedding_model,
+    )
+    return records
+
+
+def _build_chunk_records_with_runtime(
+    *,
+    vacancy: MergedVacancyNormalized,
+    rule_flags: dict[str, Any],
+    engine: MatchingRuleEngine,
+    chunking_cfg: dict[str, Any] | None = None,
+    embedder: TextEmbedder | None = None,
+    embedding_model: str | None = None,
+) -> tuple[list[ChunkRecord], ChunkingRuntimeInfo]:
     """
     Построить chunk records для индексации.
 
@@ -104,19 +142,24 @@ def _build_chunk_records(
     - при `strategy=semantic` используем смысловое объединение предложений;
     - если semantic шаг не сработал, откатываемся к baseline (один стабильный chunk).
     """
+    runtime = ChunkingRuntimeInfo()
     if bool(rule_flags.get("create_synthetic_chunk", False)):
+        runtime.fallback_reasons.append("synthetic_chunk_by_rule_engine")
         text = str(rule_flags.get("synthetic_chunk_text", "")).strip()
-        return [
-            ChunkRecord(
-                referenznummer=vacancy.referenznummer,
-                chunk_id=f"{vacancy.referenznummer}:0",
-                chunk_index=0,
-                text=text,
-                section_label="unknown",
-                section_confidence=0.0,
-                description_missing=vacancy.description_missing,
-            )
-        ]
+        return (
+            [
+                ChunkRecord(
+                    referenznummer=vacancy.referenznummer,
+                    chunk_id=f"{vacancy.referenznummer}:0",
+                    chunk_index=0,
+                    text=text,
+                    section_label="unknown",
+                    section_confidence=0.0,
+                    description_missing=vacancy.description_missing,
+                )
+            ],
+            runtime,
+        )
 
     source_text = vacancy.description.strip() or vacancy.canonical_text()
     strategy = str((chunking_cfg or {}).get("strategy", "baseline")).strip().lower()
@@ -128,7 +171,10 @@ def _build_chunk_records(
             chunking_cfg=chunking_cfg or {},
             embedder=embedder,
             embedding_model=embedding_model,
+            runtime=runtime,
         )
+    else:
+        runtime.fallback_reasons.append("strategy_not_semantic")
 
     records: list[ChunkRecord] = []
     for chunk_index, chunk_text in enumerate(chunk_texts):
@@ -144,7 +190,7 @@ def _build_chunk_records(
                 description_missing=vacancy.description_missing,
             )
         )
-    return records
+    return records, runtime
 
 
 def _build_semantic_chunk_texts(
@@ -153,6 +199,7 @@ def _build_semantic_chunk_texts(
     chunking_cfg: dict[str, Any],
     embedder: TextEmbedder | None,
     embedding_model: str | None = None,
+    runtime: ChunkingRuntimeInfo | None = None,
 ) -> list[str]:
     """
     Собрать смысловые chunks из текста вакансии.
@@ -165,12 +212,17 @@ def _build_semantic_chunk_texts(
     if not text:
         return [source_text]
 
-    sentences = _split_text_to_sentences(text, chunking_cfg=chunking_cfg)
+    sentences = _split_text_to_sentences(text, chunking_cfg=chunking_cfg, runtime=runtime)
     if len(sentences) <= 1 or embedder is None:
+        if len(sentences) <= 1 and runtime is not None:
+            runtime.fallback_reasons.append("too_few_sentences_for_semantic")
+        if embedder is None and runtime is not None:
+            runtime.fallback_reasons.append("embedder_unavailable_for_semantic")
         token_limited = _enforce_token_aware_chunk_limits(
             [text],
             chunking_cfg=chunking_cfg,
             embedding_model=embedding_model,
+            runtime=runtime,
         )
         return _enforce_hard_chunk_limits(token_limited, chunking_cfg)
 
@@ -181,10 +233,13 @@ def _build_semantic_chunk_texts(
 
     vectors = embedder.embed_texts([f"passage: {sentence}" for sentence in sentences])
     if len(vectors) != len(sentences):
+        if runtime is not None:
+            runtime.fallback_reasons.append("vector_sentence_count_mismatch")
         token_limited = _enforce_token_aware_chunk_limits(
             [text],
             chunking_cfg=chunking_cfg,
             embedding_model=embedding_model,
+            runtime=runtime,
         )
         return _enforce_hard_chunk_limits(token_limited, chunking_cfg)
 
@@ -216,11 +271,17 @@ def _build_semantic_chunk_texts(
         chunk_texts,
         chunking_cfg=chunking_cfg,
         embedding_model=embedding_model,
+        runtime=runtime,
     )
     return _enforce_hard_chunk_limits(token_limited, chunking_cfg)
 
 
-def _split_text_to_sentences(text: str, *, chunking_cfg: dict[str, Any]) -> list[str]:
+def _split_text_to_sentences(
+    text: str,
+    *,
+    chunking_cfg: dict[str, Any],
+    runtime: ChunkingRuntimeInfo | None = None,
+) -> list[str]:
     """
     Разбить описание на предложения.
 
@@ -232,8 +293,26 @@ def _split_text_to_sentences(text: str, *, chunking_cfg: dict[str, Any]) -> list
         model_name = str(chunking_cfg.get("spacy_model", "de_core_news_md")).strip()
         sentences = _split_text_to_sentences_spacy(text, model_name=model_name)
         if sentences:
+            if runtime is not None:
+                runtime.sentence_splitter_used = "spacy"
             return sentences
+        if runtime is not None:
+            runtime.fallback_reasons.append("spacy_unavailable_or_failed")
+    elif splitter == "syntok":
+        sentences = _split_text_to_sentences_syntok(text)
+        if sentences:
+            if runtime is not None:
+                runtime.sentence_splitter_used = "syntok"
+            return sentences
+        if runtime is not None:
+            runtime.fallback_reasons.append("syntok_unavailable_or_failed")
+    elif splitter == "regex":
+        if runtime is not None:
+            runtime.sentence_splitter_used = "regex"
+        return _split_text_to_sentences_regex(text)
 
+    if runtime is not None:
+        runtime.sentence_splitter_used = "regex"
     return _split_text_to_sentences_regex(text)
 
 
@@ -246,6 +325,26 @@ def _split_text_to_sentences_spacy(text: str, *, model_name: str) -> list[str]:
     return sentences
 
 
+def _split_text_to_sentences_syntok(text: str) -> list[str]:
+    try:
+        from syntok import segmenter
+    except ModuleNotFoundError:
+        _warn_once("syntok_missing", "syntok is not installed; sentence split fallback=regex")
+        return []
+
+    try:
+        sentences: list[str] = []
+        for paragraph in segmenter.process(text):
+            for sentence in paragraph:
+                sentence_text = "".join(token.spacing + token.value for token in sentence).strip()
+                if sentence_text:
+                    sentences.append(sentence_text)
+        return sentences
+    except Exception:
+        _warn_once("syntok_failed", "syntok processing failed; sentence split fallback=regex")
+        return []
+
+
 def _split_text_to_sentences_regex(text: str) -> list[str]:
     raw_parts = re.split(r"(?<=[.!?])\s+|\n+", text)
     sentences = [part.strip() for part in raw_parts if part and part.strip()]
@@ -253,13 +352,20 @@ def _split_text_to_sentences_regex(text: str) -> list[str]:
 
 
 def _get_spacy_pipeline(model_name: str) -> Any | None:
+    global _SPACY_IMPORT_FAILED
     if model_name in _SPACY_PIPELINES:
         return _SPACY_PIPELINES[model_name]
+    if model_name in _UNAVAILABLE_SPACY_MODELS:
+        return None
+    if _SPACY_IMPORT_FAILED:
+        return None
 
     try:
         import spacy
     except ModuleNotFoundError:
-        log.warning("spaCy is not installed; sentence split fallback=regex")
+        _SPACY_IMPORT_FAILED = True
+        _warn_once("spacy_missing", "spaCy is not installed; sentence split fallback=regex")
+        _UNAVAILABLE_SPACY_MODELS.add(model_name)
         return None
 
     try:
@@ -273,7 +379,11 @@ def _get_spacy_pipeline(model_name: str) -> Any | None:
             ],
         )
     except Exception:
-        log.warning("spaCy model '%s' unavailable; fallback to lightweight sentencizer", model_name)
+        _warn_once(
+            f"spacy_model_unavailable:{model_name}",
+            "spaCy model '%s' unavailable; fallback to lightweight sentencizer",
+            model_name,
+        )
         nlp = spacy.blank("de")
 
     if "parser" not in nlp.pipe_names and "senter" not in nlp.pipe_names:
@@ -307,20 +417,38 @@ def _enforce_token_aware_chunk_limits(
     *,
     chunking_cfg: dict[str, Any],
     embedding_model: str | None,
+    runtime: ChunkingRuntimeInfo | None = None,
 ) -> list[str]:
     enabled = bool(chunking_cfg.get("token_aware_enabled", False))
     if not enabled:
+        if runtime is not None:
+            runtime.token_splitter_used = "disabled"
+        return chunks
+
+    token_splitter = str(chunking_cfg.get("token_splitter", "transformers")).strip().lower()
+    if token_splitter != "transformers":
+        if runtime is not None:
+            runtime.token_splitter_used = token_splitter
         return chunks
 
     tokenizer_model_name = str(
         chunking_cfg.get("tokenizer_model_name") or embedding_model or ""
     ).strip()
     if not tokenizer_model_name:
+        if runtime is not None:
+            runtime.token_splitter_used = "transformers"
+            runtime.fallback_reasons.append("tokenizer_model_not_set")
         return chunks
 
     tokenizer = _get_transformers_tokenizer(tokenizer_model_name)
     if tokenizer is None:
+        if runtime is not None:
+            runtime.token_splitter_used = "transformers"
+            runtime.fallback_reasons.append("tokenizer_unavailable")
         return chunks
+    if runtime is not None:
+        runtime.token_splitter_used = "transformers"
+        runtime.tokenizer_model_used = tokenizer_model_name
 
     max_tokens = max(1, int(chunking_cfg.get("max_tokens_per_chunk", 320)))
     overlap_tokens = max(0, int(chunking_cfg.get("overlap_tokens", 48)))
@@ -336,6 +464,8 @@ def _enforce_token_aware_chunk_limits(
         if len(token_ids) <= max_tokens:
             result.append(text)
             continue
+        if runtime is not None:
+            runtime.token_aware_applied = True
 
         start = 0
         while start < len(token_ids):
@@ -351,26 +481,45 @@ def _enforce_token_aware_chunk_limits(
 
 
 def _get_transformers_tokenizer(model_name: str) -> Any | None:
+    global _TRANSFORMERS_IMPORT_FAILED
     if model_name in _TOKENIZERS:
         return _TOKENIZERS[model_name]
+    if model_name in _UNAVAILABLE_TOKENIZER_MODELS:
+        return None
+    if _TRANSFORMERS_IMPORT_FAILED:
+        return None
 
     try:
         from transformers import AutoTokenizer
     except ModuleNotFoundError:
-        log.warning("transformers is not installed; token-aware split disabled")
+        _TRANSFORMERS_IMPORT_FAILED = True
+        _warn_once("transformers_missing", "transformers is not installed; token-aware split disabled")
+        _UNAVAILABLE_TOKENIZER_MODELS.add(model_name)
         return None
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     except Exception:
-        log.warning(
+        _warn_once(
+            f"tokenizer_unavailable:{model_name}",
             "Tokenizer '%s' is unavailable in current environment; token-aware split disabled",
             model_name,
         )
+        _UNAVAILABLE_TOKENIZER_MODELS.add(model_name)
         return None
 
     _TOKENIZERS[model_name] = tokenizer
     return tokenizer
+
+
+def _warn_once(key: str, message: str, *args: Any) -> None:
+    if key in _WARNED_KEYS:
+        return
+    _WARNED_KEYS.add(key)
+    if args:
+        log.warning(message, *args)
+        return
+    log.warning(message)
 
 
 def _enforce_hard_chunk_limits(chunks: list[str], chunking_cfg: dict[str, Any]) -> list[str]:
@@ -529,6 +678,15 @@ def main() -> int:
     failed_quality = 0
     failed_qdrant = 0
     normalized_only = 0
+    splitter_usage_stats: dict[str, int] = {"spacy": 0, "syntok": 0, "regex": 0, "unknown": 0}
+    token_splitter_usage_stats: dict[str, int] = {
+        "transformers": 0,
+        "char": 0,
+        "disabled": 0,
+        "unknown": 0,
+    }
+    token_aware_applied_count = 0
+    fallback_reason_counts: dict[str, int] = {}
 
     cursor = col_list.find({"is_active": True})
     if max_docs is not None:
@@ -577,7 +735,7 @@ def main() -> int:
             )
             continue
 
-        chunks = _build_chunk_records(
+        chunks, runtime = _build_chunk_records_with_runtime(
             vacancy=vacancy,
             rule_flags=decision.flags,
             engine=engine,
@@ -585,6 +743,16 @@ def main() -> int:
             embedder=embedder,
             embedding_model=versions.embedding_model,
         )
+        splitter_usage_stats[runtime.sentence_splitter_used] = (
+            splitter_usage_stats.get(runtime.sentence_splitter_used, 0) + 1
+        )
+        token_splitter_usage_stats[runtime.token_splitter_used] = (
+            token_splitter_usage_stats.get(runtime.token_splitter_used, 0) + 1
+        )
+        if runtime.token_aware_applied:
+            token_aware_applied_count += 1
+        for reason in runtime.fallback_reasons:
+            fallback_reason_counts[reason] = fallback_reason_counts.get(reason, 0) + 1
         quality = run_quality_checks(chunks)
         if not quality.hard_passed:
             failed_quality += 1
@@ -594,6 +762,11 @@ def main() -> int:
                     "$set": {
                         "referenznummer": ref,
                         "index_status": "quality_failed",
+                        "sentence_splitter_used": runtime.sentence_splitter_used,
+                        "token_splitter_used": runtime.token_splitter_used,
+                        "token_aware_applied": runtime.token_aware_applied,
+                        "tokenizer_model_used": runtime.tokenizer_model_used,
+                        "chunking_fallback_reasons": runtime.fallback_reasons,
                         "quality_hard_errors": quality.hard_errors,
                         "quality_soft_warnings": quality.soft_warnings,
                         "updated_at": _now_utc(),
@@ -618,6 +791,11 @@ def main() -> int:
                         "rule_set_version": decision.rule_set_version,
                         "indexed_at": _now_utc(),
                         "index_status": "normalized_only",
+                        "sentence_splitter_used": runtime.sentence_splitter_used,
+                        "token_splitter_used": runtime.token_splitter_used,
+                        "token_aware_applied": runtime.token_aware_applied,
+                        "tokenizer_model_used": runtime.tokenizer_model_used,
+                        "chunking_fallback_reasons": runtime.fallback_reasons,
                         "chunks_count": len(chunks),
                         "quality_hard_passed": quality.hard_passed,
                         "quality_soft_passed": quality.soft_passed,
@@ -648,6 +826,11 @@ def main() -> int:
                     "$set": {
                         "referenznummer": ref,
                         "index_status": "qdrant_failed",
+                        "sentence_splitter_used": runtime.sentence_splitter_used,
+                        "token_splitter_used": runtime.token_splitter_used,
+                        "token_aware_applied": runtime.token_aware_applied,
+                        "tokenizer_model_used": runtime.tokenizer_model_used,
+                        "chunking_fallback_reasons": runtime.fallback_reasons,
                         "qdrant_error": str(exc),
                         "updated_at": _now_utc(),
                     }
@@ -671,6 +854,11 @@ def main() -> int:
                     "rule_set_version": decision.rule_set_version,
                     "indexed_at": _now_utc(),
                     "index_status": "indexed",
+                    "sentence_splitter_used": runtime.sentence_splitter_used,
+                    "token_splitter_used": runtime.token_splitter_used,
+                    "token_aware_applied": runtime.token_aware_applied,
+                    "tokenizer_model_used": runtime.tokenizer_model_used,
+                    "chunking_fallback_reasons": runtime.fallback_reasons,
                     "vector_upserted": True,
                     "chunks_count": len(chunks),
                     "quality_hard_passed": quality.hard_passed,
@@ -692,6 +880,13 @@ def main() -> int:
         normalized_only,
     )
     log.info("build_job_index qdrant metrics: failed_qdrant=%s", failed_qdrant)
+    log.info(
+        "build_job_index chunking usage: sentence_splitter=%s token_splitter=%s token_aware_applied=%s fallback_reasons=%s",
+        splitter_usage_stats,
+        token_splitter_usage_stats,
+        token_aware_applied_count,
+        fallback_reason_counts,
+    )
     return 0
 
 
