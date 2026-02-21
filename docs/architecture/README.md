@@ -27,6 +27,7 @@ Contents:
 - `docs/architecture/20-phase2-chunking-runtime-flow.md`: sequence diagram for runtime chunk construction (`rule flags -> spaCy -> semantic merge -> token-aware -> hard limits -> labels`).
 - `docs/architecture/21-phase2-chunking-system-integration.md`: system-level map of how chunking interacts with audit/state/Qdrant/retrieval.
 - `docs/architecture/22-chunking-smoke-scenarios.md`: practical smoke runbook for `spacy`, `syntok`, and `regex+char` modes with expected `matching_index_state` fields.
+- `docs/architecture/23-retrieval-rerank-runtime-flow.md`: runtime flow of implemented `app/search_jobs.py` (`query/profile -> Qdrant -> aggregate -> score -> rerank -> top_chunks`).
 
 Rules:
 

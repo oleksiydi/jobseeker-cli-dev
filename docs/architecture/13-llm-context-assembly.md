@@ -3,6 +3,8 @@
 ## Purpose
 
 Describes how compact context is built from shortlisted vacancies to avoid token bloat.
+In current implementation, `app/search_jobs.py` already returns `top_chunks` payload
+which is the baseline input for this assembly stage.
 
 ```mermaid
 flowchart TD

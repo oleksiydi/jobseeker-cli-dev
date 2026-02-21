@@ -3,6 +3,8 @@
 ## Purpose
 
 Shows the full path from Mongo vacancy data to final shortlist used by LLM handoff.
+Current implementation now includes baseline `app/search_jobs.py` retrieval+rerank flow
+with `pre_llm_score`, `rerank_score`, and `top_chunks` in output JSON.
 
 ```mermaid
 flowchart TD

@@ -197,6 +197,11 @@ Hinweis zu semantic chunking:
 - Bei fehlenden lokalen Abhängigkeiten wird automatisch ein sicherer Fallback genutzt
   und als Runtime-Status in `matching_index_state` gespeichert.
 
+Baseline retrieval + rerank (JSON-Ausgabe für Top-Kandidaten):
+```bash
+.venv/bin/python -m app.search_jobs --query "Data Engineer Python" --profile-key default --limit 20
+```
+
 ## Diagnose von `404` in `jobdetails`
 
 - Tool: `tools/check_list_seen.py`.
