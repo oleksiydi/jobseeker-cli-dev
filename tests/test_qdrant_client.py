@@ -13,6 +13,8 @@ def test_parse_qdrant_settings_uses_matching_config_values() -> None:
             "hnsw_m": 24,
             "hnsw_ef_construct": 120,
             "timeout_seconds": 7,
+            "max_retries": 4,
+            "retry_backoff_seconds": 0.25,
         },
     }
 
@@ -25,4 +27,5 @@ def test_parse_qdrant_settings_uses_matching_config_values() -> None:
     assert settings.hnsw_m == 24
     assert settings.hnsw_ef_construct == 120
     assert settings.timeout_seconds == 7
-
+    assert settings.max_retries == 4
+    assert settings.retry_backoff_seconds == 0.25

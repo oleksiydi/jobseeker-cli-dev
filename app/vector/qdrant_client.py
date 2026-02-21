@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from time import sleep
+from typing import Any, Callable, TypeVar
 
-import requests
+
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -23,6 +25,8 @@ class QdrantSettings:
     hnsw_m: int
     hnsw_ef_construct: int
     timeout_seconds: int
+    max_retries: int
+    retry_backoff_seconds: float
 
 
 class QdrantRestClient:
@@ -36,20 +40,14 @@ class QdrantRestClient:
 
     def __init__(self, settings: QdrantSettings) -> None:
         self.settings = settings
-        self._base_url = settings.url.rstrip("/")
         try:
             from qdrant_client import QdrantClient
-        except ModuleNotFoundError:
-            # Fallback для офлайн/ограниченных окружений: сохраняем работоспособность
-            # через прямой REST. При установленном SDK всегда используется стандартный путь.
-            self._sdk_enabled = False
-            self._client = None
-            self._session = requests.Session()
-            return
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "qdrant-client is required. Install dependencies from requirements.txt"
+            ) from exc
 
-        self._sdk_enabled = True
         self._client = QdrantClient(url=settings.url, timeout=settings.timeout_seconds)
-        self._session = None
 
     @staticmethod
     def _distance_enum(distance: str) -> Any:
@@ -66,38 +64,38 @@ class QdrantRestClient:
             raise ValueError(f"Unsupported Qdrant distance: {distance}")
         return mapping[normalized]
 
+    def _with_retry(self, operation_name: str, func: Callable[[], T]) -> T:
+        attempts = max(1, 1 + int(self.settings.max_retries))
+        base_backoff = max(0.0, float(self.settings.retry_backoff_seconds))
+
+        for attempt in range(attempts):
+            try:
+                return func()
+            except Exception as exc:
+                if isinstance(exc, (ValueError, TypeError, KeyError, AttributeError)):
+                    raise
+                if attempt == attempts - 1:
+                    raise RuntimeError(
+                        f"Qdrant operation failed: {operation_name} after {attempts} attempts"
+                    ) from exc
+                sleep(base_backoff * (2**attempt))
+
+        raise RuntimeError(f"Qdrant operation failed unexpectedly: {operation_name}")
+
     def healthcheck(self) -> bool:
         """
         Проверка доступности Qdrant.
 
         Делаем лёгкий вызов списка коллекций через официальный SDK.
         """
-        if self._sdk_enabled:
-            self._client.get_collections()
-            return True
 
-        response = self._session.get(
-            f"{self._base_url}/collections",
-            timeout=self.settings.timeout_seconds,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return payload.get("status") == "ok"
+        self._with_retry("healthcheck", self._client.get_collections)
+        return True
 
     def collection_exists(self) -> bool:
-        if self._sdk_enabled:
-            collections = self._client.get_collections()
-            names = {collection.name for collection in collections.collections}
-            return self.settings.collection_name in names
-
-        response = self._session.get(
-            f"{self._base_url}/collections/{self.settings.collection_name}",
-            timeout=self.settings.timeout_seconds,
-        )
-        if response.status_code == 404:
-            return False
-        response.raise_for_status()
-        return True
+        collections = self._with_retry("collection_exists", self._client.get_collections)
+        names = {collection.name for collection in collections.collections}
+        return self.settings.collection_name in names
 
     def create_collection(self) -> None:
         """
@@ -107,9 +105,9 @@ class QdrantRestClient:
         - одна и та же форма индекса во всех окружениях;
         - меньше "магии" и расхождений между машинами команды.
         """
-        if self._sdk_enabled:
-            from qdrant_client import models
+        from qdrant_client import models
 
+        def _create() -> None:
             self._client.create_collection(
                 collection_name=self.settings.collection_name,
                 vectors_config=models.VectorParams(
@@ -121,24 +119,8 @@ class QdrantRestClient:
                     ef_construct=self.settings.hnsw_ef_construct,
                 ),
             )
-            return
 
-        payload = {
-            "vectors": {
-                "size": self.settings.vector_size,
-                "distance": self.settings.distance,
-            },
-            "hnsw_config": {
-                "m": self.settings.hnsw_m,
-                "ef_construct": self.settings.hnsw_ef_construct,
-            },
-        }
-        response = self._session.put(
-            f"{self._base_url}/collections/{self.settings.collection_name}",
-            json=payload,
-            timeout=self.settings.timeout_seconds,
-        )
-        response.raise_for_status()
+        self._with_retry("create_collection", _create)
 
     def ensure_collection(self) -> str:
         """
@@ -161,9 +143,9 @@ class QdrantRestClient:
         - при изменении числа чанков не остается "хвостов" старых точек;
         - состояние индекса остается детерминированным.
         """
-        if self._sdk_enabled:
-            from qdrant_client import models
+        from qdrant_client import models
 
+        def _delete() -> None:
             self._client.delete(
                 collection_name=self.settings.collection_name,
                 points_selector=models.FilterSelector(
@@ -178,50 +160,75 @@ class QdrantRestClient:
                 ),
                 wait=True,
             )
-            return
 
-        payload = {
-            "filter": {
-                "must": [
-                    {
-                        "key": "referenznummer",
-                        "match": {"value": referenznummer},
-                    }
-                ]
-            }
-        }
-        response = self._session.post(
-            f"{self._base_url}/collections/{self.settings.collection_name}/points/delete?wait=true",
-            json=payload,
-            timeout=self.settings.timeout_seconds,
-        )
-        response.raise_for_status()
+        self._with_retry("delete_points_by_referenznummer", _delete)
 
     def upsert_points(self, points: list[dict[str, Any]]) -> None:
         """Upsert chunk-точек в коллекцию."""
         if not points:
             return
-        if self._sdk_enabled:
-            from qdrant_client import models
+        from qdrant_client import models
 
-            point_structs = [
-                models.PointStruct(id=point["id"], vector=point["vector"], payload=point["payload"])
-                for point in points
-            ]
+        point_structs = [
+            models.PointStruct(id=point["id"], vector=point["vector"], payload=point["payload"])
+            for point in points
+        ]
+
+        def _upsert() -> None:
             self._client.upsert(
                 collection_name=self.settings.collection_name,
                 points=point_structs,
                 wait=True,
             )
-            return
 
-        payload = {"points": points}
-        response = self._session.put(
-            f"{self._base_url}/collections/{self.settings.collection_name}/points?wait=true",
-            json=payload,
-            timeout=self.settings.timeout_seconds,
-        )
-        response.raise_for_status()
+        self._with_retry("upsert_points", _upsert)
+
+    def search_points(
+        self,
+        *,
+        query_vector: list[float],
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """
+        Выполнить vector search и вернуть унифицированный список hit-объектов.
+
+        Формат результата:
+        - `id`
+        - `score`
+        - `payload`
+        """
+        if not query_vector or limit <= 0:
+            return []
+
+        def _search() -> list[Any]:
+            if hasattr(self._client, "query_points"):
+                response = self._client.query_points(
+                    collection_name=self.settings.collection_name,
+                    query=query_vector,
+                    limit=limit,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                return getattr(response, "points", []) or []
+            return self._client.search(
+                collection_name=self.settings.collection_name,
+                query_vector=query_vector,
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+            )
+
+        hits = self._with_retry("search_points", _search)
+        result: list[dict[str, Any]] = []
+        for hit in hits:
+            result.append(
+                {
+                    "id": hit.id,
+                    "score": float(hit.score),
+                    "payload": hit.payload or {},
+                }
+            )
+        return result
 
 
 def parse_qdrant_settings(matching_cfg: dict[str, Any]) -> QdrantSettings:
@@ -236,4 +243,6 @@ def parse_qdrant_settings(matching_cfg: dict[str, Any]) -> QdrantSettings:
         hnsw_m=int(qdrant_cfg.get("hnsw_m", 16)),
         hnsw_ef_construct=int(qdrant_cfg.get("hnsw_ef_construct", 100)),
         timeout_seconds=int(qdrant_cfg.get("timeout_seconds", 10)),
+        max_retries=int(qdrant_cfg.get("max_retries", 2)),
+        retry_backoff_seconds=float(qdrant_cfg.get("retry_backoff_seconds", 0.5)),
     )

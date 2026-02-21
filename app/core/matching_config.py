@@ -81,6 +81,12 @@ def resolve_matching_config(app_cfg: dict[str, Any]) -> dict[str, Any]:
         "MATCHING_RERANK_ENABLED": (("rerank", "enabled"), _parse_bool),
         "MATCHING_RERANK_MODEL": (("rerank", "model_name"), str),
         "MATCHING_RERANK_TOP_N": (("rerank", "top_n"), _parse_int),
+        "MATCHING_RERANK_WEIGHT_ROLE": (("rerank", "weights", "role"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_CHUNK": (("rerank", "weights", "chunk"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_PROFILE": (("rerank", "weights", "profile"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_METADATA": (("rerank", "weights", "metadata"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_PRE_LLM": (("rerank", "weights", "rerank_pre_llm"), _parse_float),
+        "MATCHING_RERANK_WEIGHT_LEXICAL": (("rerank", "weights", "rerank_lexical"), _parse_float),
         "MATCHING_CACHE_ENABLED": (("selection_cache", "enabled"), _parse_bool),
         "MATCHING_CACHE_TTL_HOURS": (("selection_cache", "ttl_hours"), _parse_int),
         "MATCHING_CACHE_TOP_BASE": (("selection_cache", "top_base"), _parse_int),
@@ -95,6 +101,11 @@ def resolve_matching_config(app_cfg: dict[str, Any]) -> dict[str, Any]:
         "MATCHING_QDRANT_HNSW_M": (("qdrant", "hnsw_m"), _parse_int),
         "MATCHING_QDRANT_HNSW_EF_CONSTRUCT": (("qdrant", "hnsw_ef_construct"), _parse_int),
         "MATCHING_QDRANT_TIMEOUT_SECONDS": (("qdrant", "timeout_seconds"), _parse_int),
+        "MATCHING_QDRANT_MAX_RETRIES": (("qdrant", "max_retries"), _parse_int),
+        "MATCHING_QDRANT_RETRY_BACKOFF_SECONDS": (
+            ("qdrant", "retry_backoff_seconds"),
+            _parse_float,
+        ),
     }
 
     for env_name, (path, parser) in env_overrides.items():

@@ -90,7 +90,15 @@
     "rerank": {
       "enabled": true,
       "model_name": "BAAI/bge-reranker-v2-m3",
-      "top_n": 50
+      "top_n": 50,
+      "weights": {
+        "role": 0.4,
+        "chunk": 0.3,
+        "profile": 0.2,
+        "metadata": 0.1,
+        "rerank_pre_llm": 0.75,
+        "rerank_lexical": 0.25
+      }
     },
     "selection_cache": {
       "enabled": true,
@@ -110,7 +118,9 @@
       "distance": "Cosine",
       "hnsw_m": 16,
       "hnsw_ef_construct": 100,
-      "timeout_seconds": 10
+      "timeout_seconds": 10,
+      "max_retries": 2,
+      "retry_backoff_seconds": 0.5
     },
     "rules": {
       "enabled": true,
