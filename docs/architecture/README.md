@@ -26,6 +26,7 @@ Contents:
 - `docs/architecture/19-rules-stack-implementation-plan-ru.md`: practical plan for production-style rules stack (`Pydantic + Pandera + JSONLogic`), including execution model, responsibilities, and migration steps.
 - `docs/architecture/20-phase2-chunking-runtime-flow.md`: sequence diagram for runtime chunk construction (`rule flags -> spaCy -> semantic merge -> token-aware -> hard limits -> labels`).
 - `docs/architecture/21-phase2-chunking-system-integration.md`: system-level map of how chunking interacts with audit/state/Qdrant/retrieval.
+- `docs/architecture/22-chunking-smoke-scenarios.md`: practical smoke runbook for `spacy`, `syntok`, and `regex+char` modes with expected `matching_index_state` fields.
 
 Rules:
 
