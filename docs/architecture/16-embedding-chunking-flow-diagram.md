@@ -6,6 +6,7 @@ Shows how merged vacancy data is transformed into chunks and vectors.
 
 Current implementation status:
 - `spaCy + semantic chunking` is implemented.
+- `syntok` and `regex` sentence split fallback modes are supported.
 - token-aware chunk cap is enabled before hard char limits.
 
 ```mermaid
@@ -16,7 +17,7 @@ flowchart TD
     D --> E{Description exists?}
 
     E -- no --> F[Create synthetic chunk from title role location employment]
-    E -- yes --> P[Sentence segmentation via spaCy]
+    E -- yes --> P[Sentence segmentation mode spacy syntok regex]
     P --> Q[Semantic chunking by sentence similarity]
     Q --> T[Token-aware cap by tokenizer max/overlap]
     T --> U[Hard char limits merge split]

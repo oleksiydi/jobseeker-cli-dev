@@ -12,7 +12,7 @@ Implement a high-quality local retrieval + rerank pipeline for vacancy matching 
 Target environment:
 - up to ~5100 vacancies;
 - Intel i5-6300U baseline;
-- full batch <= 8-12h.
+- full batch <= 48h.
 
 ## Final Architecture
 

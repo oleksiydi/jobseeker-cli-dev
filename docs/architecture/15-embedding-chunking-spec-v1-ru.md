@@ -111,8 +111,15 @@ DESCRIPTION:
 
 ### 4.1 Базовая сегментация
 
-1. Сначала делим `DESCRIPTION` на предложения через spaCy (`de_dep_news_trf`).
-2. Если предложений мало или описание пустое, включается fallback-логика (см. раздел 6).
+1. Сначала делим `DESCRIPTION` на предложения.
+2. Режим выбирается конфигом `matching.chunking.sentence_splitter`:
+- `spacy` (по умолчанию);
+- `syntok` (облегченный sentence splitter);
+- `regex` (аварийный fallback).
+3. Для `spacy` модель задается `matching.chunking.spacy_model` (по умолчанию `de_core_news_md`).
+4. Если выбранный splitter недоступен в окружении, включается следующий безопасный fallback:
+- `spacy`/`syntok` -> `regex`.
+5. Фактически использованный splitter фиксируется в `matching_index_state.sentence_splitter_used`.
 
 ### 4.2 Семантическое объединение предложений
 
@@ -134,6 +141,24 @@ DESCRIPTION:
 
 Важно:
 - это не основная логика чанкинга, а защита от аномально коротких/длинных фрагментов.
+
+### 4.4 Token-aware split (перед hard char limits)
+
+1. Этап включается флагом `matching.chunking.token_aware_enabled`.
+2. Режим задается `matching.chunking.token_splitter`:
+- `transformers` (по токенам модели, режим по умолчанию);
+- `char` (token-aware отключен, остаются char-limits);
+- `disabled` (полное отключение token-aware этапа).
+3. Для `transformers` используются:
+- `tokenizer_model_name`;
+- `max_tokens_per_chunk`;
+- `overlap_tokens`.
+4. При доступном fast-tokenizer разрез выполняется по `offset_mapping`, чтобы сохранить исходный текст без decode-искажений.
+5. Фактический результат фиксируется в `matching_index_state`:
+- `token_splitter_used`;
+- `token_aware_applied`;
+- `tokenizer_model_used`;
+- `chunking_fallback_reasons`.
 
 ### 4.3 `section_label`: как ставим метку секции реалистично
 

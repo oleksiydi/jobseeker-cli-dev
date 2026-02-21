@@ -188,10 +188,14 @@ Hinweis zur Qdrant-Anbindung:
   nutzt der Adapter automatisch einen REST-Fallback über `requests`.
 
 Hinweis zu semantic chunking:
-- Das ist der Zielzustand für die nächste Phase (noch nicht im Baseline-Indexer umgesetzt).
-- Aktuell verwendet der Baseline-Indexer robustes Fallback-Chunking (ein stabiler Chunk pro Vakanz).
-- Die Parameter `hard_*_chunk_chars` und `fallback_overlap_chars` bleiben als Schutzgrenzen
-  für die geplante semantische Segmentierung.
+- Semantic chunking ist im Indexer aktiv.
+- Satzsegmentierung ist konfigurierbar: `spacy` (default), `syntok` oder `regex`.
+- Token-Split ist ebenfalls konfigurierbar:
+  - `transformers` (token-aware, default),
+  - `char` (nur Hard-Char-Grenzen),
+  - `disabled` (kein token-aware Split).
+- Bei fehlenden lokalen Abhängigkeiten wird automatisch ein sicherer Fallback genutzt
+  und als Runtime-Status in `matching_index_state` gespeichert.
 
 ## Diagnose von `404` in `jobdetails`
 
