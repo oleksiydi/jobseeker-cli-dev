@@ -37,13 +37,13 @@ mkdocs build --strict
 
 ## Docker Services
 
-Basis-Stack (nur Runtime: `mongo`, `mongo-express`, `qdrant`):
+Basis-Stack (nur Runtime: `mongo`, `qdrant`):
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-Analytik-Stack zusätzlich (`nosqlclient`, `metabase`):
+Analytik-Stack zusätzlich (`mongo-express`, `nosqlclient`, `metabase`):
 
 ```bash
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.analytics.yml up -d

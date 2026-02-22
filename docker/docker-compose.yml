@@ -1,6 +1,6 @@
 services:
   mongo:
-    image: ${MONGO_IMAGE:-mongo:7.0}
+    image: ${MONGO_IMAGE:-mongo:8.0}
     restart: always
     ports:
       - "127.0.0.1:27017:27017"
@@ -9,19 +9,6 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me}
     volumes:
       - ./data:/data/db  # Монтирование локальной директории ./data в /data/db в контейнере
-
-  mongo-express:
-    image: ${MONGO_EXPRESS_IMAGE:-mongo-express:1.0.2}
-    restart: always
-    ports:
-      - "127.0.0.1:8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me}
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-root}:${MONGO_INITDB_ROOT_PASSWORD:-change_me}@mongo:27017/
-      ME_CONFIG_BASICAUTH: ${MONGO_EXPRESS_BASICAUTH:-true}
-      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_BASICAUTH_USERNAME:-admin}
-      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_BASICAUTH_PASSWORD:-change_me}
 
   qdrant:
     image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.15.4}
