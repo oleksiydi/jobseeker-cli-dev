@@ -73,3 +73,5 @@ nav:
       - 04 Backfill is_active Legacy: smoke/04-backfill-is-active-legacy.md
       - 05 Migrate analysen Profile Index: smoke/05-migrate-analysen-profile-index.md
       - 06 Analyze Jobs Profile-Scoped: smoke/06-analyze-jobs-profile-scoped.md
+  - Operations:
+      - Mongo Backup / Restore: operations/mongo-backup-restore.md

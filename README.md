@@ -236,3 +236,14 @@ Ein kompakter Smoke-Run (in definierter Reihenfolge) steht als Skript bereit:
 ```bash
 bash tools/smoke_run.sh
 ```
+
+## Mongo Backup / Restore
+
+Краткий runbook и команды:
+- `docs/operations/mongo-backup-restore.md`
+
+Быстрые команды:
+```bash
+bash tools/mongo_backup.sh --db jobcenter
+bash tools/mongo_restore.sh --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.archive.gz --db jobcenter
+```
