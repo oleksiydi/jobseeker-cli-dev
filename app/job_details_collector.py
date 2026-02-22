@@ -386,6 +386,9 @@ def main():  # Hauptfunktion, die den Ablauf steuert
 
     api = cfg["jobcenter"]["details_api"]          # API-Parameter für Details
     headers = dict(api.get("headers", {}))         # HTTP-Header (kopieren, um Original nicht zu ändern)
+    env_api_key = os.getenv("JOBCENTER_DETAILS_API_KEY", "").strip()
+    if env_api_key:
+        headers["X-API-Key"] = env_api_key
     url_tpl = api["url_template"]                   # URL-Vorlage mit Base64(ref)
 
     # Nur explizit aktive Stellen.

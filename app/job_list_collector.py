@@ -280,7 +280,7 @@ def main() -> None:
     list_api = cfg["jobcenter"]["list_api"]  # Konfigurationsbereich für Stellenliste
 
     api_url = list_api["api_url"]  # API-Endpunkt für Stellenliste
-    api_key = list_api.get("api_key", "")  # API-Key (oft 'jobboerse-jobsuche'), optional
+    api_key = os.getenv("JOBCENTER_LIST_API_KEY", str(list_api.get("api_key", ""))).strip()
     base_params = dict(list_api.get("params", {}))  # Basis-Suchparameter
     base_headers = dict(list_api.get("headers", {}))  # Basis-HTTP-Header
     max_requests = int(list_api.get("max_requests", 1000))  # Max. Seiten/Requests als Schutz

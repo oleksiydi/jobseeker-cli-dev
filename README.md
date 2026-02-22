@@ -110,6 +110,8 @@ grep -E '^MONGODB_URI=' .env
 - `.env`:
 - Enthält nur Secrets und sensitive Werte.
 - Minimum: `MONGODB_URI`, `OPENAI_API_KEY`.
+- Jobcenter API-Keys können optional über ENV überschrieben werden:
+  `JOBCENTER_LIST_API_KEY`, `JOBCENTER_DETAILS_API_KEY`.
 
 - ENV-Override (optional):
 - Nicht geheime Parameter können temporär per ENV überschrieben werden (`MONGODB_DB_NAME`, `COLLECTION_*`).
