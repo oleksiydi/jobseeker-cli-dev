@@ -228,3 +228,11 @@ Baseline retrieval + rerank (JSON-Ausgabe für Top-Kandidaten):
 Hinweis zur Aktivitätslogik:
 - `is_active` ist scope-basiert (abhängig von `jobcenter.list_api.api_url + params`).
 - Wenn sich der List-Scope zwischen zwei Runs ändert, überspringt `job_list_collector` absichtlich die Massen-Deaktivierung `list_missing`, um falsche `inactive`-Markierungen zu vermeiden.
+
+## Smoke-Checks (schnell)
+
+Ein kompakter Smoke-Run (in definierter Reihenfolge) steht als Skript bereit:
+
+```bash
+bash tools/smoke_run.sh
+```
