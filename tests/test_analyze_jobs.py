@@ -35,8 +35,8 @@ class FakeCollection:
         for stage in pipeline:
             if "$match" in stage:
                 match = stage["$match"]
-                if match == {"is_active": {"$ne": False}}:
-                    docs = [doc for doc in docs if doc.get("is_active") is not False]
+                if match == {"is_active": True}:
+                    docs = [doc for doc in docs if doc.get("is_active") is True]
         return iter(docs)
 
     def insert_one(self, doc):

@@ -388,9 +388,9 @@ def main():  # Hauptfunktion, die den Ablauf steuert
     headers = dict(api.get("headers", {}))         # HTTP-Header (kopieren, um Original nicht zu ändern)
     url_tpl = api["url_template"]                   # URL-Vorlage mit Base64(ref)
 
-    # Nur aktive Stellen (Kompatibilität: fehlendes is_active gilt als aktiv).
+    # Nur explizit aktive Stellen.
     cursor = list_col.find(
-        {"is_active": {"$ne": False}},
+        {"is_active": True},
         {"referenznummer": 1, "refnr": 1, "modifikationsTimestamp": 1, "modifikationsTimestamp_dt": 1},
     )
     prefilter_batch_size = _prefilter_batch_size()

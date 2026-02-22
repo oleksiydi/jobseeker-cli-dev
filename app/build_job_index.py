@@ -709,13 +709,13 @@ def _resolve_collection_create_policy(ensure_result: str) -> tuple[bool, bool]:
 
 def _active_vacancy_filter() -> dict[str, Any]:
     """
-    Совместимый фильтр активности для переходного периода.
+    Строгий фильтр активности.
 
     Почему так:
-    - старые документы могли быть записаны без поля `is_active`;
-    - по текущему контракту такие документы считаются активными.
+    - после one-off миграции `is_active` должен быть явным;
+    - в индекс попадают только явно активные вакансии.
     """
-    return {"is_active": {"$ne": False}}
+    return {"is_active": True}
 
 
 def _build_point_id(referenznummer: str, chunk_id: str, embedding_input_hash: str) -> int:

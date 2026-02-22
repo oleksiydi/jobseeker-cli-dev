@@ -319,7 +319,7 @@ def main():
 
     # Aggregation: verbindet meta+details, entfernt _id/old (nur aktueller Zustand)
     cursor = col_list.aggregate([
-        { "$match": { "is_active": { "$ne": False } } },
+        { "$match": { "is_active": True } },
         {
             "$lookup": {
                 "from": resolve_collection_name(cfg, key="details", default="jobdetails"),

@@ -386,5 +386,5 @@ def test_resolve_collection_create_policy_forces_reindex_when_enabled(monkeypatc
     assert should_exit is False
 
 
-def test_active_vacancy_filter_is_compatible() -> None:
-    assert _active_vacancy_filter() == {"is_active": {"$ne": False}}
+def test_active_vacancy_filter_is_strict() -> None:
+    assert _active_vacancy_filter() == {"is_active": True}

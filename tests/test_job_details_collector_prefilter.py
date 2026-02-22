@@ -158,7 +158,7 @@ def test_prefilter_skips_guaranteed_and_calls_api_only_for_candidates():
     ):
         job_details_collector.main()
 
-    assert list_col.find_query == {"is_active": {"$ne": False}}
+    assert list_col.find_query == {"is_active": True}
     assert det_col.find_queries == [{"referenznummer": {"$in": ["skip-ref", "verify-ref"]}}]
     assert len(fake_session.calls) == 1
     assert "dmVyaWZ5LXJlZg" in fake_session.calls[0]["url"]

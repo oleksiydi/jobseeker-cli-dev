@@ -59,4 +59,4 @@ def test_main_reads_only_active_list_records():
     ):
         job_details_collector.main()
 
-    assert list_col.find_query == {"is_active": {"$ne": False}}
+    assert list_col.find_query == {"is_active": True}
