@@ -40,6 +40,7 @@ nav:
   - Главная: index.md
   - Архитектура:
       - Обзор: architecture/README.md
+      - 00 Runtime Contract (Current): architecture/00-runtime-contract.md
       - 01 System Overview: architecture/01-system-overview.md
       - 02 Pipeline Sequence: architecture/02-pipelines-sequence.md
       - 03 Job Details Decision and State: architecture/03-job-details-decision-and-state.md
@@ -53,3 +54,15 @@ nav:
       - 11 Selection Cache State: architecture/11-selection-cache-state.md
       - 12 Top-20 Expansion Logic: architecture/12-top20-expansion-logic.md
       - 13 LLM Context Assembly: architecture/13-llm-context-assembly.md
+      - 14 Phase2 Index Builder Step-by-Step: architecture/14-phase2-index-builder-step-by-step-ru.md
+      - 15 Embedding Chunking Spec v1: architecture/15-embedding-chunking-spec-v1-ru.md
+      - 16 Embedding Chunking Flow Diagram: architecture/16-embedding-chunking-flow-diagram.md
+      - 17 Embedding Reindex Decision Diagram: architecture/17-embedding-reindex-decision-diagram.md
+      - 18 Canonical Text/Payload/LLM Examples: architecture/18-canonical-text-payload-llm-examples-ru.md
+      - 19 Rules Stack Implementation Plan: architecture/19-rules-stack-implementation-plan-ru.md
+      - 20 Chunking Runtime Flow: architecture/20-phase2-chunking-runtime-flow.md
+      - 21 Chunking System Integration: architecture/21-phase2-chunking-system-integration.md
+      - 22 Chunking Smoke Scenarios: architecture/22-chunking-smoke-scenarios.md
+      - 23 Retrieval + Rerank Runtime Flow: architecture/23-retrieval-rerank-runtime-flow.md
+      - 24 Cache + LLM Handoff Explained: architecture/24-cache-llm-handoff-explained-ru.md
+      - 25 Cache/Index Invalidation Overview: architecture/25-cache-index-invalidation-overview-ru.md

@@ -5,6 +5,7 @@ All diagrams are written in Mermaid so they can be viewed directly in VS Code Ma
 
 Contents:
 
+- `docs/architecture/00-runtime-contract.md`: authoritative current runtime contract (activity semantics, retry behavior, analysis uniqueness, known mismatches).
 - `docs/architecture/01-system-overview.md`: modules, data stores, external systems.
 - `docs/architecture/02-pipelines-sequence.md`: end-to-end pipeline flow.
 - `docs/architecture/03-job-details-decision-and-state.md`: decision logic and states for details collector.
@@ -36,3 +37,4 @@ Rules:
 - When changing pipeline logic, update the corresponding diagram in the same PR.
 - Keep diagrams code-driven: if a detail is not in code, do not mark it as guaranteed behavior.
 - Use these docs as onboarding entry point before touching ETL logic.
+- If a conflict appears between docs, treat `00-runtime-contract.md` as current truth and update dependent docs in the same PR.
