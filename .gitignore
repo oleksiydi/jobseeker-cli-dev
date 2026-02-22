@@ -36,6 +36,8 @@ Thumbs.db
 # Docker local volumes (runtime data, not source)
 docker/data/
 docker/metabase-data/
+backups/
+*.archive.gz
 
 
 
