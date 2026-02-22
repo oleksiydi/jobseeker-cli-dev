@@ -163,3 +163,72 @@ def test_prefilter_skips_guaranteed_and_calls_api_only_for_candidates():
     assert len(fake_session.calls) == 1
     assert "dmVyaWZ5LXJlZg" in fake_session.calls[0]["url"]
     assert len(det_col.update_calls) == 1
+
+
+def test_retry_delay_seconds_uses_predictable_exponential_backoff(monkeypatch):
+    monkeypatch.setattr(job_details_collector.random, "uniform", lambda a, b: 0.3)
+    assert job_details_collector._retry_delay_seconds(0, base_delay_seconds=1.0) == 1.3
+    assert job_details_collector._retry_delay_seconds(1, base_delay_seconds=1.0) == 2.3
+    assert job_details_collector._retry_delay_seconds(2, base_delay_seconds=1.0) == 4.3
+
+
+def test_verify_candidates_continues_after_single_mongo_write_error():
+    class WriteFailingDetailsCollection:
+        def __init__(self):
+            self.inserted = []
+
+        def insert_one(self, doc):
+            if doc.get("referenznummer") == "bad-ref":
+                raise RuntimeError("temporary mongo write error")
+            self.inserted.append(doc)
+            return None
+
+        def update_one(self, query, update):
+            return None
+
+    class HistoryCollection:
+        def __init__(self):
+            self.inserted = []
+
+        def insert_one(self, doc):
+            self.inserted.append(doc)
+            return None
+
+    class SequenceSession:
+        def __init__(self, responses):
+            self._responses = list(responses)
+
+        def get(self, url, headers=None, timeout=None):
+            return self._responses.pop(0)
+
+    det_col = WriteFailingDetailsCollection()
+    history_col = HistoryCollection()
+    session = SequenceSession(
+        [
+            FakeResponse(200, {"aenderungsdatum": "2026-02-10T08:00:00", "titel": "bad"}),
+            FakeResponse(200, {"aenderungsdatum": "2026-02-10T08:00:00", "titel": "good"}),
+        ]
+    )
+    candidates = [
+        {"referenznummer": "bad-ref", "list_modifikations_timestamp": "2026-02-10T08:00:00", "current": None},
+        {"referenznummer": "good-ref", "list_modifikations_timestamp": "2026-02-10T08:00:00", "current": None},
+    ]
+    log = FakeLogger()
+
+    with (
+        patch.object(job_details_collector.time, "sleep", return_value=None),
+        patch.object(job_details_collector.random, "uniform", return_value=0.0),
+    ):
+        processed = job_details_collector._verify_and_apply_candidates(
+            session=session,
+            candidates=candidates,
+            det_col=det_col,
+            det_history_col=history_col,
+            history_collection_name="jobdetails_history",
+            headers={},
+            url_tpl="https://example/{ref_b64}",
+            log=log,
+        )
+
+    assert processed == 1
+    assert [doc["referenznummer"] for doc in det_col.inserted] == ["good-ref"]

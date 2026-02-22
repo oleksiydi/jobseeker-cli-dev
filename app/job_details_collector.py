@@ -185,6 +185,11 @@ def _prefilter_batch_size() -> int:
         return DETAILS_PREFILTER_BATCH_SIZE_DEFAULT
 
 
+def _retry_delay_seconds(attempt: int, base_delay_seconds: float = 1.0) -> float:
+    # attempt начинается с 0: 1.0, 2.0, 4.0, ...
+    return (base_delay_seconds * (2 ** attempt)) + random.uniform(0.0, 0.3)
+
+
 def _build_verify_candidates(
     det_col: Collection, batch: list[dict[str, Any]], log: Any
 ) -> tuple[list[dict[str, Any]], int]:
@@ -257,104 +262,108 @@ def _verify_and_apply_candidates(
                 log.warning(f"{ref}: HTTP {r.status_code}")
             except Exception as e:
                 log.warning(f"{ref}: Request-Fehler: {e}")
-            time.sleep(2 ** attempt ** random.uniform(0.9, 4))
+            time.sleep(_retry_delay_seconds(attempt))
 
-        if remote_not_found:
-            now = utcnow_naive()
-            det_history_col.insert_one(
-                _build_remote_not_found_event(
-                    referenznummer=ref,
-                    previous_remote_updated_at=(
-                        current.get("last_seen_remote_updated_at") if current else None
-                    ),
-                    list_modifikations_timestamp=sa_raw,
-                    now=now,
-                )
-            )
-            continue
-
-        if not payload:
-            log.info(f"{ref}: keine Daten von der API (übersprungen)")
-            continue
-
-        payload["referenznummer"] = ref
-        payload.setdefault("aenderungsdatum", None)
-        remote_updated_raw = payload.get("aenderungsdatum")
-        remote_updated_dt = parse_remote_dt(remote_updated_raw)
-        new_dt = remote_updated_dt or datetime.now(timezone.utc)
-
-        if current:
-            cur_dt = ensure_utc_datetime(
-                current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
-            )
-            if cur_dt is None:
-                cur_dt = parse_remote_dt(
-                    current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
-                )
-
-            if cur_dt and new_dt <= cur_dt:
-                log.info(f"{ref}: API-Details nicht neuer (new<=old), übersprungen")
-                continue
-
-            business_payload = _details_payload(payload)
-            business_payload["referenznummer"] = ref
-            content_payload = _content_payload_for_hash(business_payload)
-            new_hash = _compute_details_hash(content_payload)
-            if current.get("details_hash") == new_hash:
+        try:
+            if remote_not_found:
                 now = utcnow_naive()
-                previous_remote_updated_at = current.get("last_seen_remote_updated_at")
                 det_history_col.insert_one(
-                    _build_no_content_change_event(
+                    _build_remote_not_found_event(
                         referenznummer=ref,
-                        details_hash=new_hash,
-                        previous_remote_updated_at=previous_remote_updated_at,
-                        remote_updated_at=remote_updated_raw,
+                        previous_remote_updated_at=(
+                            current.get("last_seen_remote_updated_at") if current else None
+                        ),
+                        list_modifikations_timestamp=sa_raw,
                         now=now,
                     )
                 )
-                det_col.update_one(
-                    {"_id": current["_id"]},
-                    {
-                        "$set": {
-                            "aenderungsdatum": remote_updated_raw,
-                            "aenderungsdatum_dt": remote_updated_dt,
-                            "last_seen_remote_updated_at": remote_updated_raw,
-                            "last_seen_remote_updated_at_dt": remote_updated_dt,
-                            "last_checked_at": now,
-                        }
-                    },
-                )
-                log.info(f"{ref}: Inhalt unverändert, Zeitmarken und History-Event aktualisiert")
                 continue
 
-            now = utcnow_naive()
-            business_payload["last_seen_remote_updated_at"] = remote_updated_raw
-            business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
-            business_payload["aenderungsdatum_dt"] = remote_updated_dt
-            business_payload["last_checked_at"] = now
-            det_history_col.insert_one(
-                _build_history_snapshot(current, new_hash, remote_updated_raw, now)
-            )
-            det_col.update_one(
-                {"_id": current["_id"], "details_hash": {"$ne": new_hash}},
-                _build_diff_update(current, business_payload, new_hash, now),
-            )
-            processed += 1
-            log.info(f"{ref}: aktualisiert (vorheriger Zustand in {history_collection_name} archiviert)")
-        else:
-            now = utcnow_naive()
-            business_payload = _details_payload(payload)
-            business_payload["referenznummer"] = ref
-            business_payload["details_hash"] = _compute_details_hash(_content_payload_for_hash(business_payload))
-            business_payload["last_seen_remote_updated_at"] = remote_updated_raw
-            business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
-            business_payload["aenderungsdatum_dt"] = remote_updated_dt
-            business_payload["last_checked_at"] = now
-            business_payload["created_at"] = now
-            business_payload["updated_at"] = now
-            det_col.insert_one(business_payload)
-            processed += 1
-            log.info(f"{ref}: eingefügt")
+            if not payload:
+                log.info(f"{ref}: keine Daten von der API (übersprungen)")
+                continue
+
+            payload["referenznummer"] = ref
+            payload.setdefault("aenderungsdatum", None)
+            remote_updated_raw = payload.get("aenderungsdatum")
+            remote_updated_dt = parse_remote_dt(remote_updated_raw)
+            new_dt = remote_updated_dt or datetime.now(timezone.utc)
+
+            if current:
+                cur_dt = ensure_utc_datetime(
+                    current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
+                )
+                if cur_dt is None:
+                    cur_dt = parse_remote_dt(
+                        current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
+                    )
+
+                if cur_dt and new_dt <= cur_dt:
+                    log.info(f"{ref}: API-Details nicht neuer (new<=old), übersprungen")
+                    continue
+
+                business_payload = _details_payload(payload)
+                business_payload["referenznummer"] = ref
+                content_payload = _content_payload_for_hash(business_payload)
+                new_hash = _compute_details_hash(content_payload)
+                if current.get("details_hash") == new_hash:
+                    now = utcnow_naive()
+                    previous_remote_updated_at = current.get("last_seen_remote_updated_at")
+                    det_history_col.insert_one(
+                        _build_no_content_change_event(
+                            referenznummer=ref,
+                            details_hash=new_hash,
+                            previous_remote_updated_at=previous_remote_updated_at,
+                            remote_updated_at=remote_updated_raw,
+                            now=now,
+                        )
+                    )
+                    det_col.update_one(
+                        {"_id": current["_id"]},
+                        {
+                            "$set": {
+                                "aenderungsdatum": remote_updated_raw,
+                                "aenderungsdatum_dt": remote_updated_dt,
+                                "last_seen_remote_updated_at": remote_updated_raw,
+                                "last_seen_remote_updated_at_dt": remote_updated_dt,
+                                "last_checked_at": now,
+                            }
+                        },
+                    )
+                    log.info(f"{ref}: Inhalt unverändert, Zeitmarken und History-Event aktualisiert")
+                    continue
+
+                now = utcnow_naive()
+                business_payload["last_seen_remote_updated_at"] = remote_updated_raw
+                business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
+                business_payload["aenderungsdatum_dt"] = remote_updated_dt
+                business_payload["last_checked_at"] = now
+                det_history_col.insert_one(
+                    _build_history_snapshot(current, new_hash, remote_updated_raw, now)
+                )
+                det_col.update_one(
+                    {"_id": current["_id"], "details_hash": {"$ne": new_hash}},
+                    _build_diff_update(current, business_payload, new_hash, now),
+                )
+                processed += 1
+                log.info(f"{ref}: aktualisiert (vorheriger Zustand in {history_collection_name} archiviert)")
+            else:
+                now = utcnow_naive()
+                business_payload = _details_payload(payload)
+                business_payload["referenznummer"] = ref
+                business_payload["details_hash"] = _compute_details_hash(_content_payload_for_hash(business_payload))
+                business_payload["last_seen_remote_updated_at"] = remote_updated_raw
+                business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
+                business_payload["aenderungsdatum_dt"] = remote_updated_dt
+                business_payload["last_checked_at"] = now
+                business_payload["created_at"] = now
+                business_payload["updated_at"] = now
+                det_col.insert_one(business_payload)
+                processed += 1
+                log.info(f"{ref}: eingefügt")
+        except Exception as exc:
+            log.warning(f"{ref}: Mongo write error, candidate skipped: {exc}")
+            continue
 
     return processed
 
