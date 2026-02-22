@@ -23,6 +23,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Check runtime contract invariants
+        run: |
+          bash tools/check_runtime_contract.sh
+
+      - name: Build docs (strict)
+        run: |
+          mkdocs build --strict
+
       - name: Run smoke checks
         run: |
           bash tools/smoke_run.sh
@@ -30,4 +38,3 @@ jobs:
       - name: Run full test suite
         run: |
           pytest -q
-

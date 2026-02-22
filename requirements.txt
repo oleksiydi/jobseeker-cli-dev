@@ -12,3 +12,6 @@ numpy>=1.26,<3
 spacy>=3.7,<4
 transformers>=4.44,<5
 syntok>=1.4,<2
+mkdocs>=1.6,<2
+mkdocs-material>=9.6,<10
+pymdown-extensions>=10.14,<11

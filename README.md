@@ -29,6 +29,12 @@ docker compose -f docker/docker-compose.docs.yml up
 
 Danach unter `http://localhost:8000`.
 
+Lokaler Docs-Check wie in CI:
+
+```bash
+mkdocs build --strict
+```
+
 ## Erster Start (obligatorisch)
 
 Vor dem Start der Pipelines müssen einmalig folgende Daten nach MongoDB geladen werden:
