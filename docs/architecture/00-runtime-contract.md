@@ -49,11 +49,11 @@ Last verified: `2026-02-22`
 ## Контракт по анализу (`analysen`)
 
 1. Ключ пропуска повторной обработки:
-- unchanged detection сейчас основан на `(referenznummer, input_hash)`.
+- unchanged detection сейчас основан на `(referenznummer, candidate_profile_key, input_hash)`.
 
 2. Профиль кандидата:
 - сохраняется в поле `candidate_profile_key`;
-- участвует в версионировании/чтении latest, но не входит в уникальность `input_hash` на уровне индекса.
+- участвует и в версионировании/чтении latest, и в уникальности `input_hash` на уровне индекса.
 
 ## Что важно не перепутать
 
@@ -65,6 +65,10 @@ Last verified: `2026-02-22`
 3. Для clean-up legacy данных есть one-off миграция:
 - `tools/backfill_is_active_flag.py`
 - цель: явно проставить `is_active=True` документам без поля.
+
+4. Для migration unique-индекса `analysen` есть one-off скрипт:
+- `tools/migrate_analysen_profile_scoped_index.py`
+- цель: перевести unique-ограничение с `(referenznummer,input_hash)` на `(referenznummer,candidate_profile_key,input_hash)`.
 
 ## Следующий технический фокус
 

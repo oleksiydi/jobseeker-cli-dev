@@ -56,5 +56,5 @@ flowchart LR
 
 - `job_list_collector`: idempotent upsert of vacancy meta, list presence events, and guarded active/inactive transitions. Missing-mark is applied only after a full scan and only when list query scope (`query_hash`) is unchanged vs previous run.
 - `job_details_collector`: early date-based prefilter, API verification only for candidates, hash-based update and history.
-- `analyze_jobs`: joins current meta+details, computes `input_hash`, skips unchanged inputs by `(referenznummer, input_hash)`, and writes versioned documents with `candidate_profile_key`.
+- `analyze_jobs`: joins current meta+details, computes `input_hash`, skips unchanged inputs by `(referenznummer, candidate_profile_key, input_hash)`, and writes profile-scoped versioned documents.
 - `ui_grouped`: read-only grouped presentation of analysis results.

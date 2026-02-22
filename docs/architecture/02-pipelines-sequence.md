@@ -38,7 +38,7 @@ sequenceDiagram
     A->>JD: lookup current details
     A->>OAI: analyze candidate payload
     OAI-->>A: strict JSON response
-    A->>AN: versioned write; unchanged skip by (referenznummer, input_hash)
+    A->>AN: versioned write; unchanged skip by (referenznummer, candidate_profile_key, input_hash)
 ```
 
 ## Data Freshness Contract
@@ -47,4 +47,4 @@ sequenceDiagram
 - Scope-based means: `is_active` reflects visibility in current list query scope, not global market-wide vacancy state.
 - `list_missing` deactivation is executed only when a full scan is completed and list query scope hash is unchanged.
 - `job_details_collector` respects first-level date gate before details API.
-- `analyze_jobs` creates a new analysis version only when input changes (`input_hash`); unchanged detection currently uses `(referenznummer, input_hash)`.
+- `analyze_jobs` creates a new analysis version only when input changes (`input_hash`); unchanged detection uses `(referenznummer, candidate_profile_key, input_hash)`.

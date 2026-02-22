@@ -29,7 +29,7 @@
 - объединяет актуальные `meta + details`;
 - добавляет профиль кандидата из `profiles` и prompt из `analysis_prompts`;
 - считает `input_hash` по входу анализа (`meta + details + profile + prompt + model`);
-- если такой `input_hash` уже есть в `analysen` для `referenznummer`, повторный LLM-вызов пропускается (в текущей реализации без отдельного scope по профилю);
+- если такой `input_hash` уже есть в `analysen` для пары `(referenznummer, candidate_profile_key)`, повторный LLM-вызов пропускается;
 - при изменении входа создает новую версию в `analysen` в рамках того же профиля кандидата.
 
 Итог: в проекте уже реализована сильная база для экономии запросов (идемпотентность + hash-based skip на этапе анализа).
