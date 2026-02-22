@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 import app.job_list_collector as job_list_collector
+import requests
 
 
 class FakeLogger:
@@ -135,6 +136,8 @@ class FakeSession:
     def get(self, *args, **kwargs):
         response = self._responses[self.calls]
         self.calls += 1
+        if isinstance(response, Exception):
+            raise response
         return response
 
 
@@ -294,3 +297,51 @@ def test_main_skips_missing_mark_when_query_scope_changed():
     event_types = {doc.get("event_type") for doc in history_col.inserted}
     assert "list_seen" in event_types
     assert "list_missing" not in event_types
+
+
+def test_main_retries_temporary_list_api_error():
+    list_col = FakeCollection()
+    history_col = FakeCollection()
+    state_col = FakeCollection()
+    db = FakeDB(
+        {
+            "stellenangebote": list_col,
+            "stellenangebote_history": history_col,
+            "pipeline_state": state_col,
+        }
+    )
+    cfg = {
+        "collections": {"list": "stellenangebote"},
+        "history_collections": {"list": "stellenangebote_history"},
+        "jobcenter": {
+            "list_api": {
+                "api_url": "https://example.test/list",
+                "headers": {},
+                "params": {},
+                "max_requests": 5,
+                "retry_attempts": 3,
+                "retry_backoff_seconds": 0.1,
+            }
+        },
+    }
+
+    fake_session = FakeSession(
+        [
+            requests.Timeout("temporary timeout"),
+            FakeResponse({"stellenangebote": [{"referenznummer": "A", "titel": "Job A"}]}),
+            FakeResponse({"stellenangebote": []}),
+        ]
+    )
+
+    with (
+        patch.object(job_list_collector, "load_app_config", return_value=cfg),
+        patch.object(job_list_collector, "get_database", return_value=db),
+        patch.object(job_list_collector, "get_logger", return_value=FakeLogger()),
+        patch.object(job_list_collector.requests, "Session", return_value=fake_session),
+        patch.object(job_list_collector.time, "sleep"),
+        patch.object(job_list_collector.random, "uniform", return_value=0.0),
+    ):
+        job_list_collector.main()
+
+    assert fake_session.calls == 3
+    assert any(doc.get("referenznummer") == "A" for doc in list_col.docs)

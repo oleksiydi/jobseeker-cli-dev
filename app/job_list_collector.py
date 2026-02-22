@@ -77,6 +77,58 @@ def _compute_scope_hash(api_url: str, params: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _extract_status_code(exc: Exception) -> int | None:
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    if isinstance(status_code, int):
+        return status_code
+    return None
+
+
+def _is_retryable_list_error(exc: Exception) -> bool:
+    if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
+        return True
+    status_code = _extract_status_code(exc)
+    if status_code == 429:
+        return True
+    if isinstance(status_code, int) and 500 <= status_code < 600:
+        return True
+    return False
+
+
+def _fetch_list_page(
+    *,
+    session: requests.Session,
+    api_url: str,
+    headers: dict[str, Any],
+    params: dict[str, Any],
+    page: int,
+    log: Any,
+    timeout_seconds: int = 20,
+    max_attempts: int = 3,
+    base_backoff_seconds: float = 1.0,
+) -> dict[str, Any]:
+    attempts = max(1, int(max_attempts))
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = session.get(api_url, headers=headers, params=params, timeout=timeout_seconds)
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as exc:
+            if not _is_retryable_list_error(exc) or attempt >= attempts:
+                raise
+            delay = base_backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.0, 0.3)
+            log.warning(
+                "Seite %s: temporärer API-Fehler (%s), retry %s/%s in %.2fs",
+                page,
+                exc,
+                attempt,
+                attempts,
+                delay,
+            )
+            time.sleep(delay)
+
+
 def _ensure_indexes(
     db: Database,
     list_collection_name: str,
@@ -232,6 +284,8 @@ def main() -> None:
     base_params = dict(list_api.get("params", {}))  # Basis-Suchparameter
     base_headers = dict(list_api.get("headers", {}))  # Basis-HTTP-Header
     max_requests = int(list_api.get("max_requests", 1000))  # Max. Seiten/Requests als Schutz
+    list_retry_attempts = max(1, int(list_api.get("retry_attempts", 3)))
+    list_retry_backoff_seconds = max(0.0, float(list_api.get("retry_backoff_seconds", 1.0)))
     _ = list_api.get("output_filenames", {})  # Kompatibilität: in config vorhanden, hier nicht verwendet
 
     db = get_database(cfg)  # DB-Verbindung
@@ -286,9 +340,17 @@ def main() -> None:
         params = {**base_params, "page": page}  # Basisparameter + Seitennummer
 
         try:
-            resp = session.get(api_url, headers=headers, params=params, timeout=20)  # GET mit Timeout
-            resp.raise_for_status()  # Exception bei nicht-2xx
-            data = resp.json()  # JSON-Antwort parsen
+            data = _fetch_list_page(
+                session=session,
+                api_url=api_url,
+                headers=headers,
+                params=params,
+                page=page,
+                log=log,
+                timeout_seconds=20,
+                max_attempts=list_retry_attempts,
+                base_backoff_seconds=list_retry_backoff_seconds,
+            )
         except Exception as e:  # Request-/Parsing-Fehler
             log.error(f"Seite {page}: Request/Parsing-Fehler: {e}")
             break
