@@ -1,36 +1,38 @@
 services:
   mongo:
-    image: mongo
+    image: ${MONGO_IMAGE:-mongo:7.0}
     restart: always
     ports:
       - "127.0.0.1:27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me}
     volumes:
       - ./data:/data/db  # Монтирование локальной директории ./data в /data/db в контейнере
 
   mongo-express:
-    image: mongo-express
+    image: ${MONGO_EXPRESS_IMAGE:-mongo-express:1.0.2}
     restart: always
     ports:
       - "127.0.0.1:8081:8081"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: example
-      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
-      ME_CONFIG_BASICAUTH: false
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-root}:${MONGO_INITDB_ROOT_PASSWORD:-change_me}@mongo:27017/
+      ME_CONFIG_BASICAUTH: ${MONGO_EXPRESS_BASICAUTH:-true}
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_BASICAUTH_USERNAME:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_BASICAUTH_PASSWORD:-change_me}
 
   nosqlclient:
-    image: mongoclient/mongoclient
+    image: ${NOSQLCLIENT_IMAGE:-mongoclient/mongoclient:4.0.2}
     restart: always
     ports:
       - "127.0.0.1:3000:3000"
     environment:
-      MONGO_URL: 'mongodb://root:example@mongo:27017/'
+      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-root}:${MONGO_INITDB_ROOT_PASSWORD:-change_me}@mongo:27017/
 
   metabase:
-    image: metabase/metabase:latest
+    image: ${METABASE_IMAGE:-metabase/metabase:v0.56.6}
     restart: always
     ports:
       - "127.0.0.1:3001:3000"   # Metabase доступен только с этой машины: http://localhost:3001
@@ -43,7 +45,7 @@ services:
       - mongo
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.15.4}
     restart: always
     ports:
       - "127.0.0.1:6333:6333"   # Qdrant доступен только локально
