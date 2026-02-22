@@ -36,8 +36,11 @@ from app.db.mongo import get_database, resolve_collection_name
 
 def ensure_indexes(db: Database, cfg: dict):
     col = db[resolve_collection_name(cfg, key="analysis", default="analysen")]
-    # Pro Referenznummer darf derselbe Input nur einmal gespeichert werden.
-    col.create_index([("referenznummer", ASCENDING), ("input_hash", ASCENDING)], unique=True)
+    # Pro Referenznummer + Profil darf derselbe Input nur einmal gespeichert werden.
+    col.create_index(
+        [("referenznummer", ASCENDING), ("candidate_profile_key", ASCENDING), ("input_hash", ASCENDING)],
+        unique=True,
+    )
     # Für Queries auf die aktuelle/alte Versionen pro Stelle und Kandidatenprofil.
     col.create_index([("referenznummer", ASCENDING), ("candidate_profile_key", ASCENDING), ("is_latest", ASCENDING)])
     col.create_index([("prompt_key", ASCENDING), ("prompt_version", ASCENDING)])
@@ -377,7 +380,7 @@ def main():
         }
         input_hash = _compute_input_hash(input_hash_payload)
         same_hash_doc = col_an.find_one(
-            {"referenznummer": ref, "input_hash": input_hash},
+            {"referenznummer": ref, "candidate_profile_key": key, "input_hash": input_hash},
             {"_id": 1, "version": 1},
         )
         if same_hash_doc:

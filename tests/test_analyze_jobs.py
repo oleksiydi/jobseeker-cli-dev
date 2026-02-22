@@ -165,7 +165,10 @@ def test_ensure_indexes_uses_versioned_analysis_indexes(base_cfg):
     analyze_jobs.ensure_indexes(db, base_cfg)
 
     analysis_indexes = db["analysis"].indexes
-    assert (([("referenznummer", 1), ("input_hash", 1)],), {"unique": True}) in analysis_indexes
+    assert (
+        (([("referenznummer", 1), ("candidate_profile_key", 1), ("input_hash", 1)],), {"unique": True})
+        in analysis_indexes
+    )
     assert (
         (([("referenznummer", 1), ("candidate_profile_key", 1), ("is_latest", 1)],), {})
         in analysis_indexes
@@ -282,7 +285,9 @@ def test_main_skips_already_analyzed(base_cfg, default_prompt_doc):
     col_list = FakeCollection(
         [meta]
     )
-    col_an = FakeCollection([{"_id": "x1", "referenznummer": "ref1", "input_hash": input_hash}])
+    col_an = FakeCollection(
+        [{"_id": "x1", "referenznummer": "ref1", "candidate_profile_key": "p1", "input_hash": input_hash}]
+    )
     col_prof = FakeCollection([profile])
     db = FakeDB(
         {
@@ -306,6 +311,84 @@ def test_main_skips_already_analyzed(base_cfg, default_prompt_doc):
         analyze_jobs.main()
 
     assert len(col_an.inserted) == 0
+
+
+def test_main_does_not_skip_same_hash_from_other_profile(base_cfg, default_prompt_doc):
+    profile = {"key": "p1", "name": "User"}
+    meta = {
+        "referenznummer": "ref-other-profile",
+        "stellenangebotsTitel": "Dev",
+        "arbeitgeber": "ACME",
+        "details": {"desc": "x"},
+        "is_active": True,
+    }
+    safe_merged = analyze_jobs.make_json_safe(
+        {"meta": {k: v for k, v in meta.items() if k != "details"}, "details": meta["details"]}
+    )
+    input_hash = analyze_jobs._compute_input_hash(
+        {
+            "meta": analyze_jobs._strip_input_hash_service_fields(safe_merged.get("meta", {})),
+            "details": analyze_jobs._strip_input_hash_service_fields(safe_merged.get("details", {})),
+            "profile": analyze_jobs._strip_input_hash_service_fields(profile),
+            "prompt": {
+                "key": default_prompt_doc["key"],
+                "version": default_prompt_doc["version"],
+                "hash": default_prompt_doc["prompt_hash"],
+                "system": default_prompt_doc["system_prompt"],
+                "task": default_prompt_doc["analysis_task"],
+            },
+            "model": "m1",
+        }
+    )
+    col_list = FakeCollection([meta])
+    col_an = FakeCollection(
+        [
+            {
+                "_id": "x-foreign",
+                "referenznummer": "ref-other-profile",
+                "candidate_profile_key": "p2",
+                "input_hash": input_hash,
+                "version": 1,
+                "is_latest": True,
+            }
+        ]
+    )
+    col_prof = FakeCollection([profile])
+    db = FakeDB(
+        {
+            "list": col_list,
+            "details": FakeCollection(),
+            "analysis": col_an,
+            "profiles": col_prof,
+            "analysis_prompts": FakeCollection([default_prompt_doc]),
+        }
+    )
+    fake_response = FakeOpenAIResponse(
+        json.dumps(
+            {
+                "score": 70,
+                "decision": "hold",
+                "reasons": ["r1"],
+                "risks": [],
+                "missing_evidence": [],
+                "notes": "ok",
+            }
+        )
+    )
+    fake_client = FakeOpenAIClient(fake_response)
+
+    with (
+        patch.object(analyze_jobs, "load_app_config", return_value=base_cfg),
+        patch.object(analyze_jobs, "get_database", return_value=db),
+        patch.object(analyze_jobs, "ensure_indexes"),
+        patch.object(analyze_jobs, "load_dotenv"),
+        patch.object(analyze_jobs, "OpenAI", return_value=fake_client),
+    ):
+        analyze_jobs.main()
+
+    assert fake_client.calls == 1
+    assert len(col_an.inserted) == 1
+    assert col_an.inserted[0]["candidate_profile_key"] == "p1"
 
 
 def test_main_inserts_analysis(base_cfg, default_prompt_doc):
