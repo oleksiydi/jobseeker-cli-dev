@@ -49,10 +49,12 @@ bash tools/mongo_restore.sh --archive backups/mongo_all_YYYYMMDDTHHMMSSZ.archive
 
 - `--compose-file` (default: `docker/docker-compose.yml`)
 - `--service` (default: `mongo`)
-- `--username` (default: `root`)
-- `--password` (default: `example`)
-- `--auth-db` (default: `admin`)
+- `--username` (default: `${MONGO_INITDB_ROOT_USERNAME:-root}`)
+- `--password` (default: `${MONGO_INITDB_ROOT_PASSWORD}`; обязательно задать)
+- `--auth-db` (default: `${MONGO_AUTH_DB:-admin}`)
 - `--db` (default: `jobcenter`, если не `--all-databases`)
+
+Если пароль не задан, скрипт завершится с ошибкой до запуска `mongodump/mongorestore`.
 
 ## Перед запуском
 
@@ -67,4 +69,3 @@ docker compose -f docker/docker-compose.yml up -d mongo
 1. Скрипты работают только с docker-compose окружением проекта.
 2. Для `restore --drop` нужна осторожность: это потенциально разрушительная операция.
 3. Если в `.env` используются другие креды, передай их явно через аргументы скриптов.
-

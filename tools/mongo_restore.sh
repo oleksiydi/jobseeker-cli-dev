@@ -23,9 +23,9 @@ EOF
 ARCHIVE_FILE=""
 COMPOSE_FILE="docker/docker-compose.yml"
 SERVICE="mongo"
-USERNAME="root"
-PASSWORD="example"
-AUTH_DB="admin"
+USERNAME="${MONGO_INITDB_ROOT_USERNAME:-root}"
+PASSWORD="${MONGO_INITDB_ROOT_PASSWORD:-}"
+AUTH_DB="${MONGO_AUTH_DB:-admin}"
 DB_NAME="jobcenter"
 ALL_DATABASES="false"
 DROP_COLLECTIONS="false"
@@ -62,6 +62,11 @@ if [[ ! -f "${COMPOSE_FILE}" ]]; then
   exit 1
 fi
 
+if [[ -z "${PASSWORD}" ]]; then
+  echo "Mongo password is empty. Set MONGO_INITDB_ROOT_PASSWORD or pass --password." >&2
+  exit 2
+fi
+
 if [[ -z "$(docker compose -f "${COMPOSE_FILE}" ps -q "${SERVICE}")" ]]; then
   echo "Service '${SERVICE}' is not running. Start it first." >&2
   exit 1
@@ -94,7 +99,6 @@ if [[ "${ALL_DATABASES}" != "true" ]]; then
 fi
 echo "  drop=${DROP_COLLECTIONS}"
 
-cat "${ARCHIVE_FILE}" | "${cmd[@]}"
+"${cmd[@]}" < "${ARCHIVE_FILE}"
 
 echo "Restore finished from: ${ARCHIVE_FILE}"
-
