@@ -14,7 +14,7 @@
 ## Быстрый backup (одна БД)
 
 ```bash
-bash tools/mongo_backup.sh --db jobcenter
+bash tools/mongo_backup.sh --env-file .env --db jobcenter
 ```
 
 По умолчанию архив создается в `backups/` с UTC timestamp.
@@ -22,19 +22,19 @@ bash tools/mongo_backup.sh --db jobcenter
 ## Backup всех БД
 
 ```bash
-bash tools/mongo_backup.sh --all-databases
+bash tools/mongo_backup.sh --env-file .env --all-databases
 ```
 
 ## Быстрый restore (одна БД)
 
 ```bash
-bash tools/mongo_restore.sh --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.archive.gz --db jobcenter
+bash tools/mongo_restore.sh --env-file .env --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.archive.gz --db jobcenter
 ```
 
 ## Restore с очисткой коллекций
 
 ```bash
-bash tools/mongo_restore.sh --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.archive.gz --db jobcenter --drop
+bash tools/mongo_restore.sh --env-file .env --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.archive.gz --db jobcenter --drop
 ```
 
 `--drop` удаляет существующие коллекции перед восстановлением документов.
@@ -42,11 +42,12 @@ bash tools/mongo_restore.sh --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.a
 ## Restore всех БД из архива
 
 ```bash
-bash tools/mongo_restore.sh --archive backups/mongo_all_YYYYMMDDTHHMMSSZ.archive.gz --all-databases
+bash tools/mongo_restore.sh --env-file .env --archive backups/mongo_all_YYYYMMDDTHHMMSSZ.archive.gz --all-databases
 ```
 
 ## Важные параметры
 
+- `--env-file` (default: `.env` в корне репозитория)
 - `--compose-file` (default: `docker/docker-compose.yml`)
 - `--service` (default: `mongo`)
 - `--username` (default: `${MONGO_INITDB_ROOT_USERNAME:-root}`)
@@ -61,7 +62,7 @@ bash tools/mongo_restore.sh --archive backups/mongo_all_YYYYMMDDTHHMMSSZ.archive
 Убедись, что контейнер `mongo` запущен:
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d mongo
+docker compose --env-file .env -f docker/docker-compose.yml up -d mongo
 ```
 
 ## Ограничения
