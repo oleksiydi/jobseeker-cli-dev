@@ -1,7 +1,12 @@
 import json
 from datetime import datetime, timezone
 
-from tools import backfill_is_active_flag, import_analysis_prompts, import_profiles
+from tools import (
+    backfill_is_active_flag,
+    import_analysis_prompts,
+    import_profiles,
+    migrate_analysen_profile_scoped_index,
+)
 
 
 def test_profile_normalize_adds_default_key_and_hash():
@@ -76,3 +81,29 @@ def test_prompt_load_docs_accepts_object(tmp_path):
 
 def test_backfill_is_active_legacy_filter_targets_missing_flag():
     assert backfill_is_active_flag._legacy_active_filter() == {"is_active": {"$exists": False}}
+
+
+def test_migrate_analysen_find_legacy_unique_index():
+    indexes = [
+        {"name": "_id_", "key": {"_id": 1}},
+        {"name": "legacy_idx", "key": {"referenznummer": 1, "input_hash": 1}, "unique": True},
+    ]
+    found = migrate_analysen_profile_scoped_index._find_unique_index_name(
+        indexes, migrate_analysen_profile_scoped_index.LEGACY_UNIQUE_KEYS
+    )
+    assert found == "legacy_idx"
+
+
+def test_migrate_analysen_find_target_unique_index():
+    indexes = [
+        {"name": "_id_", "key": {"_id": 1}},
+        {
+            "name": "target_idx",
+            "key": {"referenznummer": 1, "candidate_profile_key": 1, "input_hash": 1},
+            "unique": True,
+        },
+    ]
+    found = migrate_analysen_profile_scoped_index._find_unique_index_name(
+        indexes, migrate_analysen_profile_scoped_index.TARGET_UNIQUE_KEYS
+    )
+    assert found == "target_idx"
