@@ -31,6 +31,7 @@ Contents:
 - `docs/architecture/23-retrieval-rerank-runtime-flow.md`: runtime flow of implemented `app/search_jobs.py` (`query/profile -> Qdrant -> aggregate -> score -> rerank -> top_chunks`).
 - `docs/architecture/24-cache-llm-handoff-explained-ru.md`: Russian practical explanation of significant input/version changes, selection cache invalidation, long/short vacancy handoff payload, chunk-group impact, and current baseline rerank formula.
 - `docs/architecture/25-cache-index-invalidation-overview-ru.md`: Russian end-to-end map of project cache/index contours, invalidation triggers by domain, and target retrieval cache key lifecycle.
+- `docs/architecture/26-matching-runtime-presets-ru.md`: practical presets (`speed` / `balanced` / `quality`) for matching runtime with usage steps and expected speed/quality tradeoffs.
 
 Rules:
 

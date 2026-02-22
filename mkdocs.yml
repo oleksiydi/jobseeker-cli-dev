@@ -66,6 +66,7 @@ nav:
       - 23 Retrieval + Rerank Runtime Flow: architecture/23-retrieval-rerank-runtime-flow.md
       - 24 Cache + LLM Handoff Explained: architecture/24-cache-llm-handoff-explained-ru.md
       - 25 Cache/Index Invalidation Overview: architecture/25-cache-index-invalidation-overview-ru.md
+      - 26 Matching Runtime Presets: architecture/26-matching-runtime-presets-ru.md
   - Smoke Tests:
       - 01 List Collector Retry + Scope: smoke/01-list-collector-retry-and-scope.md
       - 02 Details Collector Prefilter + Backoff: smoke/02-details-collector-prefilter-backoff-write-isolation.md
