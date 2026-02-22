@@ -7,6 +7,8 @@ from app.build_job_index import (
     _build_point_id,
     _build_qdrant_points,
     _compute_embedding_input_hash,
+    _is_env_true,
+    _resolve_collection_create_policy,
     _split_text_to_sentences,
     _warn_once,
 )
@@ -360,3 +362,24 @@ def test_build_qdrant_points_builds_payload_and_vector() -> None:
     assert points[0]["payload"]["referenznummer"] == "R-1"
     assert points[0]["payload"]["section_label"] == "requirements"
     assert points[0]["vector"] == [0.1, 0.2, 0.3]
+
+
+def test_is_env_true_parses_boolean_values(monkeypatch) -> None:
+    monkeypatch.setenv("AUTO_FULL_REINDEX_ON_COLLECTION_CREATE", "true")
+    assert _is_env_true("AUTO_FULL_REINDEX_ON_COLLECTION_CREATE") is True
+    monkeypatch.setenv("AUTO_FULL_REINDEX_ON_COLLECTION_CREATE", "0")
+    assert _is_env_true("AUTO_FULL_REINDEX_ON_COLLECTION_CREATE") is False
+
+
+def test_resolve_collection_create_policy_refuses_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("AUTO_FULL_REINDEX_ON_COLLECTION_CREATE", raising=False)
+    force_full_reindex, should_exit = _resolve_collection_create_policy("created")
+    assert force_full_reindex is False
+    assert should_exit is True
+
+
+def test_resolve_collection_create_policy_forces_reindex_when_enabled(monkeypatch) -> None:
+    monkeypatch.setenv("AUTO_FULL_REINDEX_ON_COLLECTION_CREATE", "true")
+    force_full_reindex, should_exit = _resolve_collection_create_policy("created")
+    assert force_full_reindex is True
+    assert should_exit is False

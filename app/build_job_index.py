@@ -674,6 +674,39 @@ def _now_utc() -> datetime:
     return datetime.now(UTC)
 
 
+def _is_env_true(env_name: str, default: bool = False) -> bool:
+    raw = os.getenv(env_name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_collection_create_policy(ensure_result: str) -> tuple[bool, bool]:
+    """
+    Вернуть политику после ensure_collection.
+
+    Возвращает:
+    - force_full_reindex: нужно ли принудительно reindex для всех кандидатов в этом запуске;
+    - should_exit: нужно ли завершить запуск с кодом 1.
+    """
+    if ensure_result != "created":
+        return False, False
+
+    auto_reindex = _is_env_true("AUTO_FULL_REINDEX_ON_COLLECTION_CREATE", default=False)
+    if auto_reindex:
+        log.warning(
+            "Qdrant collection was recreated; AUTO_FULL_REINDEX_ON_COLLECTION_CREATE=true, forcing full reindex in this run."
+        )
+        return True, False
+
+    log.error(
+        "Qdrant collection was recreated. Refusing to continue to avoid false skips from stale matching_index_state. "
+        "Rerun with AUTO_FULL_REINDEX_ON_COLLECTION_CREATE=true for forced full reindex "
+        "(optionally with MATCHING_BUILD_MAX_DOCS for smoke)."
+    )
+    return False, True
+
+
 def _build_point_id(referenznummer: str, chunk_id: str, embedding_input_hash: str) -> int:
     """
     Детерминированный uint64 id для Qdrant point.
@@ -760,6 +793,9 @@ def main() -> int:
         qdrant_settings.collection_name,
         qdrant_settings.url,
     )
+    force_full_reindex, should_exit = _resolve_collection_create_policy(ensure_result)
+    if should_exit:
+        return 1
 
     versions = _build_index_versions(matching_cfg)
     engine = MatchingRuleEngine(cfg)
@@ -821,6 +857,8 @@ def main() -> int:
         new_hash = _compute_embedding_input_hash(hash_payload)
         state_doc = col_state.find_one({"referenznummer": ref})
         change_flags = _build_change_flags(state_doc, new_hash=new_hash, versions=versions)
+        if force_full_reindex:
+            change_flags["not_indexed_yet"] = True
 
         decision = engine.evaluate_vacancy(
             vacancy,
