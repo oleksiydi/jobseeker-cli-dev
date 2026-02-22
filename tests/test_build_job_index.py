@@ -1,6 +1,7 @@
 import app.build_job_index as build_job_index_module
 from app.build_job_index import (
     IndexVersions,
+    _active_vacancy_filter,
     _build_change_flags,
     _build_chunk_records,
     _build_chunk_records_with_runtime,
@@ -383,3 +384,7 @@ def test_resolve_collection_create_policy_forces_reindex_when_enabled(monkeypatc
     force_full_reindex, should_exit = _resolve_collection_create_policy("created")
     assert force_full_reindex is True
     assert should_exit is False
+
+
+def test_active_vacancy_filter_is_compatible() -> None:
+    assert _active_vacancy_filter() == {"is_active": {"$ne": False}}

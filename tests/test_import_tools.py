@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from tools import import_analysis_prompts, import_profiles
+from tools import backfill_is_active_flag, import_analysis_prompts, import_profiles
 
 
 def test_profile_normalize_adds_default_key_and_hash():
@@ -72,3 +72,7 @@ def test_prompt_load_docs_accepts_object(tmp_path):
     assert isinstance(docs, list)
     assert len(docs) == 1
     assert docs[0]["key"] == "default"
+
+
+def test_backfill_is_active_legacy_filter_targets_missing_flag():
+    assert backfill_is_active_flag._legacy_active_filter() == {"is_active": {"$exists": False}}

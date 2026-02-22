@@ -707,6 +707,17 @@ def _resolve_collection_create_policy(ensure_result: str) -> tuple[bool, bool]:
     return False, True
 
 
+def _active_vacancy_filter() -> dict[str, Any]:
+    """
+    Совместимый фильтр активности для переходного периода.
+
+    Почему так:
+    - старые документы могли быть записаны без поля `is_active`;
+    - по текущему контракту такие документы считаются активными.
+    """
+    return {"is_active": {"$ne": False}}
+
+
 def _build_point_id(referenznummer: str, chunk_id: str, embedding_input_hash: str) -> int:
     """
     Детерминированный uint64 id для Qdrant point.
@@ -833,7 +844,7 @@ def main() -> int:
     token_aware_applied_count = 0
     fallback_reason_counts: dict[str, int] = {}
 
-    cursor = col_list.find({"is_active": True})
+    cursor = col_list.find(_active_vacancy_filter())
     if max_docs is not None:
         cursor = cursor.limit(max_docs)
     for meta in cursor:
