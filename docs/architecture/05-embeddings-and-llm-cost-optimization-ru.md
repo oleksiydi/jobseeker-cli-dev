@@ -17,6 +17,7 @@
 - забирает список вакансий (meta) из внешнего API;
 - делает идемпотентный upsert в `stellenangebote`;
 - пишет события в `stellenangebote_history` (`list_seen`, `content_change`, `list_missing`, `list_restored`).
+- Важно: массовая деактивация `list_missing` выполняется только после полного прохода и только если hash scope запроса (`api_url + params`) не изменился относительно предыдущего запуска.
 
 2. `app/job_details_collector.py`
 - берет только активные вакансии из `stellenangebote`;
@@ -28,7 +29,7 @@
 - объединяет актуальные `meta + details`;
 - добавляет профиль кандидата из `profiles` и prompt из `analysis_prompts`;
 - считает `input_hash` по входу анализа (`meta + details + profile + prompt + model`);
-- если такой `input_hash` уже есть в `analysen` для пары `(referenznummer, candidate_profile_key)`, повторный LLM-вызов пропускается;
+- если такой `input_hash` уже есть в `analysen` для `referenznummer`, повторный LLM-вызов пропускается (в текущей реализации без отдельного scope по профилю);
 - при изменении входа создает новую версию в `analysen` в рамках того же профиля кандидата.
 
 Итог: в проекте уже реализована сильная база для экономии запросов (идемпотентность + hash-based skip на этапе анализа).

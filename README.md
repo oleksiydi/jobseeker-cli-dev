@@ -184,8 +184,7 @@ MATCHING_SKIP_EMBEDDINGS=true MATCHING_BUILD_MAX_DOCS=200 .venv/bin/python -m ap
 
 Hinweis zur Qdrant-Anbindung:
 - primär wird der offizielle Python-SDK `qdrant-client` verwendet (industry standard);
-- falls die Abhängigkeit im lokalen/offline-Umfeld nicht installiert ist,
-  nutzt der Adapter automatisch einen REST-Fallback über `requests`.
+- wenn `qdrant-client` nicht installiert ist, stoppt der Index-Job mit klarer Fehlermeldung.
 
 Hinweis zu semantic chunking:
 - Semantic chunking ist im Indexer aktiv.
@@ -225,3 +224,7 @@ Baseline retrieval + rerank (JSON-Ausgabe für Top-Kandidaten):
 - Logik:
 - `present_in_run`: Nummer war im letzten list-run vorhanden.
 - `missing_in_run`: Nummer war im list-run nicht vorhanden (typischer Fall für einen Teil der `404` in Details).
+
+Hinweis zur Aktivitätslogik:
+- `is_active` ist scope-basiert (abhängig von `jobcenter.list_api.api_url + params`).
+- Wenn sich der List-Scope zwischen zwei Runs ändert, überspringt `job_list_collector` absichtlich die Massen-Deaktivierung `list_missing`, um falsche `inactive`-Markierungen zu vermeiden.
