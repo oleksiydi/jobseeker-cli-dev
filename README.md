@@ -35,6 +35,26 @@ Lokaler Docs-Check wie in CI:
 mkdocs build --strict
 ```
 
+## Docker Services
+
+Basis-Stack (nur Runtime: `mongo`, `mongo-express`, `qdrant`):
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Analytik-Stack zusätzlich (`nosqlclient`, `metabase`):
+
+```bash
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.analytics.yml up -d
+```
+
+Остановить и удалить контейнеры обоих контуров (без удаления данных):
+
+```bash
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.analytics.yml down
+```
+
 ## Erster Start (obligatorisch)
 
 Vor dem Start der Pipelines müssen einmalig folgende Daten nach MongoDB geladen werden:
