@@ -27,9 +27,9 @@ Last verified: `2026-02-22`
 - scope не изменился относительно предыдущего run (`query_hash` совпал).
 
 3. Поведение downstream:
-- `job_details_collector` читает `{"is_active": {"$ne": False}}`.
-- `analyze_jobs` читает `{"is_active": {"$ne": False}}`.
-- `build_job_index` читает `{"is_active": {"$ne": False}}`.
+- `job_details_collector` читает `{"is_active": True}`.
+- `analyze_jobs` читает `{"is_active": True}`.
+- `build_job_index` читает `{"is_active": True}`.
 
 ## Контракт по retry/устойчивости
 
@@ -66,8 +66,8 @@ Last verified: `2026-02-22`
 - `tools/backfill_is_active_flag.py`
 - цель: явно проставить `is_active=True` документам без поля.
 
-## Следующий технический фикс (рекомендуемый)
+## Следующий технический фокус
 
-Выравнивание фильтра активности между пайплайнами:
-- текущий этап: совместимый контракт (`is_active != False`) уже применен во всех пайплайнах;
-- следующий этап после миграции legacy-документов: переход на строгий контракт (`is_active == True`).
+Поддерживать строгий контракт активности в новых изменениях:
+- новые пайплайны/агрегации должны использовать `{"is_active": True}`;
+- one-off миграцию legacy-данных (`tools/backfill_is_active_flag.py`) держать как операционный инструмент для отдельных восстановлений.
