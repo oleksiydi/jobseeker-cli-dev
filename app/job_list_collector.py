@@ -47,6 +47,10 @@ def _history_collection_name(cfg: dict[str, Any]) -> str:
     return cfg.get("history_collections", {}).get("list", "stellenangebote_history")
 
 
+def _state_collection_name(cfg: dict[str, Any]) -> str:
+    return cfg.get("state_collections", {}).get("list", "pipeline_state")
+
+
 def _list_seen_ttl_days(cfg: dict[str, Any]) -> int:
     env_value = os.getenv("STELLENANGEBOTE_LIST_SEEN_TTL_DAYS")
     if env_value is not None:
@@ -64,10 +68,20 @@ def _list_seen_ttl_days(cfg: dict[str, Any]) -> int:
     return 540
 
 
+def _compute_scope_hash(api_url: str, params: dict[str, Any]) -> str:
+    payload = {
+        "api_url": api_url,
+        "params": params,
+    }
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _ensure_indexes(
     db: Database,
     list_collection_name: str,
     history_collection_name: str,
+    state_collection_name: str,
     list_seen_ttl_days: int,
 ) -> None:
     """Erstellt Indizes für aktuelle und historische Listendokumente."""
@@ -98,6 +112,9 @@ def _ensure_indexes(
     except OperationFailure:
         # Der Index kann in älteren Umgebungen bereits mit anderen Parametern existieren.
         pass
+
+    state = db[state_collection_name]
+    state.create_index([("key", ASCENDING)], unique=True)
 
 def _normalize_referenznummer(item: dict) -> str | None:
     """Normalisiert die Referenznummer im Feld 'referenznummer' und gibt sie zurück (oder None)."""
@@ -224,15 +241,28 @@ def main() -> None:
         default="stellenangebote",
     )
     history_collection_name = _history_collection_name(cfg)
+    state_collection_name = _state_collection_name(cfg)
     list_seen_ttl_days = _list_seen_ttl_days(cfg)
-    _ensure_indexes(db, list_collection_name, history_collection_name, list_seen_ttl_days)
+    _ensure_indexes(
+        db,
+        list_collection_name,
+        history_collection_name,
+        state_collection_name,
+        list_seen_ttl_days,
+    )
     col: Collection = db[list_collection_name]
     col_history: Collection = db[history_collection_name]
+    col_state: Collection = db[state_collection_name]
     run_id = f"list-{utcnow_naive().strftime('%Y%m%dT%H%M%S')}-{uuid4().hex[:8]}"
+    query_hash = _compute_scope_hash(api_url=api_url, params=base_params)
+    previous_scope = col_state.find_one({"key": "job_list_collector_query_scope"})
+    previous_query_hash = previous_scope.get("query_hash") if previous_scope else None
+    scope_changed = bool(previous_query_hash and previous_query_hash != query_hash)
     log.info(
-        "Start list_collector: run_id=%s, list_seen_ttl_days=%s",
+        "Start list_collector: run_id=%s, list_seen_ttl_days=%s, scope_changed=%s",
         run_id,
         list_seen_ttl_days,
+        scope_changed,
     )
 
     session = requests.Session()  # HTTP-Session (Connection-Reuse)
@@ -403,7 +433,7 @@ def main() -> None:
         made += 1  # Request-Zähler erhöhen
         time.sleep(random.uniform(0.5, 5)) # Kurze Pause gegen mögliches Throttling
 
-    if completed_full_scan:
+    if completed_full_scan and not scope_changed:
         missing_filter: dict[str, Any] = {"is_active": {"$ne": False}}
         if seen_refs_in_run:
             missing_filter["referenznummer"] = {"$nin": sorted(seen_refs_in_run)}
@@ -448,11 +478,33 @@ def main() -> None:
                         col_history.insert_many(missing_history_docs, ordered=False)
                 except Exception as e:
                     log.warning("run_id=%s: Fehler bei Deaktivierung fehlender Stellen: %s", run_id, e)
+    elif completed_full_scan and scope_changed:
+        log.warning(
+            "run_id=%s: list query scope changed since previous run, missing-mark is skipped to avoid false inactive",
+            run_id,
+        )
     else:
         log.warning(
             "run_id=%s ohne vollständigen Seitenlauf beendet, Deaktivierung fehlender Stellen wird übersprungen",
             run_id,
         )
+
+    col_state.update_one(
+        {"key": "job_list_collector_query_scope"},
+        {
+            "$set": {
+                "key": "job_list_collector_query_scope",
+                "query_hash": query_hash,
+                "api_url": api_url,
+                "params": base_params,
+                "last_run_id": run_id,
+                "last_completed_full_scan": completed_full_scan,
+                "scope_changed": scope_changed,
+                "updated_at": utcnow_naive(),
+            }
+        },
+        upsert=True,
+    )
 
     log.info(
         "Fertig. run_id=%s, seen=%s, inserted=%s, updated=%s, skipped=%s, archived=%s, restored=%s, marked_missing=%s",
