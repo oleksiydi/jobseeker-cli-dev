@@ -219,7 +219,7 @@ def test_verify_candidates_continues_after_single_mongo_write_error():
         patch.object(job_details_collector.time, "sleep", return_value=None),
         patch.object(job_details_collector.random, "uniform", return_value=0.0),
     ):
-        processed = job_details_collector._verify_and_apply_candidates(
+        inserted, updated = job_details_collector._verify_and_apply_candidates(
             session=session,
             candidates=candidates,
             det_col=det_col,
@@ -230,5 +230,6 @@ def test_verify_candidates_continues_after_single_mongo_write_error():
             log=log,
         )
 
-    assert processed == 1
+    assert inserted == 1
+    assert updated == 0
     assert [doc["referenznummer"] for doc in det_col.inserted] == ["good-ref"]

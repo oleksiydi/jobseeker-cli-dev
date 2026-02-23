@@ -237,8 +237,9 @@ def _verify_and_apply_candidates(
     headers: dict[str, Any],
     url_tpl: str,
     log: Any,
-) -> int:
-    processed = 0
+) -> tuple[int, int]:
+    inserted = 0
+    updated = 0
     for candidate in candidates:
         ref = candidate["referenznummer"]
         sa_raw = candidate["list_modifikations_timestamp"]
@@ -345,7 +346,7 @@ def _verify_and_apply_candidates(
                     {"_id": current["_id"], "details_hash": {"$ne": new_hash}},
                     _build_diff_update(current, business_payload, new_hash, now),
                 )
-                processed += 1
+                updated += 1
                 log.info(f"{ref}: aktualisiert (vorheriger Zustand in {history_collection_name} archiviert)")
             else:
                 now = utcnow_naive()
@@ -359,13 +360,13 @@ def _verify_and_apply_candidates(
                 business_payload["created_at"] = now
                 business_payload["updated_at"] = now
                 det_col.insert_one(business_payload)
-                processed += 1
+                inserted += 1
                 log.info(f"{ref}: eingefügt")
         except Exception as exc:
             log.warning(f"{ref}: Mongo write error, candidate skipped: {exc}")
             continue
 
-    return processed
+    return inserted, updated
 
 
 # ---------- Hauptlogik ----------
@@ -398,7 +399,8 @@ def main():  # Hauptfunktion, die den Ablauf steuert
     )
     prefilter_batch_size = _prefilter_batch_size()
     session = requests.Session()
-    processed = 0
+    inserted_total = 0
+    updated_total = 0
     skipped_missing_list_dt = 0
     skipped_guaranteed = 0
     verify_candidates_total = 0
@@ -425,7 +427,7 @@ def main():  # Hauptfunktion, die den Ablauf steuert
         candidates, skipped = _build_verify_candidates(det_col, batch, log)
         skipped_guaranteed += skipped
         verify_candidates_total += len(candidates)
-        processed += _verify_and_apply_candidates(
+        inserted, updated = _verify_and_apply_candidates(
             session=session,
             candidates=candidates,
             det_col=det_col,
@@ -435,13 +437,15 @@ def main():  # Hauptfunktion, die den Ablauf steuert
             url_tpl=url_tpl,
             log=log,
         )
+        inserted_total += inserted
+        updated_total += updated
         batch = []
 
     if batch:
         candidates, skipped = _build_verify_candidates(det_col, batch, log)
         skipped_guaranteed += skipped
         verify_candidates_total += len(candidates)
-        processed += _verify_and_apply_candidates(
+        inserted, updated = _verify_and_apply_candidates(
             session=session,
             candidates=candidates,
             det_col=det_col,
@@ -451,14 +455,18 @@ def main():  # Hauptfunktion, die den Ablauf steuert
             url_tpl=url_tpl,
             log=log,
         )
+        inserted_total += inserted
+        updated_total += updated
 
     close_fn = getattr(session, "close", None)
     if callable(close_fn):
         close_fn()
 
     log.info(
-        "Fertig. Aktualisiert/eingefügt: %s, skipped_guaranteed=%s, skipped_missing_list_dt=%s, verify_candidates=%s",
-        processed,
+        "Fertig. Eingefügt: %s, aktualisiert: %s, gesamt_verarbeitet=%s, skipped_guaranteed=%s, skipped_missing_list_dt=%s, verify_candidates=%s",
+        inserted_total,
+        updated_total,
+        inserted_total + updated_total,
         skipped_guaranteed,
         skipped_missing_list_dt,
         verify_candidates_total,
