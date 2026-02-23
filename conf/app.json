@@ -21,8 +21,8 @@
       "api_url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs",
       "api_key": "jobboerse-jobsuche",
       "params": {
-        "wo": "Regensburg",
-        "umkreis": 10,
+        "wo": "Plattling",
+        "umkreis": 0,
         "size": "200",
         "pav": false,
         "facetten": false
@@ -70,19 +70,19 @@
       "semantic_similarity_threshold": 0.72,
       "semantic_sentence_window": 2,
       "semantic_min_sentences": 2,
-      "semantic_max_sentences": 14,
+      "semantic_max_sentences": 8,
       "hard_max_chunk_chars": 2200,
-      "hard_min_chunk_chars": 300,
+      "hard_min_chunk_chars": 200,
       "fallback_overlap_chars": 120,
       "token_aware_enabled": true,
       "token_splitter": "transformers",
-      "tokenizer_model_name": "intfloat/multilingual-e5-large",
-      "max_tokens_per_chunk": 320,
-      "overlap_tokens": 48
+      "tokenizer_model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "max_tokens_per_chunk": 260,
+      "overlap_tokens": 40
     },
     "embeddings": {
-      "model_name": "intfloat/multilingual-e5-large",
-      "vector_size": 1024
+      "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "vector_size": 384
     },
     "retrieval": {
       "top_k": 100
