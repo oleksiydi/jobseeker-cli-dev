@@ -251,8 +251,9 @@ Current implementation notes:
 5. Qdrant REST bootstrap is implemented in:
 - `app/vector/qdrant_client.py`
 - `app/bootstrap_qdrant.py`
-6. Pending explicit infra step:
-- add `qdrant` service in `docker/docker-compose.yml` (currently not present).
+6. Infra step status:
+- `qdrant` service is already present in `docker/docker-compose.yml`;
+- keep bootstrap/healthcheck as mandatory pre-run checks.
 
 ### Phase 2: Index Builder (Nightly, Incremental)
 

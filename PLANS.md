@@ -1309,3 +1309,89 @@
 - Реализация guardrail/presets/benchmark еще не начата.
 - Следующие действия:
 - Вернуться к плану после закрытия активного pipeline-этапа.
+
+### [PLAN-20260223-02] High priority после базовых этапов: semantic retrieval `query vs title/role`
+
+Контекст:
+- Приоритет: HIGH (старт только после полного закрытия базовых этапов текущего pipeline).
+- Цель: добавить семантический сигнал роли на эмбеддингах, чтобы снизить role-mismatch в top-выдаче.
+- Минимальный scope: отдельный semantic score по двум направлениям:
+- `query vs title`
+- `query vs role`
+- Фиксированная целевая схема для model-based rerank:
+- `fit_score` (profile context vs vacancy) считается отдельно от `intent_score` (query/constraints vs vacancy);
+- обязательные ограничения (`remote`, `shift`, и т.п.) применяются как hard-filter до финального rerank;
+- итоговый score формируется как взвешенная комбинация `fit_score` и `intent_score`.
+
+Область изменений:
+- Файлы/модули:
+- `app/matching/search.py` (новый компонент semantic role score и интеграция в `compute_scores`).
+- `app/build_job_index.py` и/или `matching_index_state` (если выбран precompute role/title embeddings).
+- `app/core/matching_config.py` и `conf/app.json` (веса/флаги для semantic role scoring).
+- `tests/test_search_jobs.py` и `tests/test_build_job_index.py` (покрытие нового поведения).
+- Документация:
+- `docs/architecture/*` (обновление runtime flow и scoring модели).
+
+Шаги:
+0. Зафиксировать контракт входного запроса и scoring-схему.
+Критерий готовности:
+- определена структура запроса: `target_role`, `must_have`, `nice_to_have`, `constraints`, `filters`;
+- формально закреплена схема:
+- `fit_score = f(profile_context, vacancy_text)`
+- `intent_score = g(query_context, vacancy_text)`
+- `final_score = alpha * fit_score + beta * intent_score`;
+- для обязательных `constraints` включен pre-rerank hard-filter.
+Риски: смешение роли кандидата и временного пользовательского намерения в одном score.
+Откат: временно оставить только `fit_score` + penalty/gate по constraints.
+
+1. Зафиксировать режим вычисления semantic role score.
+Критерий готовности:
+- выбран и зафиксирован один подход:
+- A) online inference в runtime на top-N;
+- B) precompute embeddings для `title/role` с хранением и повторным использованием.
+Риски: деградация latency при online-варианте.
+Откат: временно отключить semantic role флагом.
+
+2. Добавить `semantic_role_score` в расчет.
+Критерий готовности:
+- в scoring учитываются `cosine(query,title)` и `cosine(query,role)` (max или weighted mix);
+- вес semantic role управляется конфигом.
+Риски: переусиление роли может занизить recall.
+Откат: уменьшить вес до 0 и вернуться к текущему baseline.
+
+3. Ввести gate/penalty на role mismatch с учетом semantic сигнала.
+Критерий готовности:
+- вакансии с низким lexical+semantic role score получают строгий penalty или отсекаются до финального `limit`.
+Риски: возможные false negative на редких формулировках ролей.
+Откат: оставить только penalty без hard-gate.
+
+4. Провести до/после benchmark на фиксированном наборе запросов.
+Критерий готовности:
+- зафиксированы метрики latency и качество top-20;
+- доля явного role-mismatch в top-20 снижена.
+Риски: шумная оценка без замороженного датасета.
+Откат: повторный прогон на одном snapshot.
+
+Проверки:
+- Команды:
+- `bash tools/run_matching_metrics.sh --env-file .env --queries-file conf/bench/queries.txt --profile-key default --search-limit 20`
+- `.venv/bin/pytest -q`
+- Что должно получиться:
+- итоговый top ранжируется по формуле `alpha*fit + beta*intent`, а не по одному смешанному сигналу;
+- обязательные constraints отсекают вакансии до model-rerank;
+- semantic role сигнал участвует в ранжировании;
+- нерелевантные роли реже попадают в финальный top;
+- рост latency остается в допустимом диапазоне.
+
+Статус:
+- [x] Запланировано
+- [ ] В работе
+- [ ] Завершено
+
+Итог:
+- Что сделано:
+- План добавлен и помечен как HIGH приоритет после закрытия базовых этапов.
+- Что не сделано:
+- Реализация semantic role retrieval не начата.
+- Следующие действия:
+- Запустить этот план сразу после формального закрытия текущих базовых этапов pipeline.

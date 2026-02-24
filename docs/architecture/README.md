@@ -32,6 +32,17 @@ Contents:
 - `docs/architecture/24-cache-llm-handoff-explained-ru.md`: Russian practical explanation of significant input/version changes, selection cache invalidation, long/short vacancy handoff payload, chunk-group impact, and current baseline rerank formula.
 - `docs/architecture/25-cache-index-invalidation-overview-ru.md`: Russian end-to-end map of project cache/index contours, invalidation triggers by domain, and target retrieval cache key lifecycle.
 - `docs/architecture/26-matching-runtime-presets-ru.md`: practical presets (`speed` / `balanced` / `quality`) for matching runtime with usage steps and expected speed/quality tradeoffs.
+- `docs/architecture/27-matching-embedding-and-ranking-flow-ru.md`: current implemented flow of embedding/indexing/search with practical examples from real runs.
+- `docs/architecture/28-reranker-bge-v2-m3-explained-ru.md`: practical explanation of reranker model role, inputs, limits, and expected gains.
+- `docs/architecture/29-inference-layer-in-search-ru.md`: what inference layer means in search and how model-rerank integration should be wired.
+- `docs/architecture/30-embeddings-and-cosine-distance-ru.md`: embeddings and cosine similarity/distance explained with formulas and terminology.
+- `docs/architecture/31-current-status-text-template-latency-ru.md`: current gap analysis on model-rerank text template, runtime cost, and latency trade-offs.
+- `docs/architecture/32-semantic-chunking-embedding-rerank-math-ru.md`: detailed math and algorithm of current semantic chunking + labeling + target rerank evolution.
+
+Architecture decision history:
+- `docs/architecture/adr/README.md`
+- `docs/architecture/adr/ADR-TEMPLATE.md`
+- `docs/architecture/adr/ADR-20260224-01-model-rerank-fit-intent-split.md`
 
 Rules:
 
