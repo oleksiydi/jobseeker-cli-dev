@@ -18,6 +18,24 @@ Für Entwicklerdokumentation mit visuellen Schemata:
 - `docs/architecture/02-pipelines-sequence.md`
 - `docs/architecture/03-job-details-decision-and-state.md`
 - `docs/architecture/04-maintenance-playbook.md`
+- `docs/architecture/27-matching-embedding-and-ranking-flow-ru.md`
+- `docs/architecture/28-reranker-bge-v2-m3-explained-ru.md`
+- `docs/architecture/29-inference-layer-in-search-ru.md`
+- `docs/architecture/30-embeddings-and-cosine-distance-ru.md`
+- `docs/architecture/31-current-status-text-template-latency-ru.md`
+- `docs/architecture/32-semantic-chunking-embedding-rerank-math-ru.md`
+- `docs/architecture/adr/README.md`
+
+## Prozess und Entscheidungslog
+
+- Operative Regeln für Assistenz-/Engineering-Workflow:
+  - `docs/process/assistant-operating-rules.md`
+- DoD-Checkliste für Architekturänderungen:
+  - `docs/process/architecture-change-checklist.md`
+- ADR-Vorlage und Entscheidungsverlauf:
+  - `docs/architecture/adr/ADR-TEMPLATE.md`
+  - `docs/architecture/adr/README.md`
+  - `docs/architecture/adr/ADR-20260224-01-model-rerank-fit-intent-split.md`
 
 Alle Diagramme sind in Mermaid in Markdown gehalten und direkt in VS Code (Markdown Preview) lesbar.
 
