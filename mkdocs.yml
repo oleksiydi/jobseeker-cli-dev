@@ -67,6 +67,16 @@ nav:
       - 24 Cache + LLM Handoff Explained: architecture/24-cache-llm-handoff-explained-ru.md
       - 25 Cache/Index Invalidation Overview: architecture/25-cache-index-invalidation-overview-ru.md
       - 26 Matching Runtime Presets: architecture/26-matching-runtime-presets-ru.md
+      - 27 Matching Embedding + Ranking Flow (RU): architecture/27-matching-embedding-and-ranking-flow-ru.md
+      - 28 BGE Reranker Explained (RU): architecture/28-reranker-bge-v2-m3-explained-ru.md
+      - 29 Inference Layer in Search (RU): architecture/29-inference-layer-in-search-ru.md
+      - 30 Embeddings and Cosine Distance (RU): architecture/30-embeddings-and-cosine-distance-ru.md
+      - 31 Current Status - Template and Latency (RU): architecture/31-current-status-text-template-latency-ru.md
+      - 32 Semantic Chunking + Embedding + Rerank Math (RU): architecture/32-semantic-chunking-embedding-rerank-math-ru.md
+      - ADR:
+          - ADR Overview: architecture/adr/README.md
+          - ADR Template: architecture/adr/ADR-TEMPLATE.md
+          - ADR-20260224-01 Fit/Intent Split: architecture/adr/ADR-20260224-01-model-rerank-fit-intent-split.md
   - Smoke Tests:
       - 01 List Collector Retry + Scope: smoke/01-list-collector-retry-and-scope.md
       - 02 Details Collector Prefilter + Backoff: smoke/02-details-collector-prefilter-backoff-write-isolation.md
@@ -76,3 +86,13 @@ nav:
       - 06 Analyze Jobs Profile-Scoped: smoke/06-analyze-jobs-profile-scoped.md
   - Operations:
       - Mongo Backup / Restore: operations/mongo-backup-restore.md
+  - Process:
+      - Assistant Operating Rules: process/assistant-operating-rules.md
+      - Architecture Change Checklist: process/architecture-change-checklist.md
+  - Worklog:
+      - Worklog Overview: worklog/README.md
+      - 2026-02-19 Session Phase 1 Matching: worklog/2026-02-19-session-phase1-matching.md
+      - 2026-02-22 Jobcenter API Audit: worklog/2026-02-22-jobcenter-api-audit-high-priority.md
+      - 2026-02-23 Session Handoff Status (RU): worklog/2026-02-23-session-handoff-status-ru.md
+  - Learning:
+      - Rule Engine Line by Line (RU): learning/python/01_rule_engine_line_by_line_ru.md
