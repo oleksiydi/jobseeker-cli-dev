@@ -1,0 +1,34 @@
+# One query per line. Lines starting with # are ignored.
+# Use this file with:
+# bash tools/run_matching_metrics.sh --queries-file conf/bench/queries.txt --profile-key default --search-limit 20
+
+Python Backend Entwickler API FastAPI
+Data Engineer SQL ETL Airflow
+DevOps Engineer Docker Kubernetes CI CD
+Systemadministrator Windows Linux Netzwerk
+IT Support 1st 2nd Level Helpdesk
+Java Entwickler Spring Boot Microservices
+Frontend Entwickler React TypeScript
+Fullstack Entwickler Python React PostgreSQL
+QA Engineer Testautomatisierung Selenium Pytest
+Business Analyst IT Prozesse Anforderungsmanagement
+Machine Learning Engineer NLP Embeddings
+MLOps Engineer Modell Deployment Monitoring
+SAP Berater FI CO Customizing
+Cloud Engineer AWS Terraform
+Database Administrator PostgreSQL Performance Tuning
+Cybersecurity Analyst SOC SIEM Incident Response
+Produktmanager Software B2B SaaS
+Projektmanager IT agile Scrum
+Werkstudent Informatik Softwareentwicklung
+Remote Teilzeit Python Datenanalyse
+Elektriker Betriebstechnik Schaltschrankbau Wartung
+Elektroniker Energie und Gebäudetechnik Installation
+Elektroinstallateur Baustelle Verkabelung Inbetriebnahme
+Pflegefachkraft Altenpflege stationär Vollzeit
+Gesundheits und Krankenpfleger Nachtdienst Klinik
+Pflegehelfer ambulante Pflege Teilzeit
+Hotelfachkraft Rezeption Gästebetreuung Schichtdienst
+Hauskeeping Zimmerreinigung Hotel Frühschicht
+Servicekraft Restaurant Frühstücksservice Wochenende
+Koch Hotelküche à la carte

@@ -26,6 +26,7 @@ ENV/
 # Logs
 logs/
 *.log
+site/
 
 # OS/Editor
 .DS_Store
@@ -47,3 +48,4 @@ backups/
 
 # Local personal drafts
 playgrounds/mongodb/Oleksii Didyk Anschreiben.md
+temp.txt
