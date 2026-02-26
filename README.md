@@ -73,6 +73,60 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.analytics.y
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.analytics.yml down
 ```
 
+Lokale LLM (CPU-only, `llama.cpp` + GGUF-Modell) zusätzlich:
+
+1. GGUF-Datei auf Host ablegen:
+- Verzeichnis: `models/`
+- Dateiname laut `.env`: `LLAMA_CPP_MODEL_FILE` (Default: `Qwen3-8B-Q4_K_M.gguf`)
+
+Optional automatisiert per Script herunterladen:
+```bash
+bash tools/download_llm_models.sh --model qwen8
+```
+Weitere Optionen:
+```bash
+bash tools/download_llm_models.sh --model mistral7
+bash tools/download_llm_models.sh --model all
+```
+
+2. Service starten:
+```bash
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.llm.yml up -d llm
+```
+
+3. Healthcheck:
+```bash
+curl -s http://127.0.0.1:8081/health
+```
+
+Hinweise:
+- Modell-Dateien liegen auf dem Host in `models/` und sind per `.gitignore` ausgeschlossen.
+- Der LLM-Service ist nur lokal gebunden (`127.0.0.1`).
+
+Profile-Normalisierung (dry-run, noch ohne Produktionsintegration):
+```bash
+.venv/bin/python tools/extract_profile_from_text.py \
+  --input conf/profiles/test.profile.txt \
+  --dry-run \
+  --timeout-seconds 1200 \
+  --max-tokens 250
+```
+Hinweis:
+- Unbekannte Begriffe aus `skills/tools/stack` werden automatisch in
+  `logs/normalization/unknown_terms.jsonl` protokolliert (abschaltbar mit `--disable-unknown-terms-log`).
+
+Auto-Update der Taxonomie (Aliases + Kategorien) aus unbekannten Begriffen:
+```bash
+.venv/bin/python tools/update_taxonomy_from_unknown_terms.py \
+  --input logs/normalization/unknown_terms.jsonl \
+  --taxonomy conf/normalization/taxonomy.auto.json \
+  --processed-index logs/normalization/taxonomy_processed.json \
+  --pending-out logs/normalization/taxonomy_pending.jsonl
+```
+Hinweis:
+- `confidence >= 0.9` wird automatisch in die Taxonomie übernommen.
+- niedrigere confidence landet in `taxonomy_pending.jsonl` für spätere Prüfung.
+
 ## Erster Start (obligatorisch)
 
 Vor dem Start der Pipelines müssen einmalig folgende Daten nach MongoDB geladen werden:
