@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from app.llm.client import LLMChatRequest, chat_completion
+from app.llm.factory import resolve_provider_name
 
 RUNTIME_PROFILE_FIELDS = (
     "key",
@@ -364,7 +366,9 @@ def build_response_schema() -> dict[str, Any]:
 
 def request_profile_from_llm(
     *,
+    provider: str,
     base_url: str,
+    api_key: str | None,
     model: str,
     resume_text: str,
     profile_key: str,
@@ -375,12 +379,26 @@ def request_profile_from_llm(
     disable_thinking: bool,
     use_schema_constraint: bool,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    url = base_url.rstrip("/") + "/v1/chat/completions"
     payload = {
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "messages": [
+        "type": "json_object",
+        "schema": build_response_schema(),
+    }
+    if use_schema_constraint:
+        response_format = payload
+    else:
+        response_format = {"type": "json_object"}
+
+    request = LLMChatRequest(
+        provider=provider,
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        timeout_seconds=timeout_seconds,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        response_format=response_format,
+        chat_template_kwargs={"enable_thinking": False} if disable_thinking else None,
+        messages=[
             {"role": "system", "content": build_system_prompt(strict_mode=strict_prompt)},
             {
                 "role": "user",
@@ -391,37 +409,21 @@ def request_profile_from_llm(
                 ),
             },
         ],
-    }
-    if use_schema_constraint:
-        payload["response_format"] = {"type": "json_object", "schema": build_response_schema()}
-    else:
-        payload["response_format"] = {"type": "json_object"}
-    if disable_thinking:
-        payload["chat_template_kwargs"] = {"enable_thinking": False}
-    started_at = datetime.now(timezone.utc).isoformat()
-    t0 = time.perf_counter()
-    with requests.Session() as session:
-        response = session.post(url, json=payload, timeout=timeout_seconds)
-        response.raise_for_status()
-    elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 3)
-    response_json = response.json()
-    content = _extract_text_content(response_json)
-    parsed = _parse_json_from_llm_output(content)
+    )
+    response = chat_completion(request)
+    parsed = _parse_json_from_llm_output(response.content)
 
     call_meta: dict[str, Any] = {
-        "started_at": started_at,
-        "elapsed_ms": elapsed_ms,
-        "http_status": response.status_code,
-        "model": response_json.get("model", model),
-        "response_id": response_json.get("id", ""),
-        "finish_reason": "",
-        "usage": response_json.get("usage", {}),
-        "timings": response_json.get("timings", {}),
+        "started_at": response.started_at,
+        "elapsed_ms": response.elapsed_ms,
+        "http_status": 200,
+        "provider": response.provider,
+        "model": response.model,
+        "response_id": response.response_id,
+        "finish_reason": response.finish_reason,
+        "usage": response.usage,
+        "timings": response.timings,
     }
-    try:
-        call_meta["finish_reason"] = response_json["choices"][0]["finish_reason"]
-    except (KeyError, IndexError, TypeError):
-        call_meta["finish_reason"] = ""
     return parsed, call_meta
 
 
@@ -475,9 +477,19 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--profile-key", default="default", help="Profile key to write into output.")
     parser.add_argument(
+        "--provider",
+        default=os.getenv("LLM_PROVIDER", "llama_cpp"),
+        help="LLM provider: llama_cpp | openai.",
+    )
+    parser.add_argument(
         "--base-url",
-        default=os.getenv("LLM_BASE_URL", "http://127.0.0.1:8081"),
-        help="Local LLM base URL (OpenAI-compatible).",
+        default=None,
+        help="Optional LLM base URL override (provider-specific).",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Optional API key override for external provider.",
     )
     parser.add_argument(
         "--model",
@@ -572,6 +584,9 @@ def main() -> None:
         raise ValueError("--max-tokens must be > 0")
     if args.retry_on_empty < 0:
         raise ValueError("--retry-on-empty must be >= 0")
+    provider_name = resolve_provider_name(args.provider)
+    explicit_base_url = args.base_url if args.base_url else None
+    explicit_api_key = args.api_key if args.api_key else None
     _ensure_taxonomy_file(args.taxonomy_path)
     taxonomy = _load_taxonomy(args.taxonomy_path)
     retries_total = args.retry_on_empty
@@ -583,7 +598,9 @@ def main() -> None:
         strict_prompt = attempt > 0
         try:
             llm_raw_profile, call_meta = request_profile_from_llm(
-                base_url=args.base_url,
+                provider=provider_name,
+                base_url=explicit_base_url or "",
+                api_key=explicit_api_key,
                 model=args.model,
                 resume_text=raw_text,
                 profile_key=args.profile_key,
