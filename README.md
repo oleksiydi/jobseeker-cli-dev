@@ -114,6 +114,11 @@ Profile-Normalisierung (dry-run, noch ohne Produktionsintegration):
 Hinweis:
 - Unbekannte Begriffe aus `skills/tools/stack` werden automatisch in
   `logs/normalization/unknown_terms.jsonl` protokolliert (abschaltbar mit `--disable-unknown-terms-log`).
+- LLM-Provider ist umschaltbar:
+  - lokal: `LLM_PROVIDER=llama_cpp` (Default)
+  - extern: `LLM_PROVIDER=openai` (benötigt `OPENAI_API_KEY` und passendes `--model`)
+  - extern (aggregiert): `LLM_PROVIDER=openrouter` (benötigt `OPENROUTER_API_KEY` und passendes `--model`)
+- Optional können `--base-url` und `--api-key` pro Run explizit überschrieben werden.
 
 Auto-Update der Taxonomie (Aliases + Kategorien) aus unbekannten Begriffen:
 ```bash
