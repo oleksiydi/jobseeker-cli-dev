@@ -218,7 +218,7 @@
 ```
 
 ## 3. Резюме кандидата (raw txt)
-Путь: `conf/profiles/test.profile.txt`
+Путь: `conf/profiles/sample.resume.de.txt`
 ```text
 Oleksii Didyk (Alexej Didyk)
 Deutschland (Bayern, Regensburg) | Arbeitserlaubnis in Deutschland vorhanden
@@ -649,4 +649,3 @@ Universität Regensburg - Gaststudium & DSH-Vorbereitungskurs | 2001
   }
 }
 ```
-

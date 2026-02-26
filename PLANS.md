@@ -1395,3 +1395,98 @@
 - Реализация semantic role retrieval не начата.
 - Следующие действия:
 - Запустить этот план сразу после формального закрытия текущих базовых этапов pipeline.
+
+### [PLAN-20260225-01] Профили: нормализация резюме в единый JSON + цель ранжирования hire-fit/intention-fit
+
+Контекст:
+- Цель этапа: построить стабильный офлайн-пайплайн преобразования плохо структурированных резюме в единый профиль JSON, совместимый с текущим поиском.
+- Важное бизнес-целе-полагание (фиксируем как контракт): искать вакансии с максимальной вероятностью найма кандидата (`hire_fit`), при этом отдельно учитывать соответствие пожеланиям кандидата (`preference_fit`).
+- Значимость `preference_fit` должна управляться конфигом и допускать значение от `0.0` (полностью выключено) до `1.0`.
+- Ограничения:
+- не ломать текущий CLI/JSON контракт поиска;
+- использовать существующий стек (Python + requests + Docker + llama.cpp);
+- секреты не хранить в JSON/репозитории.
+
+Область изменений:
+- Файлы/модули:
+- `tools/extract_profile_from_text.py` (dry-run извлечение профиля из TXT через локальный LLM endpoint).
+- `tools/validate_profile_json.py` (валидация структуры и обязательных полей).
+- `app/core/matching_config.py` (новые веса: `MATCHING_WEIGHT_HIRE_FIT`, `MATCHING_WEIGHT_PREFERENCE_FIT` + границы).
+- `app/matching/search.py` и `app/search_jobs.py` (разделение score на `hire_fit`, `preference_fit`, `final_score`).
+- `conf/app.json` (дефолтные веса и флаги).
+- `conf/profiles/*.json` (целевой формат profile runtime).
+- `tests/test_profile_extraction.py`, `tests/test_search_jobs.py`.
+- Конфиги:
+- `LLM_BASE_URL`, `LLM_TIMEOUT_SECONDS` для офлайн-нормализации.
+- веса ранжирования в `matching`.
+- Данные/индексы MongoDB:
+- без изменения имен коллекций;
+- импорт результата в существующую `profiles`.
+
+Шаги:
+1. Зафиксировать целевой контракт profile JSON (runtime-совместимый).
+Критерий готовности:
+- документирован обязательный набор полей: `key,target_role,summary,skills,tools,stack,experience,seniority,industries,locations,languages`;
+- описаны правила нормализации (dedup, trim, "unknown" where missing, исключение контактов).
+Риски: конфликт между "расширенным" и "runtime" форматом профиля.
+Откат: временно хранить расширенный формат отдельно, в поиск подавать только runtime-проекцию.
+
+2. Сделать dry-run extraction без внедрения в основной pipeline.
+Критерий готовности:
+- есть CLI для чтения TXT (`conf/profiles/sample.resume.de.txt`) и получения JSON через локальный LLM;
+- есть валидация JSON и явные ошибки при нарушении контракта;
+- можно запускать с длинным timeout (до часов) для редких офлайн задач.
+Риски: нестабильный JSON output модели.
+Откат: repair-pass + stricter prompt + температура `0.0`.
+
+3. Ввести quality-gates для профиля.
+Критерий готовности:
+- smoke-набор (5-10 резюме) и метрики: валидность JSON, полнота ключевых полей, доля галлюцинаций, latency;
+- целевой порог для перехода к внедрению: >=95% валидного JSON и приемлемая полнота.
+Риски: ручная оценка галлюцинаций может быть шумной.
+Откат: сократить scope полей и повысить строгость шаблона.
+
+4. Интегрировать нормализованный профиль в существующий импорт.
+Критерий готовности:
+- результат extraction сохраняется в `conf/profiles/*.json` и импортируется через `tools/import_profiles.py`;
+- текущий `app.search_jobs` использует эти поля без fallback на шумные структуры.
+Риски: регресс ранжирования из-за изменения текста профиля.
+Откат: возврат на прежний профиль и сравнение через baseline.
+
+5. Реализовать и зафиксировать целевую формулу ранжирования.
+Критерий готовности:
+- в выдаче отдельно считаются и возвращаются: `hire_fit`, `preference_fit`, `final_score`;
+- формула:
+- `final_score = hire_fit_weight * hire_fit + preference_fit_weight * preference_fit`;
+- проверка валидации весов:
+- `0 <= preference_fit_weight <= 1`,
+- `0 <= hire_fit_weight <= 1`,
+- `hire_fit_weight + preference_fit_weight = 1`.
+Риски: переусиление preference ухудшит вероятность найма.
+Откат: дефолт `0.85/0.15`, поддержка `preference_fit_weight=0.0`.
+
+Проверки:
+- Команды:
+- `bash tools/download_llm_models.sh --model qwen8` (однократно)
+- `docker compose -f docker/docker-compose.yml -f docker/docker-compose.llm.yml up -d llm`
+- `.venv/bin/python tools/extract_profile_from_text.py --input conf/profiles/sample.resume.de.txt --output conf/profiles/test.generated.profile.json --dry-run`
+- `.venv/bin/python tools/import_profiles.py --file conf/profiles/test.generated.profile.json --dry-run`
+- `bash tools/run_matching_metrics.sh --env-file .env --queries-file conf/bench/queries.txt --profile-key default --search-limit 20`
+- `.venv/bin/pytest -q`
+- Что должно получиться:
+- reproducible офлайн-нормализация профиля в единый JSON;
+- измеримый gate качества до включения в прод-контур;
+- ранжирование явно разделяет "вероятность найма" и "соответствие пожеланиям", с конфигурируемой значимостью пожеланий от 0.
+
+Статус:
+- [x] Запланировано
+- [ ] В работе
+- [ ] Завершено
+
+Итог:
+- Что сделано:
+- План зафиксирован.
+- Что не сделано:
+- Реализация extraction/validation/scoring split не начата.
+- Следующие действия:
+- Начать с Шага 1-2 (контракт + dry-run CLI), не трогая основной pipeline.

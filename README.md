@@ -106,7 +106,7 @@ Hinweise:
 Profile-Normalisierung (dry-run, noch ohne Produktionsintegration):
 ```bash
 .venv/bin/python tools/extract_profile_from_text.py \
-  --input conf/profiles/test.profile.txt \
+  --input conf/profiles/sample.resume.de.txt \
   --dry-run \
   --timeout-seconds 1200 \
   --max-tokens 250

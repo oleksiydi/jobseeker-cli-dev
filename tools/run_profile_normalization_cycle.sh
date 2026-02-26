@@ -8,7 +8,7 @@ Usage:
 
 Options:
   --python-bin PATH           Python executable (default: .venv/bin/python)
-  --input PATH                Input resume text file (default: conf/profiles/test.profile.txt)
+  --input PATH                Input resume text file (default: conf/profiles/sample.resume.de.txt)
   --profile-key KEY           Profile key (default: default)
   --out-dir DIR               Output directory for pass results (default: logs/profile_normalization)
   --timeout-seconds N         Extraction timeout per run (default: 1200)
@@ -29,7 +29,7 @@ EOF
 }
 
 PYTHON_BIN=".venv/bin/python"
-INPUT="conf/profiles/test.profile.txt"
+INPUT="conf/profiles/sample.resume.de.txt"
 PROFILE_KEY="default"
 OUT_DIR="logs/profile_normalization"
 TIMEOUT_SECONDS="1200"

@@ -1,0 +1,95 @@
+Oleksii Didyk (Alexej Didyk)
+Deutschland (Bayern, Regensburg) | Arbeitserlaubnis in Deutschland vorhanden
+Kontakt
+E-Mail: (bitte eintragen)
+Telefon: (bitte eintragen)
+LinkedIn/GitHub: (optional)
+Sprachen
+Deutsch: gut bis fließend (nicht
+perfekt)
+Englisch: technisches Englisch
+Russisch: Muttersprache
+Ukrainisch: Muttersprache
+Schwerpunkte
+l DevOps, CI/CD, Containerisierung
+l Troubleshooting, Incident
+Response, Observability
+l Big Data Pipelines
+(Spark/Databricks, Streaming)
+l Video-Systeme (RTSP/FFmpeg,
+Transcoding) & VoIP (SIP/RTP)
+l Integration, Rollout, Support &
+Requirements Engineering
+Technologien
+Programmiersprachen: Java, Scala,
+Bash, SQL, C/C++, R (PoC), Node.js
+(Projektkontext), Spark SQL,
+MongoDB Query Language, Lotus
+Script, @Formula
+Cloud/Virtualisierung: Docker,
+Kubernetes, Helm, AWS (Lambda,
+CloudWatch), Databricks, Hyper-V,
+Microsoft Azure, Digital Ocean
+Datenbanken: MongoDB,
+PostgreSQL, MS Access, Lotus
+Domino
+Tools: Git, Jenkins, Concourse CI,
+TeamCity, Jira, Bugzilla, TestLink,
+Wireshark, IntelliJ IDEA, Visual Studio
+Code, Maven
+Methoden: Agile/Scrum, Wasserfall
+Interessen
+Lesen, Selbstbildung
+Profil
+Integration-/Troubleshooting-Ingenieur mit starkem DevOps-Background und
+Erfahrung in QA/Entwicklung in komplexen Systemen (Video, VoIP, Big Data,
+Industrial CAD/CAM). Erfahren in der Entwicklung, Skalierung und
+Automatisierung von Prozessen sowie in systematischer Fehleranalyse mit
+Logs/Metriken/Protokoll-Traces.
+Berufserfahrung
+Comcast - Big Data Engineer (Freelance/Contract) | 2022
+l Entwicklung und Skalierung von Lösungen mit Apache Spark und
+Databricks (AWS Lambda).
+l Ausführung von Scala-Programmen auf Databricks-Clustern zur
+Verarbeitung großer Datenmengen und Event-Streams.
+l CI/CD-Management mit Concourse CI.
+l Erstellung von CloudWatch-Dashboards zur Überwachung der
+Leistungsmetriken von Lambda-Funktionen.
+Freelancer-Team - Analyst / QA / DevOps / Support (Freelance) | 2013 -
+2021
+l Anforderungsmanagement, Softwaretests und Softwareentwicklung
+(rollenflexibel je nach Projekt).
+l Implementierung und Support von Systemen für groß angelegte
+Videoüberwachung sowie eines Ticketsystems.
+l Kommunikation mit Kundenvertretern auf allen Ebenen (von
+Endanwendern bis Top-Management).
+l Erstellung technischer Dokumentation, Benutzerhandbücher und
+Dokumentation für REST-APIs.
+l Integration von Ticketverkaufssystemen mit externen Systemen und
+API-Analysen.
+Weitere Stationen (Auswahl)
+l Staatliche Akademie für Bauwesen und Architektur Odessa - Ingenieur
+(2012 - 2013): Hardware-/Software-Support, Tools zur Modellierung
+physischer Prozesse, Support Informatiklabor.
+l Luxoft (Ukraine) - Software-/Test Engineer (2011): Testfälle, CI (TeamCity),
+Hyper-V Testumgebungen, Code-Integration & Konfliktlösung,
+CAD-System-Kontext.
+l Freelance - Privatunterrichtlehrer & DBA-Softwareentwickler (2009 - 2011):
+IT-Grundlagen, kleine Datenbanken in Microsoft Access.
+l UM-Service (RingCentral) - Softwaretest-Ingenieur (2008 - 2009): SRS,
+Teststrategie/Testfälle, Diagnose von SIP-Telefonie und
+macOS-Anwendungen.
+l The Product Engine - Softwaretest-Ingenieur (2007 - 2008): Testfälle,
+Testdaten, Video-Kodierung/-Dekodierung, DVR-Systeme, Blackbox- und
+Whitebox-Tests (C++).
+l Handelsunternehmen 'Ruta' - Softwareentwickler (2005 - 2006):
+Workflow-Management-System in Lotus Domino; Schulung der
+Mitarbeitenden.
+l Lehre/Training (2003, 2005): Dozent (Odessa Nationale Polytechnische
+Universität - Datenbanken, teils auf Deutsch), freiberuflicher Dozent (Computer
+Akademie 'Step' - C++/PC), freiberuflicher Dozent (VHS Regensburg -
+EDV/Office).
+Ausbildung
+Odessa Nationale Polytechnische Universität - Spezialist für
+Radioelektronik | 1996 - 2001
+Universität Regensburg - Gaststudium & DSH-Vorbereitungskurs | 2001 

@@ -37,6 +37,8 @@ Thumbs.db
 # Docker local volumes (runtime data, not source)
 docker/data/
 docker/metabase-data/
+docker/models/
+models/
 backups/
 *.archive.gz
 
@@ -49,3 +51,6 @@ backups/
 # Local personal drafts
 playgrounds/mongodb/Oleksii Didyk Anschreiben.md
 temp.txt
+ccp_rag_spec.md
+config/profiles/default.profile.ext.json
+artifacts/
