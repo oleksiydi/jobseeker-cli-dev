@@ -1480,13 +1480,32 @@
 
 Статус:
 - [x] Запланировано
-- [ ] В работе
+- [x] В работе
 - [ ] Завершено
 
 Итог:
 - Что сделано:
 - План зафиксирован.
+- Реализован dry-run pipeline нормализации резюме в runtime-совместимый JSON:
+  - `tools/extract_profile_from_text.py`
+  - `tools/run_profile_normalization_cycle.sh`
+- Введены quality-gates и ретраи:
+  - валидация структуры + содержательного минимума;
+  - retry при пустом/невалидном ответе модели.
+- Добавлен контур управления таксономией:
+  - `tools/update_taxonomy_from_unknown_terms.py`
+  - `tools/review_taxonomy_pending.py`
+  - `conf/normalization/taxonomy.auto.json`
+- Локальный LLM-контур для этого этапа формализован:
+  - `docker/docker-compose.llm.yml`
+  - `tools/download_llm_models.sh`
+  - обновлены инструкции запуска в `README.md`.
 - Что не сделано:
-- Реализация extraction/validation/scoring split не начата.
+- Не реализован `tools/validate_profile_json.py` как отдельный CLI (функциональность вшита в extractor).
+- Не завершена интеграция результата extraction в рабочий импорт профилей как стандартный путь команды.
+- Не реализован scoring split `hire_fit/preference_fit/final_score` в `app/matching/search.py` и `app/search_jobs.py`.
 - Следующие действия:
-- Начать с Шага 1-2 (контракт + dry-run CLI), не трогая основной pipeline.
+- Завершить Шаг 4:
+  - определить и зафиксировать целевой путь импорта нормализованного профиля в `profiles` (без ломки текущего контракта).
+- Затем выполнить Шаг 5:
+  - реализовать scoring split с конфигурируемым весом `preference_fit` (0..1) и проверками суммарного веса.
