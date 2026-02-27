@@ -38,6 +38,7 @@ Contents:
 - `docs/architecture/30-embeddings-and-cosine-distance-ru.md`: embeddings and cosine similarity/distance explained with formulas and terminology.
 - `docs/architecture/31-current-status-text-template-latency-ru.md`: current gap analysis on model-rerank text template, runtime cost, and latency trade-offs.
 - `docs/architecture/32-semantic-chunking-embedding-rerank-math-ru.md`: detailed math and algorithm of current semantic chunking + labeling + target rerank evolution.
+- `docs/architecture/34-domain-attribution-layer-plan-ru.md`: planned domain attribution layer to improve ranking quality for cross-domain roles (e.g., IT + healthcare) and reduce term ambiguity noise.
 
 Architecture decision history:
 - `docs/architecture/adr/README.md`

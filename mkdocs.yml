@@ -73,6 +73,7 @@ nav:
       - 30 Embeddings and Cosine Distance (RU): architecture/30-embeddings-and-cosine-distance-ru.md
       - 31 Current Status - Template and Latency (RU): architecture/31-current-status-text-template-latency-ru.md
       - 32 Semantic Chunking + Embedding + Rerank Math (RU): architecture/32-semantic-chunking-embedding-rerank-math-ru.md
+      - 34 Domain Attribution Layer Plan (RU): architecture/34-domain-attribution-layer-plan-ru.md
       - ADR:
           - ADR Overview: architecture/adr/README.md
           - ADR Template: architecture/adr/ADR-TEMPLATE.md
