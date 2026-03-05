@@ -22,6 +22,13 @@ from pathlib import Path
 from typing import Any
 
 import requests
+
+# При запуске как `python tools/...` добавляем корень репозитория в sys.path,
+# чтобы импорты `app.*` работали независимо от текущей рабочей директории.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from app.llm.client import LLMChatRequest, chat_completion
 from app.llm.factory import resolve_provider_name
 

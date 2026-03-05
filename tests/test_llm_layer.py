@@ -1,5 +1,7 @@
 from app.llm.client import LLMChatRequest, chat_completion
 from app.llm.factory import get_provider, resolve_provider_name
+from app.llm.providers.openai_api import _normalize_response_format_for_openai
+from app.llm.providers.openrouter_api import _normalize_response_format_for_openrouter
 
 
 def test_resolve_provider_name_aliases():
@@ -100,3 +102,27 @@ def test_chat_completion_logs_structured_error(monkeypatch, caplog):
         raise AssertionError("Expected RuntimeError")
     assert any('"status": "error"' in rec.message for rec in caplog.records)
     assert any('"error_type": "RuntimeError"' in rec.message for rec in caplog.records)
+
+
+def test_openai_response_format_conversion_from_llama_style_schema():
+    response_format = {
+        "type": "json_object",
+        "schema": {"type": "object", "properties": {"x": {"type": "string"}}},
+    }
+    normalized = _normalize_response_format_for_openai(response_format)
+    assert normalized["type"] == "json_schema"
+    assert normalized["json_schema"]["name"] == "profile_response"
+    assert normalized["json_schema"]["strict"] is True
+    assert normalized["json_schema"]["schema"]["type"] == "object"
+
+
+def test_openrouter_response_format_conversion_from_llama_style_schema():
+    response_format = {
+        "type": "json_object",
+        "schema": {"type": "object", "properties": {"x": {"type": "string"}}},
+    }
+    normalized = _normalize_response_format_for_openrouter(response_format)
+    assert normalized["type"] == "json_schema"
+    assert normalized["json_schema"]["name"] == "profile_response"
+    assert normalized["json_schema"]["strict"] is True
+    assert normalized["json_schema"]["schema"]["type"] == "object"

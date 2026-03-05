@@ -10,6 +10,10 @@ Options:
   --python-bin PATH           Python executable (default: .venv/bin/python)
   --input PATH                Input resume text file (default: conf/profiles/sample.resume.de.txt)
   --profile-key KEY           Profile key (default: default)
+  --provider NAME             LLM provider (llama_cpp|openai|openrouter). Optional.
+  --model NAME                LLM model name. Optional (extractor default if omitted).
+  --base-url URL              LLM base URL override. Optional.
+  --api-key KEY               LLM API key override. Optional.
   --out-dir DIR               Output directory for pass results (default: logs/profile_normalization)
   --timeout-seconds N         Extraction timeout per run (default: 1200)
   --max-tokens N              Max completion tokens (default: 350)
@@ -31,6 +35,10 @@ EOF
 PYTHON_BIN=".venv/bin/python"
 INPUT="conf/profiles/sample.resume.de.txt"
 PROFILE_KEY="default"
+PROVIDER=""
+MODEL=""
+BASE_URL=""
+API_KEY=""
 OUT_DIR="logs/profile_normalization"
 TIMEOUT_SECONDS="1200"
 MAX_TOKENS="350"
@@ -45,6 +53,10 @@ while [[ $# -gt 0 ]]; do
     --python-bin) PYTHON_BIN="$2"; shift 2 ;;
     --input) INPUT="$2"; shift 2 ;;
     --profile-key) PROFILE_KEY="$2"; shift 2 ;;
+    --provider) PROVIDER="$2"; shift 2 ;;
+    --model) MODEL="$2"; shift 2 ;;
+    --base-url) BASE_URL="$2"; shift 2 ;;
+    --api-key) API_KEY="$2"; shift 2 ;;
     --out-dir) OUT_DIR="$2"; shift 2 ;;
     --timeout-seconds) TIMEOUT_SECONDS="$2"; shift 2 ;;
     --max-tokens) MAX_TOKENS="$2"; shift 2 ;;
@@ -88,6 +100,10 @@ cat > "${MANIFEST}" <<EOF
 RUN_TS=${RUN_TS}
 INPUT=${INPUT}
 PROFILE_KEY=${PROFILE_KEY}
+PROVIDER=${PROVIDER}
+MODEL=${MODEL}
+BASE_URL=${BASE_URL}
+API_KEY_SET=$([[ -n "${API_KEY}" ]] && echo 1 || echo 0)
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS}
 MAX_TOKENS=${MAX_TOKENS}
 TAXONOMY_PATH=${TAXONOMY_PATH}
@@ -101,6 +117,18 @@ EOF
 EXTRA_FLAGS=()
 if [[ "${ALLOW_EMPTY_CONTENT}" == "true" ]]; then
   EXTRA_FLAGS+=(--allow-empty-content)
+fi
+if [[ -n "${PROVIDER}" ]]; then
+  EXTRA_FLAGS+=(--provider "${PROVIDER}")
+fi
+if [[ -n "${MODEL}" ]]; then
+  EXTRA_FLAGS+=(--model "${MODEL}")
+fi
+if [[ -n "${BASE_URL}" ]]; then
+  EXTRA_FLAGS+=(--base-url "${BASE_URL}")
+fi
+if [[ -n "${API_KEY}" ]]; then
+  EXTRA_FLAGS+=(--api-key "${API_KEY}")
 fi
 
 echo "[1/4] pass1 extraction..."
