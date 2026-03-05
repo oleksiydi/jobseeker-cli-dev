@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TaxonomyDomainAggregate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "generated_at",
+    "provider",
+    "model",
+    "input",
+    "terms"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scanned_vacancies",
+        "processed_vacancies",
+        "failed_vacancies",
+        "term_rows"
+      ],
+      "properties": {
+        "scanned_vacancies": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "processed_vacancies": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed_vacancies": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "term_rows": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "term_key",
+          "canonical",
+          "primary_category",
+          "primary_facet",
+          "category_votes",
+          "facet_votes",
+          "domain_votes",
+          "source_refs_count",
+          "sample_phrases"
+        ],
+        "properties": {
+          "term_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical": {
+            "type": "string",
+            "minLength": 1
+          },
+          "primary_category": {
+            "type": "string",
+            "enum": [
+              "skills",
+              "tools",
+              "stack"
+            ]
+          },
+          "primary_facet": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category_votes": {
+            "type": "object"
+          },
+          "facet_votes": {
+            "type": "object"
+          },
+          "domain_votes": {
+            "type": "object"
+          },
+          "source_refs_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sample_phrases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

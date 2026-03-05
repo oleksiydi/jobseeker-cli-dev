@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "language": "de",
+  "domains": [
+    "it_software_daten",
+    "ingenieurwesen_technik",
+    "industrie_produktion_fertigung",
+    "handwerk_bau_ausbau",
+    "logistik_transport_lager",
+    "gesundheitswesen_pflege_medizin",
+    "bildung_soziales_erziehung",
+    "vertrieb_marketing_kommunikation",
+    "finanzen_versicherung_recht",
+    "verwaltung_oeffentlicher_dienst",
+    "kundenservice_callcenter_buero",
+    "einzelhandel_grosshandel",
+    "gastgewerbe_tourismus_event",
+    "reinigung_sicherheit_facility",
+    "sonstiges"
+  ]
+}
