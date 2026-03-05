@@ -62,6 +62,133 @@
 
 ## Общий ориентир (roadmap)
 
+### [PLAN-20260227-02] Domain-Hint в нормализации профиля и таксономии (компромиссный этап до запуска)
+
+Контекст:
+- Что меняем и зачем.
+- Добавляем легкий доменный контекст (`domain_hint`) в extraction/unknown/pending без полной перестройки движка.
+- Цель: снизить путаницу одинаковых терминов в разных областях (`Analyse`, `Monitoring`, `Training` и т.д.) уже на текущем этапе.
+- Какие ограничения.
+- Не ломаем текущий runtime-контракт поиска.
+- Сохраняем совместимость с текущей таксономией `skills/tools/stack`.
+- Источник наполнения на этом этапе: реальные вакансии из нашей базы (`stellenangebote + jobdetails`), а не синтетические профили.
+
+Область изменений:
+- Файлы/модули:
+- `tools/extract_profile_from_text.py` (schema/prompt/unknown-terms logging).
+- `tools/update_taxonomy_from_unknown_terms.py` (учет domain_hint при suggestion/pending).
+- `tools/review_taxonomy_pending.py` (просмотр/аппрув доменных вариантов).
+- `conf/normalization/taxonomy.auto.json` (опциональные domain-aware поля без ломки старой структуры).
+- Тесты `tests/test_profile_extraction.py`, `tests/test_update_taxonomy_from_unknown_terms.py`, `tests/test_review_taxonomy_pending.py`.
+- Конфиги:
+- добавить feature-flag уровня extraction/taxonomy для domain-hint (`on/off`).
+- Данные/индексы MongoDB:
+- индексы/схемы Mongo не меняем.
+
+Шаги:
+1. Описать новый минимальный доменный контракт для normalization.
+Критерий готовности:
+- зафиксированы поля: `domain_hint`, `domain_confidence`, `domain_source`;
+- определен fallback: `unknown`/`ambiguous`.
+Риски: слишком сложный контракт для первого этапа.
+Откат: оставить только `domain_hint` без confidence/source.
+
+2. Обновить extraction prompt/schema под domain-hint.
+Критерий готовности:
+- extractor может вернуть domain hint для терминов или общий hint для профиля;
+- при отсутствии уверенности возвращается `unknown`.
+Риски: нестабильность между моделями (local/openai/openrouter).
+Откат: флагом отключить доменный блок и вернуться к старому ответу.
+
+3. Лог unknown terms + pending с доменным контекстом.
+Критерий готовности:
+- в `unknown_terms.jsonl` и `taxonomy_pending.jsonl` пишутся `domain_hint/domain_confidence`;
+- один и тот же термин может существовать в нескольких доменах как отдельные pending-records.
+Риски: рост объема pending и шум.
+Откат: временно писать только `domain_hint` без разделения по confidence.
+
+4. Добавить domain-aware review workflow (без auto-merge low-confidence).
+Критерий готовности:
+- CLI review показывает доменный контекст;
+- `apply` переносит только `approved`.
+Риски: ручной review-узкий этап.
+Откат: вернуть текущий review без доменной детализации.
+
+5. Заполнить baseline преимущественно на вакансиях.
+Критерий готовности:
+- прогон по выбранному корпусу вакансий наполняет unknown/pending;
+- получен стабильный baseline taxonomy для поставки.
+Риски: доменный перекос корпуса (например, только IT).
+Откат: батчевое пополнение по доменам + контрольные квоты.
+
+Проверки:
+- Команды:
+- `bash tools/run_profile_normalization_cycle.sh ...`
+- `.venv/bin/python tools/update_taxonomy_from_unknown_terms.py ...`
+- `.venv/bin/python tools/review_taxonomy_pending.py --action list`
+- `.venv/bin/pytest -q tests/test_profile_extraction.py tests/test_update_taxonomy_from_unknown_terms.py tests/test_review_taxonomy_pending.py`
+- Что должно получиться:
+- структура профиля остается валидной;
+- domain_hint сохраняется в unknown/pending;
+- auto-apply не вносит низкоуверенный доменный шум.
+
+Статус:
+- [x] Запланировано
+- [ ] В работе
+- [ ] Завершено
+
+Итог:
+- Что сделано:
+- План добавлен.
+- Что не сделано:
+- Реализация и тестирование.
+- Следующие действия:
+- Начать шаг 1-2, затем прогон на реальном корпусе вакансий.
+
+### [PLAN-20260227-03] Полноценный Domain Attribution Layer + Multi-role (после запуска в работу)
+
+Контекст:
+- Что меняем и зачем.
+- После стабилизации baseline внедряем полноценный доменный слой:
+- `domain_distribution` для вакансии и профиля;
+- `role_domain_pairs` (несколько ролей в связке с доменами);
+- domain-aware scoring.
+- Цель: поднимать вакансии, где совпадает не только роль, но и отраслевой опыт.
+
+Область изменений:
+- Файлы/модули:
+- matching/search scoring;
+- extraction schema (multi-role);
+- domain attribution module;
+- docs + smoke tests.
+- Конфиги:
+- веса `role_fit/domain_overlap/evidence_fit/preference_match`.
+- Данные/индексы MongoDB:
+- новые поля доменных признаков в служебных индексных документах matching-слоя.
+
+Шаги:
+1. Внедрить domain attribution (vacancy/profile) с распределением по доменам.
+2. Добавить `target_roles[]` и `role_domain_pairs[]` с backward compatibility через `target_role`.
+3. Обновить scoring и rerank с учетом `domain_overlap`.
+4. Провести A/B оценку на контрольном наборе запросов.
+
+Критерии готовности:
+- измеримый прирост релевантности top-20;
+- снижение role/domain mismatch;
+- объяснимость причин ранжирования.
+
+Риски:
+- рост сложности и latency;
+- смещение в сторону доминирующего домена.
+
+Откат:
+- флагом отключить domain-weight и вернуться на baseline scoring.
+
+Статус:
+- [x] Запланировано
+- [ ] В работе
+- [ ] Завершено
+
 ### [PLAN-20260219-04] Rule stack: `Pydantic + Pandera + JSONLogic + Audit`
 
 Контекст:
