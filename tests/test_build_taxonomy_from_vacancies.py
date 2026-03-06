@@ -1,5 +1,6 @@
 from tools.build_taxonomy_from_vacancies import (
     ExtractedTerm,
+    _apply_runtime_taxonomy_to_row,
     _build_aggregate,
     _effective_dry_run,
     _load_domains,
@@ -156,3 +157,33 @@ def test_effective_dry_run_respects_allow_learning_flag():
     assert _effective_dry_run(dry_run=False, allow_learning=False) is True
     assert _effective_dry_run(dry_run=False, allow_learning=True) is False
     assert _effective_dry_run(dry_run=True, allow_learning=True) is True
+
+
+def test_apply_runtime_taxonomy_to_row_remaps_category_and_canonical():
+    row = ExtractedTerm(
+        referenznummer="ref-1",
+        term="k8s",
+        term_key="k8s",
+        canonical="k8s",
+        category="skills",
+        facet="technology_stack",
+        skill_class="professional",
+        domain_hint="it_software_daten",
+        domain_confidence=0.9,
+        context_phrase="Erfahrung mit k8s",
+        vacancy_domain_top="it_software_daten",
+        vacancy_domain_confidence=0.9,
+    )
+    taxonomy = {
+        "aliases": {"k8s": "Kubernetes"},
+        "categories": {
+            "skills": set(),
+            "tools": set(),
+            "stack": {"Kubernetes"},
+        },
+    }
+    mapped = _apply_runtime_taxonomy_to_row(row, taxonomy)
+    assert mapped.canonical == "Kubernetes"
+    assert mapped.term_key == "kubernetes"
+    assert mapped.category == "stack"
+    assert mapped.skill_class == "not_applicable"

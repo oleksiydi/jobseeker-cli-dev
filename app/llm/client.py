@@ -17,7 +17,7 @@ class LLMChatRequest:
     provider: str
     model: str
     messages: list[dict[str, str]]
-    timeout_seconds: int
+    timeout_seconds: int | None
     temperature: float = 0.0
     max_tokens: int = 700
     base_url: str | None = None

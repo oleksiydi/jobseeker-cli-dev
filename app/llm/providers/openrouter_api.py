@@ -102,7 +102,8 @@ def openrouter_chat_completion(request: "LLMChatRequest") -> dict[str, Any]:
     if title:
         headers["X-Title"] = title
 
+    timeout = None if request.timeout_seconds is None or request.timeout_seconds <= 0 else request.timeout_seconds
     with requests.Session() as session:
-        response = session.post(url, json=payload, headers=headers, timeout=request.timeout_seconds)
+        response = session.post(url, json=payload, headers=headers, timeout=timeout)
         _raise_for_status_with_body(response)
     return response.json()

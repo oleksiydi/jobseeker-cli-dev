@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import re
 import sys
@@ -37,6 +38,14 @@ from app.db.mongo import get_database, resolve_collection_name
 from app.llm.client import LLMChatRequest, chat_completion
 from app.llm.factory import resolve_provider_name
 from app.matching.models import MergedVacancyRaw, MergedVacancyNormalized
+from app.normalization.loader import (
+    DEFAULT_TAXONOMY_AUTO_PATH,
+    DEFAULT_TAXONOMY_RELEASE_PATH,
+    load_merged_taxonomy,
+)
+from app.normalization.runtime import resolve_canonical_term_and_category
+
+LOGGER = logging.getLogger("tools.build_taxonomy_from_vacancies")
 
 
 JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*\})\s*```", re.DOTALL)
@@ -315,21 +324,7 @@ def _sanitize_term_record(
     }:
         category = "skills"
 
-    # Secondary semantics for downstream analytics:
-    # - keep category backward-compatible;
-    # - add neutral skill_class labels for cross-domain usage.
-    if category != "skills":
-        skill_class = "not_applicable"
-    elif facet == "interpersonal_competency":
-        skill_class = "interpersonal"
-    elif facet in {"benefit", "work_condition"}:
-        skill_class = "non_skill_conditions"
-    elif facet in {"skill_requirement", "task_responsibility", "language_requirement", "certification", "other"}:
-        skill_class = "professional"
-    else:
-        skill_class = "professional"
-    if skill_class not in SKILL_CLASS_ALLOWED:
-        skill_class = "not_applicable"
+    skill_class = _skill_class_for(category=category, facet=facet)
 
     return ExtractedTerm(
         referenznummer=referenznummer,
@@ -344,6 +339,48 @@ def _sanitize_term_record(
         skill_class=skill_class,
         vacancy_domain_top=vacancy_domain_top,
         vacancy_domain_confidence=vacancy_domain_confidence,
+    )
+
+
+def _skill_class_for(*, category: str, facet: str) -> str:
+    # Secondary semantics for downstream analytics:
+    # - keep category backward-compatible;
+    # - add neutral skill_class labels for cross-domain usage.
+    if category != "skills":
+        skill_class = "not_applicable"
+    elif facet == "interpersonal_competency":
+        skill_class = "interpersonal"
+    elif facet in {"benefit", "work_condition"}:
+        skill_class = "non_skill_conditions"
+    elif facet in {"skill_requirement", "task_responsibility", "language_requirement", "certification", "other"}:
+        skill_class = "professional"
+    else:
+        skill_class = "professional"
+    if skill_class not in SKILL_CLASS_ALLOWED:
+        return "not_applicable"
+    return skill_class
+
+
+def _apply_runtime_taxonomy_to_row(row: ExtractedTerm, taxonomy: dict[str, Any]) -> ExtractedTerm:
+    canonical, category = resolve_canonical_term_and_category(
+        term=row.canonical,
+        source_category=row.category,
+        taxonomy=taxonomy,
+    )
+    skill_class = _skill_class_for(category=category, facet=row.facet)
+    return ExtractedTerm(
+        referenznummer=row.referenznummer,
+        term=row.term,
+        term_key=_normalize_term_key(canonical),
+        canonical=canonical,
+        category=category,
+        facet=row.facet,
+        domain_hint=row.domain_hint,
+        domain_confidence=row.domain_confidence,
+        context_phrase=row.context_phrase,
+        skill_class=skill_class,
+        vacancy_domain_top=row.vacancy_domain_top,
+        vacancy_domain_confidence=row.vacancy_domain_confidence,
     )
 
 
@@ -390,6 +427,14 @@ def _append_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("a", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _append_process_log(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = dict(payload)
+    row["ts"] = _now_utc_iso()
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -483,11 +528,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=os.getenv("LLM_MODEL", "gpt-4o-mini"), help="LLM model id")
     parser.add_argument("--base-url", default=None, help="Optional LLM base URL override")
     parser.add_argument("--api-key", default=None, help="Optional LLM API key override")
-    parser.add_argument("--timeout-seconds", type=int, default=120, help="HTTP timeout per vacancy")
+    parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=0,
+        help="HTTP timeout per vacancy; set 0 to disable timeout.",
+    )
     parser.add_argument("--max-vacancies", type=int, default=300, help="Max active vacancies to process (0=all)")
-    parser.add_argument("--max-terms-per-vacancy", type=int, default=15, help="Max terms requested per vacancy")
-    parser.add_argument("--llm-max-tokens", type=int, default=1200, help="Max LLM output tokens per vacancy")
-    parser.add_argument("--max-input-chars", type=int, default=12000, help="Cap per-vacancy text before LLM call")
+    parser.add_argument("--max-terms-per-vacancy", type=int, default=30, help="Max terms requested per vacancy")
+    parser.add_argument("--llm-max-tokens", type=int, default=1100, help="Max LLM output tokens per vacancy")
+    parser.add_argument("--max-input-chars", type=int, default=3000, help="Cap per-vacancy text before LLM call")
     parser.add_argument(
         "--extraction-schema",
         type=Path,
@@ -519,6 +569,12 @@ def parse_args() -> argparse.Namespace:
         help="JSONL log for per-call LLM metadata",
     )
     parser.add_argument(
+        "--process-log",
+        type=Path,
+        default=Path("logs/normalization/vacancy_taxonomy_process.jsonl"),
+        help="JSONL process log (start/normalization/error/end).",
+    )
+    parser.add_argument(
         "--checkpoint-every",
         type=int,
         default=10,
@@ -546,20 +602,40 @@ def parse_args() -> argparse.Namespace:
         default=_env_flag("ALLOW_VACANCY_LEARNING", False),
         help="Allow writing taxonomy artifacts (default from ALLOW_VACANCY_LEARNING, off by default).",
     )
+    parser.add_argument(
+        "--apply-runtime-taxonomy",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Apply merged runtime taxonomy (release+auto) to extracted vacancy terms.",
+    )
+    parser.add_argument(
+        "--taxonomy-release-path",
+        type=Path,
+        default=DEFAULT_TAXONOMY_RELEASE_PATH,
+        help="Path to release taxonomy JSON layer for runtime mapping.",
+    )
+    parser.add_argument(
+        "--taxonomy-auto-path",
+        type=Path,
+        default=DEFAULT_TAXONOMY_AUTO_PATH,
+        help="Path to auto taxonomy JSON layer for runtime mapping.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Do not write output files")
     return parser.parse_args()
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
     args = parse_args()
-    if args.timeout_seconds <= 0:
-        raise ValueError("--timeout-seconds must be > 0")
+    if args.timeout_seconds < 0:
+        raise ValueError("--timeout-seconds must be >= 0")
     if args.max_terms_per_vacancy <= 0:
         raise ValueError("--max-terms-per-vacancy must be > 0")
     if args.llm_max_tokens <= 0:
         raise ValueError("--llm-max-tokens must be > 0")
     if args.max_input_chars <= 200:
         raise ValueError("--max-input-chars must be > 200")
+    effective_dry_run = _effective_dry_run(dry_run=args.dry_run, allow_learning=args.allow_learning)
 
     provider = resolve_provider_name(args.provider)
     if args.domain_list.strip():
@@ -578,6 +654,43 @@ def main() -> None:
     vacancies = _iter_active_vacancies(db, cfg, max_vacancies=max(0, args.max_vacancies))
     scanned = len(vacancies)
     run_id = f"vac-taxo-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    _append_process_log(
+        args.process_log,
+        {
+            "event": "run_started",
+            "run_id": run_id,
+            "provider": provider,
+            "model": args.model,
+            "max_vacancies": args.max_vacancies,
+            "max_terms_per_vacancy": args.max_terms_per_vacancy,
+            "llm_max_tokens": args.llm_max_tokens,
+            "max_input_chars": args.max_input_chars,
+            "timeout_seconds": args.timeout_seconds,
+            "allow_learning": args.allow_learning,
+            "dry_run": args.dry_run,
+            "effective_dry_run": effective_dry_run,
+        },
+    )
+    LOGGER.info(
+        "run_started run_id=%s provider=%s model=%s max_vacancies=%s max_terms=%s llm_max_tokens=%s max_input_chars=%s timeout_seconds=%s effective_dry_run=%s",
+        run_id,
+        provider,
+        args.model,
+        args.max_vacancies,
+        args.max_terms_per_vacancy,
+        args.llm_max_tokens,
+        args.max_input_chars,
+        args.timeout_seconds,
+        effective_dry_run,
+    )
+    runtime_taxonomy = (
+        load_merged_taxonomy(
+            release_path=args.taxonomy_release_path,
+            auto_path=args.taxonomy_auto_path,
+        )
+        if args.apply_runtime_taxonomy
+        else None
+    )
 
     extracted_rows: list[ExtractedTerm] = []
     processed = 0
@@ -632,6 +745,34 @@ def main() -> None:
                     vacancy_domain_confidence=vacancy_domain_conf,
                 )
                 if sanitized is not None:
+                    before = {
+                        "term": sanitized.term,
+                        "term_key": sanitized.term_key,
+                        "canonical": sanitized.canonical,
+                        "category": sanitized.category,
+                        "skill_class": sanitized.skill_class,
+                    }
+                    if runtime_taxonomy is not None:
+                        sanitized = _apply_runtime_taxonomy_to_row(sanitized, runtime_taxonomy)
+                    after = {
+                        "term": sanitized.term,
+                        "term_key": sanitized.term_key,
+                        "canonical": sanitized.canonical,
+                        "category": sanitized.category,
+                        "skill_class": sanitized.skill_class,
+                    }
+                    _append_process_log(
+                        args.process_log,
+                        {
+                            "event": "term_normalized",
+                            "run_id": run_id,
+                            "referenznummer": vacancy.referenznummer,
+                            "before": before,
+                            "after": after,
+                            "facet": sanitized.facet,
+                            "domain_hint": sanitized.domain_hint,
+                        },
+                    )
                     extracted_rows.append(sanitized)
                     vacancy_rows.append(sanitized)
             term_rows_payload = [
@@ -687,8 +828,19 @@ def main() -> None:
                     _write_json(args.out_aggregate_json, checkpoint)
         except Exception:
             failed += 1
+            exc_type, exc_value, _ = sys.exc_info()
+            _append_process_log(
+                args.process_log,
+                {
+                    "event": "vacancy_failed",
+                    "run_id": run_id,
+                    "referenznummer": vacancy.referenznummer,
+                    "error_type": exc_type.__name__ if exc_type else "Exception",
+                    "error_message": str(exc_value)[:2000] if exc_value else "",
+                },
+            )
+            LOGGER.exception("vacancy_failed run_id=%s referenznummer=%s", run_id, vacancy.referenznummer)
             if not effective_dry_run:
-                exc_type, exc_value, _ = sys.exc_info()
                 error_row: dict[str, Any] = {
                     "run_id": run_id,
                     "status": "error",
@@ -725,6 +877,29 @@ def main() -> None:
     elif not args.allow_learning:
         print("learning_disabled_skip_write=true")
 
+    _append_process_log(
+        args.process_log,
+        {
+            "event": "run_finished",
+            "run_id": run_id,
+            "scanned": scanned,
+            "processed": processed,
+            "failed": failed,
+            "term_rows": len(extracted_rows),
+            "provider": provider,
+            "model": args.model,
+            "effective_dry_run": effective_dry_run,
+        },
+    )
+    LOGGER.info(
+        "run_finished run_id=%s scanned=%s processed=%s failed=%s term_rows=%s",
+        run_id,
+        scanned,
+        processed,
+        failed,
+        len(extracted_rows),
+    )
+
     print(
         f"DONE: scanned={scanned}, processed={processed}, failed={failed}, "
         f"term_rows={len(extracted_rows)}, provider={provider}, model={args.model}, "
@@ -733,8 +908,8 @@ def main() -> None:
     print(f"terms_jsonl={args.out_terms_jsonl}")
     print(f"aggregate_json={args.out_aggregate_json}")
     print(f"llm_calls_log={args.llm_calls_log}")
+    print(f"process_log={args.process_log}")
 
 
 if __name__ == "__main__":
     main()
-    effective_dry_run = _effective_dry_run(dry_run=args.dry_run, allow_learning=args.allow_learning)

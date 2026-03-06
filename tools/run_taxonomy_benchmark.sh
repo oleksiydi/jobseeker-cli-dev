@@ -21,9 +21,9 @@ Options:
   --provider NAME          LLM provider (default: openrouter)
   --model NAME             Model id for provider (default: mistralai/mistral-small-24b-instruct-2501)
   --max-vacancies N        Max active vacancies (default: 30)
-  --max-terms N            Max terms per vacancy (default: 15)
-  --llm-max-tokens N       Max output tokens per LLM call (default: 1200)
-  --timeout-seconds N      Per-call timeout (default: 120)
+  --max-terms N            Max terms per vacancy (default: 30)
+  --llm-max-tokens N       Max output tokens per LLM call (default: 1100)
+  --timeout-seconds N      Per-call timeout, 0 disables timeout (default: 0)
   --checkpoint-every N     Aggregate checkpoint interval (default: 5)
   --tag NAME               Custom run tag suffix (default: auto timestamp)
   --snapshot-current       Copy current *.openai.* artifacts into a baseline snapshot folder.
@@ -53,9 +53,9 @@ EOF
 PROVIDER="openrouter"
 MODEL="mistralai/mistral-small-24b-instruct-2501"
 MAX_VACANCIES="30"
-MAX_TERMS="15"
-LLM_MAX_TOKENS="1200"
-TIMEOUT_SECONDS="120"
+MAX_TERMS="30"
+LLM_MAX_TOKENS="1100"
+TIMEOUT_SECONDS="0"
 CHECKPOINT_EVERY="5"
 TAG=""
 SNAPSHOT_CURRENT="false"
