@@ -31,6 +31,12 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app.llm.client import LLMChatRequest, chat_completion
 from app.llm.factory import resolve_provider_name
+from app.normalization.loader import (
+    DEFAULT_TAXONOMY_AUTO_PATH,
+    DEFAULT_TAXONOMY_RELEASE_PATH,
+    load_merged_taxonomy,
+)
+from app.normalization.runtime import resolve_canonical_term_and_category
 
 RUNTIME_PROFILE_FIELDS = (
     "key",
@@ -92,42 +98,6 @@ def _normalize_list(value: Any) -> list[str]:
     return dedup
 
 
-def _normalize_term_key(value: str) -> str:
-    lowered = value.strip().lower()
-    lowered = lowered.replace("_", " ").replace("-", " ")
-    return re.sub(r"\s+", " ", lowered)
-
-
-def _load_taxonomy(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {"aliases": {}, "categories": {"skills": [], "tools": [], "stack": []}}
-    with path.open("r", encoding="utf-8") as handle:
-        raw = json.load(handle)
-    aliases = raw.get("aliases", {})
-    categories = raw.get("categories", {})
-    if not isinstance(aliases, dict):
-        aliases = {}
-    if not isinstance(categories, dict):
-        categories = {}
-    normalized_categories: dict[str, set[str]] = {"skills": set(), "tools": set(), "stack": set()}
-    for category in ("skills", "tools", "stack"):
-        values = categories.get(category, [])
-        if not isinstance(values, list):
-            values = []
-        normalized_categories[category] = {
-            _normalize_string(item) for item in values if isinstance(item, str) and _normalize_string(item)
-        }
-    normalized_aliases: dict[str, str] = {}
-    for alias, canonical in aliases.items():
-        if not isinstance(alias, str) or not isinstance(canonical, str):
-            continue
-        alias_key = _normalize_term_key(alias)
-        canonical_text = _normalize_string(canonical)
-        if alias_key and canonical_text:
-            normalized_aliases[alias_key] = canonical_text
-    return {"aliases": normalized_aliases, "categories": normalized_categories}
-
-
 def _ensure_taxonomy_file(path: Path) -> None:
     if path.exists():
         return
@@ -146,28 +116,26 @@ def _apply_taxonomy(
     *,
     unknown_terms: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    aliases: dict[str, str] = taxonomy.get("aliases", {})
-    categories: dict[str, set[str]] = taxonomy.get("categories", {})
-
     buckets: dict[str, list[str]] = {"skills": [], "tools": [], "stack": []}
     for field in ("skills", "tools", "stack"):
         for term in profile.get(field, []):
-            key = _normalize_term_key(term)
-            canonical = aliases.get(key, term)
+            canonical, target_field = resolve_canonical_term_and_category(
+                term=term,
+                source_category=field,
+                taxonomy=taxonomy,
+            )
             canonical = _normalize_string(canonical)
             if not canonical:
                 continue
 
-            target_field = ""
-            for category in ("tools", "stack", "skills"):
-                known = categories.get(category, set())
-                if canonical in known:
-                    target_field = category
-                    break
-            if not target_field:
-                # fallback: keep semantic intent of source field when taxonomy has no rule yet
-                target_field = field
-                if unknown_terms is not None:
+            if unknown_terms is not None:
+                taxonomy_aliases = taxonomy.get("aliases", {})
+                taxonomy_categories = taxonomy.get("categories", {})
+                term_key = term.strip().lower().replace("_", " ").replace("-", " ")
+                term_key = re.sub(r"\s+", " ", term_key).strip()
+                has_alias = term_key in taxonomy_aliases
+                category_known = any(canonical in taxonomy_categories.get(cat, set()) for cat in ("skills", "tools", "stack"))
+                if not has_alias and not category_known:
                     unknown_terms.append(
                         {
                             "term": canonical,
@@ -535,8 +503,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--taxonomy-path",
         type=Path,
-        default=Path("conf/normalization/taxonomy.auto.json"),
-        help="Path to taxonomy JSON (aliases/categories for skills/tools/stack).",
+        default=None,
+        help="Deprecated alias for --taxonomy-auto-path (kept for backward compatibility).",
+    )
+    parser.add_argument(
+        "--taxonomy-release-path",
+        type=Path,
+        default=DEFAULT_TAXONOMY_RELEASE_PATH,
+        help="Path to release taxonomy JSON layer.",
+    )
+    parser.add_argument(
+        "--taxonomy-auto-path",
+        type=Path,
+        default=DEFAULT_TAXONOMY_AUTO_PATH,
+        help="Path to auto taxonomy JSON layer.",
     )
     parser.add_argument(
         "--unknown-terms-path",
@@ -594,8 +574,12 @@ def main() -> None:
     provider_name = resolve_provider_name(args.provider)
     explicit_base_url = args.base_url if args.base_url else None
     explicit_api_key = args.api_key if args.api_key else None
-    _ensure_taxonomy_file(args.taxonomy_path)
-    taxonomy = _load_taxonomy(args.taxonomy_path)
+    taxonomy_auto_path = args.taxonomy_path or args.taxonomy_auto_path
+    _ensure_taxonomy_file(taxonomy_auto_path)
+    taxonomy = load_merged_taxonomy(
+        release_path=args.taxonomy_release_path,
+        auto_path=taxonomy_auto_path,
+    )
     retries_total = args.retry_on_empty
     profile: dict[str, Any] | None = None
     unknown_terms: list[dict[str, str]] = []

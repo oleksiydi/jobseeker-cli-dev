@@ -17,7 +17,8 @@ Options:
   --out-dir DIR               Output directory for pass results (default: logs/profile_normalization)
   --timeout-seconds N         Extraction timeout per run (default: 1200)
   --max-tokens N              Max completion tokens (default: 350)
-  --taxonomy PATH             Taxonomy file (default: conf/normalization/taxonomy.auto.json)
+  --taxonomy PATH             Taxonomy auto layer (default: conf/normalization/taxonomy.auto.json)
+  --taxonomy-release PATH     Taxonomy release layer (default: conf/normalization/taxonomy.release.json)
   --unknown-terms PATH        Unknown terms log (default: logs/normalization/unknown_terms.jsonl)
   --processed-index PATH      Processed signatures index (default: logs/normalization/taxonomy_processed.json)
   --pending-out PATH          Pending suggestions log (default: logs/normalization/taxonomy_pending.jsonl)
@@ -43,6 +44,7 @@ OUT_DIR="logs/profile_normalization"
 TIMEOUT_SECONDS="1200"
 MAX_TOKENS="350"
 TAXONOMY_PATH="conf/normalization/taxonomy.auto.json"
+TAXONOMY_RELEASE_PATH="conf/normalization/taxonomy.release.json"
 UNKNOWN_TERMS_PATH="logs/normalization/unknown_terms.jsonl"
 PROCESSED_INDEX_PATH="logs/normalization/taxonomy_processed.json"
 PENDING_OUT_PATH="logs/normalization/taxonomy_pending.jsonl"
@@ -61,6 +63,7 @@ while [[ $# -gt 0 ]]; do
     --timeout-seconds) TIMEOUT_SECONDS="$2"; shift 2 ;;
     --max-tokens) MAX_TOKENS="$2"; shift 2 ;;
     --taxonomy) TAXONOMY_PATH="$2"; shift 2 ;;
+    --taxonomy-release) TAXONOMY_RELEASE_PATH="$2"; shift 2 ;;
     --unknown-terms) UNKNOWN_TERMS_PATH="$2"; shift 2 ;;
     --processed-index) PROCESSED_INDEX_PATH="$2"; shift 2 ;;
     --pending-out) PENDING_OUT_PATH="$2"; shift 2 ;;
@@ -107,6 +110,7 @@ API_KEY_SET=$([[ -n "${API_KEY}" ]] && echo 1 || echo 0)
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS}
 MAX_TOKENS=${MAX_TOKENS}
 TAXONOMY_PATH=${TAXONOMY_PATH}
+TAXONOMY_RELEASE_PATH=${TAXONOMY_RELEASE_PATH}
 UNKNOWN_TERMS_PATH=${UNKNOWN_TERMS_PATH}
 PROCESSED_INDEX_PATH=${PROCESSED_INDEX_PATH}
 PENDING_OUT_PATH=${PENDING_OUT_PATH}
@@ -138,7 +142,8 @@ if ! "${PYTHON_BIN}" tools/extract_profile_from_text.py \
   --profile-key "${PROFILE_KEY}" \
   --timeout-seconds "${TIMEOUT_SECONDS}" \
   --max-tokens "${MAX_TOKENS}" \
-  --taxonomy-path "${TAXONOMY_PATH}" \
+  --taxonomy-auto-path "${TAXONOMY_PATH}" \
+  --taxonomy-release-path "${TAXONOMY_RELEASE_PATH}" \
   --unknown-terms-path "${UNKNOWN_TERMS_PATH}" \
   --llm-calls-log "${LLM_CALLS_LOG}" \
   "${EXTRA_FLAGS[@]}" > "${PASS1_LOG}" 2>&1; then
@@ -165,7 +170,8 @@ if ! "${PYTHON_BIN}" tools/extract_profile_from_text.py \
   --profile-key "${PROFILE_KEY}" \
   --timeout-seconds "${TIMEOUT_SECONDS}" \
   --max-tokens "${MAX_TOKENS}" \
-  --taxonomy-path "${TAXONOMY_PATH}" \
+  --taxonomy-auto-path "${TAXONOMY_PATH}" \
+  --taxonomy-release-path "${TAXONOMY_RELEASE_PATH}" \
   --unknown-terms-path "${UNKNOWN_TERMS_PATH}" \
   --llm-calls-log "${LLM_CALLS_LOG}" \
   "${EXTRA_FLAGS[@]}" > "${PASS2_LOG}" 2>&1; then
