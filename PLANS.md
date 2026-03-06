@@ -462,6 +462,9 @@
   - `tools/taxonomy_io.py`
 - `tools/build_taxonomy_from_vacancies.py` оставлен как CLI-обертка orchestration.
 - Добавлены `retry-on-length`, `checkpoint/resume`, `process-log-level`, `preset`.
+- Добавлены интеграционные тесты на orchestration-сценарии:
+  - `retry_on_length -> success` (проверка повторной попытки и корректного `attempt`);
+  - `resume_from_checkpoint` (пропуск уже обработанной вакансии).
 - Добавлен release freeze-скрипт `tools/freeze_taxonomy_release.sh`:
   - policy-check: learning flags должны быть выключены;
   - promotion: `*.auto.json -> *.release.json`;
