@@ -397,17 +397,62 @@
 
 Шаги:
 1. Ввести unified loader с merge-priority `auto > release`.
+Критерий готовности:
+- один модуль загрузки возвращает merged taxonomy+synonyms;
+- при конфликте alias побеждает `auto`.
+Риски:
+- разные пайплайны могут продолжить читать legacy-пути.
+Откат:
+- временно оставить legacy loader под feature-flag.
+
 2. Переключить профиль и вакансии на этот loader.
+Критерий готовности:
+- `tools/extract_profile_from_text.py` и vacancy-пайплайн используют один loader;
+- одинаковый input-термин нормализуется одинаково в profile/vacancy.
+Риски:
+- регрессия на старых тестах нормализации.
+Откат:
+- fallback на старый путь чтения с явным warning.
+
 3. Добавить тесты одинакового поведения для profile+vacancy.
+Критерий готовности:
+- unit/integration тесты подтверждают идентичный результат.
+Риски:
+- непокрытые edge-cases при пустых release/auto файлах.
+Откат:
+- добавить строгую валидацию структуры merged словаря до применения.
+
+4. Добавить release-процесс фиксации словаря из накопленного auto.
+Критерий готовности:
+- есть документированный шаг `freeze` (auto -> release);
+- есть smoke-проверка, что после freeze runtime не зависит от локального auto.
+Риски:
+- в release попадет шум из auto.
+Откат:
+- freeze только после review/threshold-гейтов и с версионированным snapshot.
 
 Критерии готовности:
 - один merged-слой используется в обоих пайплайнах;
 - одинаковый alias дает одинаковую нормализацию в профиле и вакансии.
+- описан и проверен путь подготовки релизного словаря из накопленного auto.
 
 Статус:
 - [x] Запланировано
-- [ ] В работе
+- [x] В работе
 - [ ] Завершено
+
+Итог:
+- Что сделано:
+- Добавлен единый loader `app/normalization/loader.py` с merge-правилом `auto > release` для aliases.
+- `tools/extract_profile_from_text.py` переключен на merged taxonomy loader.
+- `tools/run_profile_normalization_cycle.sh` обновлен: поддержка `--taxonomy-release`.
+- Добавлены unit-тесты `tests/test_normalization_loader.py` для merge taxonomy/synonyms.
+- Что не сделано:
+- Подключение merged loader в остальные runtime-контуры вакансий (где нормализация словаря уже применяется).
+- Отдельный freeze-скрипт для продвижения `auto -> release`.
+- Следующие действия:
+- Подключить loader в vacancy runtime слой и зафиксировать интеграционным тестом.
+- Добавить `freeze`-команду и smoke-проверку релизного набора.
 - Шаг 0: план добавлен.
 - Шаг 1: добавлены Pydantic-модели и нормализация (`app/matching/models.py`) + unit-тесты.
 - Шаг 2: добавлен JSONLogic engine (`app/matching/rule_engine.py`) + rule-files в `conf/rules` + unit-тесты.

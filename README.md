@@ -32,6 +32,8 @@ Für Entwicklerdokumentation mit visuellen Schemata:
   - `docs/process/assistant-operating-rules.md`
 - DoD-Checkliste für Architekturänderungen:
   - `docs/process/architecture-change-checklist.md`
+- Taxonomie-Release-Freeze (release + auto Workflow):
+  - `docs/process/taxonomy-release-freeze-workflow-ru.md`
 - ADR-Vorlage und Entscheidungsverlauf:
   - `docs/architecture/adr/ADR-TEMPLATE.md`
   - `docs/architecture/adr/README.md`
@@ -114,6 +116,18 @@ Profile-Normalisierung (dry-run, noch ohne Produktionsintegration):
 Hinweis:
 - Unbekannte Begriffe aus `skills/tools/stack` werden automatisch in
   `logs/normalization/unknown_terms.jsonl` protokolliert (abschaltbar mit `--disable-unknown-terms-log`).
+- Runtime-Taxonomie wird als merged layer geladen:
+  - `conf/normalization/taxonomy.release.json` (Basis, optional)
+  - `conf/normalization/taxonomy.auto.json` (Overlay, optional/lernbar)
+  - Alias-Konflikte: `auto` überschreibt `release`.
+  - Kategorien: Vereinigung aus beiden Layern.
+- Optional pro Run:
+```bash
+.venv/bin/python tools/extract_profile_from_text.py \
+  ... \
+  --taxonomy-release-path conf/normalization/taxonomy.release.json \
+  --taxonomy-auto-path conf/normalization/taxonomy.auto.json
+```
 - LLM-Provider ist umschaltbar:
   - lokal: `LLM_PROVIDER=llama_cpp` (Default)
   - extern: `LLM_PROVIDER=openai` (benötigt `OPENAI_API_KEY` und passendes `--model`)
@@ -140,6 +154,24 @@ Taxonomy aus Vakanzen (Benchmark/Bootstrap):
 - `tools/build_taxonomy_from_vacancies.py` schreibt nur mit aktivem Learning.
 - Default: `ALLOW_VACANCY_LEARNING=false`.
 - Benchmark-Script `tools/run_taxonomy_benchmark.sh` setzt `--allow-learning` explizit.
+- Vacancy-Terme nutzen denselben merged taxonomy layer wie Profil-Normalisierung
+  (`taxonomy.release + taxonomy.auto`) für alias/category Mapping.
+  Bei Bedarf abschaltbar: `--no-apply-runtime-taxonomy`.
+
+Local CPU smoke-check (2 Vakanzen + 1 Profil):
+```bash
+bash tools/run_local_smoke_check.sh
+```
+Empfohlene Parameter für lokale CPU-Modelle:
+- `--max-terms-per-vacancy 10`
+- `--llm-max-tokens 1100`
+- `--max-input-chars-vacancy 3000`
+- `--max-input-chars-profile 4000`
+- `--timeout-seconds 0` (kein Timeout)
+
+Hinweis:
+- Der Smoke-Script stoppt sofort bei Fehlern und schreibt START/STEP/END in:
+  `logs/normalization/smoke/<UTC_TS>/smoke_run.log`.
 
 ### ENV Defaults und Override-Priorität
 
