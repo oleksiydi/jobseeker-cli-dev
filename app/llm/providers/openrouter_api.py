@@ -16,6 +16,27 @@ def _env_flag(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _build_provider_preferences(*, request_requires_strict_parameters: bool) -> dict[str, Any]:
+    provider_payload: dict[str, Any] = {}
+    # Prefer the cheapest route by default; can be overridden via env.
+    provider_payload["sort"] = (os.getenv("OPENROUTER_PROVIDER_SORT") or "price").strip() or "price"
+    # Prevent data collection by default for privacy.
+    provider_payload["data_collection"] = (
+        os.getenv("OPENROUTER_PROVIDER_DATA_COLLECTION") or "deny"
+    ).strip() or "deny"
+    # Prefer zero-retention routing by default when available.
+    provider_payload["zdr"] = _env_flag("OPENROUTER_PROVIDER_ZDR", True)
+
+    allow_fallbacks_raw = os.getenv("OPENROUTER_PROVIDER_ALLOW_FALLBACKS")
+    if allow_fallbacks_raw is not None:
+        provider_payload["allow_fallbacks"] = allow_fallbacks_raw.strip().lower() in {"1", "true", "yes", "on"}
+
+    if request_requires_strict_parameters and _env_flag("OPENROUTER_REQUIRE_PARAMETERS", True):
+        provider_payload["require_parameters"] = True
+
+    return provider_payload
+
+
 def _normalize_response_format_for_openrouter(response_format: dict[str, Any] | None) -> dict[str, Any] | None:
     if response_format is None:
         return None
@@ -59,12 +80,16 @@ def openrouter_chat_completion(request: "LLMChatRequest") -> dict[str, Any]:
         "messages": request.messages,
     }
     normalized_response_format = _normalize_response_format_for_openrouter(request.response_format)
+    strict_parameters = False
     if normalized_response_format is not None:
         payload["response_format"] = normalized_response_format
         # Fail fast when downstream provider does not support requested parameters.
         # This avoids silent fallback where schema is ignored and output becomes non-JSON text.
-        if _env_flag("OPENROUTER_REQUIRE_PARAMETERS", True):
-            payload["provider"] = {"require_parameters": True}
+        strict_parameters = True
+
+    payload["provider"] = _build_provider_preferences(
+        request_requires_strict_parameters=strict_parameters,
+    )
 
     headers = {
         "Authorization": f"Bearer {api_key}",

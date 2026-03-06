@@ -1,7 +1,10 @@
 from app.llm.client import LLMChatRequest, chat_completion
 from app.llm.factory import get_provider, resolve_provider_name
 from app.llm.providers.openai_api import _normalize_response_format_for_openai
-from app.llm.providers.openrouter_api import _normalize_response_format_for_openrouter
+from app.llm.providers.openrouter_api import (
+    _build_provider_preferences,
+    _normalize_response_format_for_openrouter,
+)
 
 
 def test_resolve_provider_name_aliases():
@@ -126,3 +129,32 @@ def test_openrouter_response_format_conversion_from_llama_style_schema():
     assert normalized["json_schema"]["name"] == "profile_response"
     assert normalized["json_schema"]["strict"] is True
     assert normalized["json_schema"]["schema"]["type"] == "object"
+
+
+def test_openrouter_provider_preferences_defaults(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_PROVIDER_SORT", raising=False)
+    monkeypatch.delenv("OPENROUTER_PROVIDER_DATA_COLLECTION", raising=False)
+    monkeypatch.delenv("OPENROUTER_PROVIDER_ZDR", raising=False)
+    monkeypatch.delenv("OPENROUTER_PROVIDER_ALLOW_FALLBACKS", raising=False)
+    monkeypatch.delenv("OPENROUTER_REQUIRE_PARAMETERS", raising=False)
+
+    provider = _build_provider_preferences(request_requires_strict_parameters=True)
+    assert provider["sort"] == "price"
+    assert provider["data_collection"] == "deny"
+    assert provider["zdr"] is True
+    assert provider["require_parameters"] is True
+
+
+def test_openrouter_provider_preferences_env_overrides(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_PROVIDER_SORT", "latency")
+    monkeypatch.setenv("OPENROUTER_PROVIDER_DATA_COLLECTION", "allow")
+    monkeypatch.setenv("OPENROUTER_PROVIDER_ZDR", "false")
+    monkeypatch.setenv("OPENROUTER_PROVIDER_ALLOW_FALLBACKS", "true")
+    monkeypatch.setenv("OPENROUTER_REQUIRE_PARAMETERS", "false")
+
+    provider = _build_provider_preferences(request_requires_strict_parameters=True)
+    assert provider["sort"] == "latency"
+    assert provider["data_collection"] == "allow"
+    assert provider["zdr"] is False
+    assert provider["allow_fallbacks"] is True
+    assert "require_parameters" not in provider
