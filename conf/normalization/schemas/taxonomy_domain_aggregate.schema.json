@@ -66,8 +66,10 @@
           "canonical",
           "primary_category",
           "primary_facet",
+          "primary_skill_class",
           "category_votes",
           "facet_votes",
+          "skill_class_votes",
           "domain_votes",
           "source_refs_count",
           "sample_phrases"
@@ -93,10 +95,22 @@
             "type": "string",
             "minLength": 1
           },
+          "primary_skill_class": {
+            "type": "string",
+            "enum": [
+              "professional",
+              "interpersonal",
+              "non_skill_conditions",
+              "not_applicable"
+            ]
+          },
           "category_votes": {
             "type": "object"
           },
           "facet_votes": {
+            "type": "object"
+          },
+          "skill_class_votes": {
             "type": "object"
           },
           "domain_votes": {

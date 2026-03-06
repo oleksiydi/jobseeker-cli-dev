@@ -26,6 +26,7 @@ def test_sanitize_term_record_accepts_valid_item():
     assert row.term_key == "monitoring"
     assert row.category == "skills"
     assert row.facet == "skill_requirement"
+    assert row.skill_class == "professional"
     assert row.domain_hint == "gesundheitswesen_pflege_medizin"
 
 
@@ -38,6 +39,7 @@ def test_build_aggregate_counts_domain_votes():
             canonical="Monitoring",
             category="skills",
             facet="skill_requirement",
+            skill_class="professional",
             domain_hint="healthcare",
             domain_confidence=0.9,
             context_phrase="patient monitoring",
@@ -51,6 +53,7 @@ def test_build_aggregate_counts_domain_votes():
             canonical="Monitoring",
             category="skills",
             facet="skill_requirement",
+            skill_class="professional",
             domain_hint="it",
             domain_confidence=0.3,
             context_phrase="system monitoring",
@@ -97,6 +100,7 @@ def test_sanitize_term_record_corrects_category_from_facet():
     )
     assert row is not None
     assert row.category == "stack"
+    assert row.skill_class == "not_applicable"
 
 
 def test_load_domains_from_file(tmp_path):
@@ -107,3 +111,41 @@ def test_load_domains_from_file(tmp_path):
     )
     domains = _load_domains(p)
     assert domains == ["it_software_daten", "verwaltung_oeffentlicher_dienst", "sonstiges"]
+
+
+def test_sanitize_term_record_sets_non_skill_conditions_for_benefits():
+    row = _sanitize_term_record(
+        raw={
+            "term": "Urlaubs- und Weihnachtsgeld",
+            "category": "skills",
+            "facet": "benefit",
+            "domain_hint": "industry",
+            "domain_confidence": 0.8,
+            "context_phrase": "Zusatzleistungen: Urlaubs- und Weihnachtsgeld",
+        },
+        referenznummer="z",
+        vacancy_domain_top="industry",
+        vacancy_domain_confidence=0.9,
+    )
+    assert row is not None
+    assert row.category == "skills"
+    assert row.skill_class == "non_skill_conditions"
+
+
+def test_sanitize_term_record_sets_interpersonal_class_for_interpersonal_facet():
+    row = _sanitize_term_record(
+        raw={
+            "term": "Teamfähigkeit",
+            "category": "skills",
+            "facet": "interpersonal_competency",
+            "domain_hint": "other",
+            "domain_confidence": 0.6,
+            "context_phrase": "Teamfähigkeit und Kommunikation",
+        },
+        referenznummer="s",
+        vacancy_domain_top="other",
+        vacancy_domain_confidence=0.4,
+    )
+    assert row is not None
+    assert row.category == "skills"
+    assert row.skill_class == "interpersonal"

@@ -51,9 +51,10 @@ FACET_ALLOWED = {
     "work_condition",
     "language_requirement",
     "certification",
-    "soft_skill",
+    "interpersonal_competency",
     "other",
 }
+SKILL_CLASS_ALLOWED = {"professional", "interpersonal", "non_skill_conditions", "not_applicable"}
 FACET_KEY_TO_CANONICAL = {
     "skill requirement": "skill_requirement",
     "tool or platform": "tool_or_platform",
@@ -63,7 +64,10 @@ FACET_KEY_TO_CANONICAL = {
     "work condition": "work_condition",
     "language requirement": "language_requirement",
     "certification": "certification",
-    "soft skill": "soft_skill",
+    "soft skill": "interpersonal_competency",
+    "soft_skill": "interpersonal_competency",
+    "interpersonal competency": "interpersonal_competency",
+    "interpersonal_competency": "interpersonal_competency",
     "other": "other",
 }
 DEFAULT_DOMAIN_LIST = [
@@ -125,6 +129,7 @@ class ExtractedTerm:
     domain_hint: str
     domain_confidence: float
     context_phrase: str
+    skill_class: str
     vacancy_domain_top: str
     vacancy_domain_confidence: float
 
@@ -226,7 +231,7 @@ def _build_system_prompt(domain_list: list[str], max_terms_per_vacancy: int) -> 
         "- skills: competencies/tasks/requirements/conditions/benefits\n"
         "Do NOT put technologies/products into skills.\n"
         "If a term looks like technology name, language, framework, cloud or infra keyword, prefer stack/tools.\n"
-        "Use skills only for competencies, tasks, benefits, work conditions and soft skills.\n"
+        "Use skills only for competencies, tasks, benefits, work conditions and interpersonal competencies.\n"
         "Set facet for each term. Use 'benefit' for compensation/perks and "
         "'work_condition' for schedule/remote/shift/location constraints.\n"
         "Keep context_phrase short: max 200 chars, fragment only (not full sentence).\n"
@@ -294,10 +299,26 @@ def _sanitize_term_record(
         "work_condition",
         "language_requirement",
         "certification",
-        "soft_skill",
+        "interpersonal_competency",
         "other",
     }:
         category = "skills"
+
+    # Secondary semantics for downstream analytics:
+    # - keep category backward-compatible;
+    # - add neutral skill_class labels for cross-domain usage.
+    if category != "skills":
+        skill_class = "not_applicable"
+    elif facet == "interpersonal_competency":
+        skill_class = "interpersonal"
+    elif facet in {"benefit", "work_condition"}:
+        skill_class = "non_skill_conditions"
+    elif facet in {"skill_requirement", "task_responsibility", "language_requirement", "certification", "other"}:
+        skill_class = "professional"
+    else:
+        skill_class = "professional"
+    if skill_class not in SKILL_CLASS_ALLOWED:
+        skill_class = "not_applicable"
 
     return ExtractedTerm(
         referenznummer=referenznummer,
@@ -309,6 +330,7 @@ def _sanitize_term_record(
         domain_hint=domain_hint,
         domain_confidence=domain_confidence,
         context_phrase=context_phrase,
+        skill_class=skill_class,
         vacancy_domain_top=vacancy_domain_top,
         vacancy_domain_confidence=vacancy_domain_confidence,
     )
@@ -383,6 +405,7 @@ def _build_aggregate(
                 "facet_counter": Counter(),
                 "domain_counter": Counter(),
                 "domain_conf_sum": defaultdict(float),
+                "skill_class_counter": Counter(),
                 "source_refs": set(),
                 "phrases": set(),
             },
@@ -392,6 +415,7 @@ def _build_aggregate(
         item["facet_counter"][row.facet] += 1
         item["domain_counter"][row.domain_hint] += 1
         item["domain_conf_sum"][row.domain_hint] += row.domain_confidence
+        item["skill_class_counter"][row.skill_class] += 1
         item["source_refs"].add(row.referenznummer)
         item["phrases"].add(row.context_phrase)
 
@@ -400,6 +424,7 @@ def _build_aggregate(
         canonical = item["canonical_counter"].most_common(1)[0][0]
         primary_category = item["category_counter"].most_common(1)[0][0]
         primary_facet = item["facet_counter"].most_common(1)[0][0]
+        primary_skill_class = item["skill_class_counter"].most_common(1)[0][0]
         domain_votes: dict[str, Any] = {}
         for domain, count in item["domain_counter"].items():
             conf_sum = float(item["domain_conf_sum"][domain])
@@ -414,8 +439,10 @@ def _build_aggregate(
                 "canonical": canonical,
                 "primary_category": primary_category,
                 "primary_facet": primary_facet,
+                "primary_skill_class": primary_skill_class,
                 "category_votes": dict(item["category_counter"]),
                 "facet_votes": dict(item["facet_counter"]),
+                "skill_class_votes": dict(item["skill_class_counter"]),
                 "domain_votes": domain_votes,
                 "source_refs_count": len(item["source_refs"]),
                 "sample_phrases": sample_phrases,
@@ -599,6 +626,7 @@ def main() -> None:
                     "canonical": row.canonical,
                     "category": row.category,
                     "facet": row.facet,
+                    "skill_class": row.skill_class,
                     "domain_hint": row.domain_hint,
                     "domain_confidence": row.domain_confidence,
                     "context_phrase": row.context_phrase,

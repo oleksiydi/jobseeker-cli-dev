@@ -19,7 +19,7 @@ Purpose:
 
 Options:
   --provider NAME          LLM provider (default: openrouter)
-  --model NAME             Model id for provider (default: mistralai/mistral-small-3.2-24b-instruct)
+  --model NAME             Model id for provider (default: mistralai/mistral-small-24b-instruct-2501)
   --max-vacancies N        Max active vacancies (default: 30)
   --max-terms N            Max terms per vacancy (default: 15)
   --llm-max-tokens N       Max output tokens per LLM call (default: 1200)
@@ -39,7 +39,7 @@ Examples:
   # Typical OpenRouter run with .env loading:
   bash tools/run_taxonomy_benchmark.sh --load-env \
     --provider openrouter \
-    --model mistralai/mistral-small-3.2-24b-instruct \
+    --model mistralai/mistral-small-24b-instruct-2501 \
     --max-vacancies 30
 
   # Compare another model on same setup:
@@ -51,7 +51,7 @@ EOF
 }
 
 PROVIDER="openrouter"
-MODEL="mistralai/mistral-small-3.2-24b-instruct"
+MODEL="mistralai/mistral-small-24b-instruct-2501"
 MAX_VACANCIES="30"
 MAX_TERMS="15"
 LLM_MAX_TOKENS="1200"
@@ -150,6 +150,7 @@ echo "Benchmark metrics:"
 import json
 from pathlib import Path
 from collections import Counter
+from statistics import median
 
 terms_path = Path("${OUT_TERMS}")
 calls_path = Path("${OUT_CALLS}")
@@ -181,22 +182,74 @@ if agg:
     print(f"aggregate.terms_len={len(agg.get('terms', []))}")
 cat = Counter(r.get("category", "") for r in rows)
 facet = Counter(r.get("facet", "") for r in rows)
+skill_class = Counter(r.get("skill_class", "") for r in rows if r.get("skill_class", ""))
 domain = Counter(r.get("domain_hint", "") for r in rows)
 print(f"term_rows={len(rows)}")
 print(f"category_counts={dict(cat)}")
 print(f"top_facets={dict(facet.most_common(8))}")
+if skill_class:
+    print(f"skill_class_counts={dict(skill_class)}")
+    non_skill_rows = int(skill_class.get("non_skill_conditions", 0))
+    print(f"non_skill_condition_rows={non_skill_rows}")
 print(f"top_domains={dict(domain.most_common(8))}")
 
 status = Counter(c.get("status", "ok") for c in calls)
 pt = ct = tt = 0
+cost_total = 0.0
+elapsed_ok = []
+length_count = 0
+parse_error_count = 0
+error_kinds = Counter()
 for c in calls:
     u = c.get("usage") or {}
     pt += int(u.get("prompt_tokens") or 0)
     ct += int(u.get("completion_tokens") or 0)
     tt += int(u.get("total_tokens") or 0)
+    cost_total += float(u.get("cost") or 0.0)
+    finish_reason = c.get("finish_reason") or c.get("response_finish_reason") or ""
+    if str(finish_reason).lower() == "length":
+        length_count += 1
+    if c.get("status") == "ok":
+        elapsed = c.get("elapsed_ms")
+        if isinstance(elapsed, (int, float)):
+            elapsed_ok.append(float(elapsed))
+    else:
+        err = str(c.get("error_message") or "")
+        if "not valid JSON object" in err:
+            parse_error_count += 1
+        error_kinds[str(c.get("error_type") or "unknown")] += 1
+
+def pct(part, whole):
+    return round((part / whole) * 100.0, 2) if whole else 0.0
+
+def p95(values):
+    if not values:
+        return 0.0
+    vals = sorted(values)
+    idx = int(0.95 * (len(vals) - 1))
+    return vals[idx]
+
 print(f"llm_calls={len(calls)}")
 print(f"status_counts={dict(status)}")
 print(f"tokens_prompt={pt} tokens_completion={ct} tokens_total={tt}")
+print(f"cost_total_usd={round(cost_total, 6)}")
+processed = int((agg.get("input") or {}).get("processed_vacancies") or status.get("ok", 0) or 0)
+scanned = int((agg.get("input") or {}).get("scanned_vacancies") or 0)
+if processed:
+    print(f"cost_per_processed_usd={round(cost_total / processed, 6)}")
+    print(f"tokens_per_processed={round(tt / processed, 2)}")
+if scanned:
+    print(f"cost_per_scanned_usd={round(cost_total / scanned, 6)}")
+print(f"finish_reason_length={length_count}/{len(calls)} ({pct(length_count, len(calls))}%)")
+print(f"json_parse_errors={parse_error_count}")
+if elapsed_ok:
+    print(
+        "latency_ms_p50={:.2f} latency_ms_p95={:.2f} latency_ms_max={:.2f}".format(
+            median(elapsed_ok), p95(elapsed_ok), max(elapsed_ok)
+        )
+    )
+if error_kinds:
+    print(f"error_types={dict(error_kinds)}")
 PY
 
 echo ""
