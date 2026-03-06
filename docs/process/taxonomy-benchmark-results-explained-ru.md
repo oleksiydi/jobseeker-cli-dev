@@ -240,3 +240,225 @@ Run:
 
 Вывод:
 - этот прогон нельзя сравнивать по качеству с Mistral/GPT-mini, так как фактического извлечения не было.
+
+## 9) Полный процесс набора таксономии из вакансий (с нуля)
+
+Ниже — как система работает сейчас на практике, если начинать с пустого состояния.
+
+### Шаг 0. Сброс состояния
+
+Команда:
+```bash
+bash tools/reset_taxonomy_state.sh
+```
+
+Что делает:
+- создает/перезаписывает `conf/normalization/taxonomy.auto.json` пустым шаблоном;
+- очищает:
+  - `logs/normalization/unknown_terms.jsonl`
+  - `logs/normalization/taxonomy_pending.jsonl`
+- сбрасывает `logs/normalization/taxonomy_processed.json` в `{}`.
+
+Важно:
+- этот сброс не удаляет benchmark-артефакты;
+- он не “обучает” словарь, а просто очищает состояние для нового цикла.
+
+### Шаг 1. Источник доменов
+
+Файл:
+- `conf/normalization/domains.level1.de.json`
+
+Пример:
+- `it_software_daten`
+- `gesundheitswesen_pflege_medizin`
+- `handwerk_bau_ausbau`
+- `sonstiges`
+
+Как используется:
+- список подставляется в system prompt;
+- schema тоже ограничивает `domain`/`domain_hint` тем же набором.
+
+Как избегаются дубликаты доменов:
+- при загрузке список нормализуется и дедуплицируется;
+- алиасы приводятся к канону (например `other` -> `sonstiges`).
+
+### Шаг 2. Чтение вакансий из Mongo
+
+Скрипт:
+- `tools/build_taxonomy_from_vacancies.py`
+
+Источник данных:
+- `stellenangebote` (active list)
+- `jobdetails` (детали по `referenznummer`)
+
+Скрипт:
+1. берет активные вакансии;
+2. подтягивает детали;
+3. собирает merged-объект;
+4. отправляет текст в LLM по schema-контракту.
+
+### Шаг 3. Нормализация вакансии через `MergedVacancyNormalized`
+
+Код:
+- `app/matching/models.py`
+
+Модель `MergedVacancyRaw` собирается из двух источников:
+- `title` из `stellenangebotsTitel` или fallback `titel`;
+- `role` из `hauptberuf` или fallback `beruf`;
+- `alt_roles_raw` из `alternativBeruf1..5`;
+- `location_summary` (land|region|city|plz);
+- `employment_summary` (vollzeit/teilzeit/vertragsdauer/minijob);
+- `description` из `stellenangebotsBeschreibung`.
+
+Потом `MergedVacancyNormalized.from_raw(...)`:
+- чистит пробелы/переносы;
+- удаляет псевдо-пустые значения (`"null"`, `"false"`, `"-"` и т.д.);
+- делает `alt_roles` уникальным списком;
+- ставит `description_missing=true`, если описание пустое.
+
+Итоговый `canonical_text()` строится по фиксированному шаблону:
+```text
+TITLE: ...
+ROLE: ...
+ALT_ROLES: ...
+LOCATION: ...
+EMPLOYMENT: ...
+DESCRIPTION:
+...
+```
+
+Зачем это нужно:
+- детерминированный вход для LLM;
+- одинаковая структура для всех вакансий;
+- меньше случайного шума из “грязных” source-полей.
+
+## 10) Что означают поля `term/category/facet/domain_hint/domain_confidence/context_phrase`
+
+Это поля каждой строки в `vacancy_terms.jsonl`.
+
+Пример реальной строки:
+```json
+{
+  "term": "Schweißen",
+  "category": "skills",
+  "facet": "task_responsibility",
+  "domain_hint": "handwerk_bau_ausbau",
+  "domain_confidence": 0.9,
+  "context_phrase": "Durchführung von Schweißarbeiten"
+}
+```
+
+Расшифровка:
+- `term`: исходный термин, который модель выделила из вакансии.
+- `category`: грубый класс:
+  - `skills` — навыки/требования/ответственность/условия;
+  - `tools` — конкретные продукты/инструменты;
+  - `stack` — технологии/языки/фреймворки.
+- `facet`: точный подтип внутри категории:
+  - `task_responsibility` — рабочая задача/обязанность;
+  - `skill_requirement` — требуемая компетенция;
+  - `tool_or_platform` — инструмент/платформа;
+  - `technology_stack` — технология стека;
+  - `benefit`, `work_condition`, `certification`, `language_requirement`, `interpersonal_competency`.
+- `domain_hint`: домен, в котором термин используется в этой вакансии.
+- `domain_confidence`: уверенность модели по домену (0..1).
+- `context_phrase`: короткий фрагмент из вакансии, где термин подтверждается.
+
+Еще примеры:
+- `term="Schweißerausbildung"`, `facet="work_condition"` — видно, что модель отнесла это к условиям/формату; далее это проверяется агрегатом и ревью.
+- `term="Technisches Verständnis"`, `facet="skill_requirement"` — классическое требование к кандидату.
+
+## 11) Как строится итоговый агрегат по `term_key`
+
+Файл:
+- `taxonomy_domain_aggregate.json`
+
+Принцип:
+- все строки из `vacancy_terms.jsonl` группируются по `term_key` (нормализованный ключ);
+- внутри группы считаются голоса и статистика.
+
+Что пишется в агрегат:
+- `canonical` — наиболее частое каноническое написание;
+- `primary_category` — категория-победитель по голосам;
+- `primary_facet` — фасет-победитель;
+- `category_votes` — сколько раз каждая категория встречалась;
+- `facet_votes` — сколько раз каждый фасет встречался;
+- `domain_votes` — по каждому домену:
+  - `count` (сколько раз термин отнесли к домену),
+  - `avg_confidence` (средняя уверенность);
+- `source_refs_count` — в скольких вакансиях термин встретился;
+- `sample_phrases` — короткие контекстные примеры.
+
+Пример:
+```json
+{
+  "term_key": "abrechnung",
+  "canonical": "Abrechnung",
+  "primary_category": "skills",
+  "primary_facet": "task_responsibility",
+  "category_votes": { "skills": 1 },
+  "facet_votes": { "task_responsibility": 1 },
+  "domain_votes": {
+    "finanzen_versicherung_recht": {
+      "count": 1,
+      "avg_confidence": 0.9
+    }
+  },
+  "source_refs_count": 1,
+  "sample_phrases": ["Abrechnungsvorbereitung"]
+}
+```
+
+Как это используется дальше:
+- это “слой знаний” для будущей нормализации профиля и сопоставления с вакансиями;
+- можно видеть доменную неоднозначность термина;
+- можно вводить пороги доверия и ручной review на спорных случаях.
+
+## 12) Где и как обрабатываются дубликаты
+
+### Дубликаты доменов
+- список доменов дедуплицируется при загрузке;
+- алиасы приводятся к канону;
+- в итоге в pipeline домены идут в одном формате.
+
+### Дубликаты терминов
+- в `vacancy_terms.jsonl` дубли нормальны (это сырой слой);
+- в агрегате дубли схлопываются по `term_key`.
+
+Пример:
+- `Schweißen` из 20 вакансий даст 20 сырых строк;
+- в агрегате будет 1 запись `term_key="schweißen"` с `source_refs_count=20`.
+
+### Что еще может дублироваться семантически
+- разные формы одного смысла:
+  - `K8s` и `Kubernetes`,
+  - `CI/CD` и `Continuous Integration`.
+- Сейчас это разные `term_key`, пока не включен отдельный слой синонимов.
+
+## 13) Что пишется в логи вызовов LLM и зачем
+
+Файл:
+- `vacancy_taxonomy_llm_calls.jsonl`
+
+Пишется по каждому вызову:
+- `status`, `finish_reason`, `elapsed_ms`, `usage.tokens`, `usage.cost`.
+
+Зачем:
+- считать реальную цену прогона;
+- видеть p50/p95 latency;
+- быстро выявлять деградации (`length`, parse-error, provider errors).
+
+Пример:
+```json
+{
+  "status": "ok",
+  "finish_reason": "stop",
+  "elapsed_ms": 48373.406,
+  "usage": {
+    "prompt_tokens": 832,
+    "completion_tokens": 825,
+    "total_tokens": 1657,
+    "cost": 0.00017353
+  }
+}
+```
