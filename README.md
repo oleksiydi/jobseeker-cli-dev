@@ -185,6 +185,14 @@ Detaildoku:
 - Dev->Release Freeze Workflow:
   `docs/process/taxonomy-release-freeze-workflow-ru.md`
 
+Release freeze command (mandatory before delivery):
+```bash
+ALLOW_PROFILE_LEARNING=false \
+ALLOW_VACANCY_LEARNING=false \
+bash tools/freeze_taxonomy_release.sh
+```
+This promotes reviewed `*.auto.json` into `*.release.json` and writes a freeze snapshot log.
+
 ### ENV Defaults und Override-Priorität
 
 OpenRouter Provider-Defaults (falls ENV nicht gesetzt):

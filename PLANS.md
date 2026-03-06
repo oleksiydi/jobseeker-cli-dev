@@ -462,6 +462,10 @@
   - `tools/taxonomy_io.py`
 - `tools/build_taxonomy_from_vacancies.py` оставлен как CLI-обертка orchestration.
 - Добавлены `retry-on-length`, `checkpoint/resume`, `process-log-level`, `preset`.
+- Добавлен release freeze-скрипт `tools/freeze_taxonomy_release.sh`:
+  - policy-check: learning flags должны быть выключены;
+  - promotion: `*.auto.json -> *.release.json`;
+  - snapshot/лог в `logs/normalization/freeze/<UTC_TS>/`.
 - Шаг 0: план добавлен.
 - Шаг 1: добавлены Pydantic-модели и нормализация (`app/matching/models.py`) + unit-тесты.
 - Шаг 2: добавлен JSONLogic engine (`app/matching/rule_engine.py`) + rule-files в `conf/rules` + unit-тесты.

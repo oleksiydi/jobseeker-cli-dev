@@ -51,6 +51,18 @@
 - коммит только `*.release.json` + документы с метриками.
 - `*.auto.json` в релиз не переносить как обязательную часть runtime.
 
+7. Выполнить формальный freeze-скрипт:
+```bash
+ALLOW_PROFILE_LEARNING=false \
+ALLOW_VACANCY_LEARNING=false \
+bash tools/freeze_taxonomy_release.sh
+```
+Скрипт:
+- проверяет, что learning-флаги выключены (или требует `--force`);
+- переносит `taxonomy.auto.json -> taxonomy.release.json`;
+- опционально переносит `synonyms.auto.json -> synonyms.release.json`;
+- пишет snapshot и лог в `logs/normalization/freeze/<UTC_TS>/`.
+
 ## Пример практического цикла
 1. Набор словаря:
 ```bash
