@@ -184,6 +184,8 @@ Detaildoku:
   `docs/process/taxonomy-pipeline-decomposition-ru.md`
 - Dev->Release Freeze Workflow:
   `docs/process/taxonomy-release-freeze-workflow-ru.md`
+- Synonyms-Contract (domain-aware, pending + dictionary):
+  `docs/process/synonyms-contract-ru.md`
 
 Release freeze command (mandatory before delivery):
 ```bash
