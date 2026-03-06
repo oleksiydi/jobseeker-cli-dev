@@ -1,6 +1,7 @@
 from tools.build_taxonomy_from_vacancies import (
     ExtractedTerm,
     _apply_runtime_taxonomy_to_row,
+    _apply_preset_limits,
     _build_aggregate,
     _effective_dry_run,
     _load_domains,
@@ -187,3 +188,15 @@ def test_apply_runtime_taxonomy_to_row_remaps_category_and_canonical():
     assert mapped.term_key == "kubernetes"
     assert mapped.category == "stack"
     assert mapped.skill_class == "not_applicable"
+
+
+def test_apply_preset_limits_cpu_safe():
+    max_terms, max_input = _apply_preset_limits(preset="cpu_safe", max_terms_per_vacancy=30, max_input_chars=6000)
+    assert max_terms == 10
+    assert max_input == 3000
+
+
+def test_apply_preset_limits_quality_pass():
+    max_terms, max_input = _apply_preset_limits(preset="quality_pass", max_terms_per_vacancy=30, max_input_chars=6000)
+    assert max_terms == 15
+    assert max_input == 3000

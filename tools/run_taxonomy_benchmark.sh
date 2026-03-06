@@ -21,9 +21,10 @@ Options:
   --provider NAME          LLM provider (default: openrouter)
   --model NAME             Model id for provider (default: mistralai/mistral-small-24b-instruct-2501)
   --max-vacancies N        Max active vacancies (default: 30)
-  --max-terms N            Max terms per vacancy (default: 30)
-  --llm-max-tokens N       Max output tokens per LLM call (default: 1100)
-  --timeout-seconds N      Per-call timeout, 0 disables timeout (default: 0)
+  --max-terms N            Max terms per vacancy before preset cap (default: 10)
+  --llm-max-tokens N       Max output tokens per LLM call (default: 900)
+  --timeout-seconds N      Per-call timeout, 0 disables timeout (default: 1800)
+  --preset NAME            Extraction preset (cpu_safe|quality_pass, default: cpu_safe)
   --checkpoint-every N     Aggregate checkpoint interval (default: 5)
   --tag NAME               Custom run tag suffix (default: auto timestamp)
   --snapshot-current       Copy current *.openai.* artifacts into a baseline snapshot folder.
@@ -53,9 +54,10 @@ EOF
 PROVIDER="openrouter"
 MODEL="mistralai/mistral-small-24b-instruct-2501"
 MAX_VACANCIES="30"
-MAX_TERMS="30"
-LLM_MAX_TOKENS="1100"
-TIMEOUT_SECONDS="0"
+MAX_TERMS="10"
+LLM_MAX_TOKENS="900"
+TIMEOUT_SECONDS="1800"
+PRESET="cpu_safe"
 CHECKPOINT_EVERY="5"
 TAG=""
 SNAPSHOT_CURRENT="false"
@@ -69,6 +71,7 @@ while [[ $# -gt 0 ]]; do
     --max-terms) MAX_TERMS="$2"; shift 2 ;;
     --llm-max-tokens) LLM_MAX_TOKENS="$2"; shift 2 ;;
     --timeout-seconds) TIMEOUT_SECONDS="$2"; shift 2 ;;
+    --preset) PRESET="$2"; shift 2 ;;
     --checkpoint-every) CHECKPOINT_EVERY="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
     --snapshot-current) SNAPSHOT_CURRENT="true"; shift ;;
@@ -129,6 +132,7 @@ echo "  model=${MODEL}"
 echo "  max_vacancies=${MAX_VACANCIES}"
 echo "  max_terms=${MAX_TERMS}"
 echo "  llm_max_tokens=${LLM_MAX_TOKENS}"
+echo "  preset=${PRESET}"
 echo "  run_dir=${RUN_DIR}"
 
 LLM_PROVIDER="${PROVIDER}" .venv/bin/python tools/build_taxonomy_from_vacancies.py \
@@ -138,6 +142,7 @@ LLM_PROVIDER="${PROVIDER}" .venv/bin/python tools/build_taxonomy_from_vacancies.
   --max-terms-per-vacancy "${MAX_TERMS}" \
   --llm-max-tokens "${LLM_MAX_TOKENS}" \
   --timeout-seconds "${TIMEOUT_SECONDS}" \
+  --preset "${PRESET}" \
   --checkpoint-every "${CHECKPOINT_EVERY}" \
   --allow-learning \
   --overwrite-output \
