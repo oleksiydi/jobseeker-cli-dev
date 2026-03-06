@@ -131,6 +131,40 @@ Auto-Update der Taxonomie (Aliases + Kategorien) aus unbekannten Begriffen:
 Hinweis:
 - `confidence >= 0.9` wird automatisch in die Taxonomie übernommen.
 - niedrigere confidence landet in `taxonomy_pending.jsonl` für spätere Prüfung.
+- Schreibzugriff ist jetzt opt-in:
+  - Default: `ALLOW_PROFILE_LEARNING=false` -> keine Dateiänderungen (`learning_disabled_skip_write=true` im Log).
+  - Aktivieren: `ALLOW_PROFILE_LEARNING=true` oder CLI-Flag `--allow-learning`.
+  - Erzwingen ohne Schreiben: CLI-Flag `--dry-run`.
+
+Taxonomy aus Vakanzen (Benchmark/Bootstrap):
+- `tools/build_taxonomy_from_vacancies.py` schreibt nur mit aktivem Learning.
+- Default: `ALLOW_VACANCY_LEARNING=false`.
+- Benchmark-Script `tools/run_taxonomy_benchmark.sh` setzt `--allow-learning` explizit.
+
+### ENV Defaults und Override-Priorität
+
+OpenRouter Provider-Defaults (falls ENV nicht gesetzt):
+- `OPENROUTER_PROVIDER_SORT=price`
+- `OPENROUTER_PROVIDER_DATA_COLLECTION=deny`
+- `OPENROUTER_PROVIDER_ZDR=true`
+- `OPENROUTER_REQUIRE_PARAMETERS=true` (bei strict structured output)
+
+Wichtiger Hinweis zu ZDR:
+- Manche Modelle/Provider haben keinen passenden ZDR-Endpunkt.
+- Symptom: `404 No endpoints found matching your data policy (Zero data retention)`.
+- Per-Run Override:
+```bash
+OPENROUTER_PROVIDER_ZDR=false bash tools/run_taxonomy_benchmark.sh ...
+```
+
+Priorität von Einstellungen:
+1. CLI-Flags (höchste Priorität), z.B. `--allow-learning`, `--no-allow-learning`, `--dry-run`
+2. ENV Variablen (z.B. `ALLOW_PROFILE_LEARNING`, `ALLOW_VACANCY_LEARNING`)
+3. Code-Defaults (wenn weder CLI noch ENV gesetzt)
+
+Für Learning gilt effektiv:
+- `effective_dry_run = dry_run OR (NOT allow_learning)`
+- Das heißt: `--dry-run` gewinnt immer und verhindert Schreiben.
 
 ## Erster Start (obligatorisch)
 
