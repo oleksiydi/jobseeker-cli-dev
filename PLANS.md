@@ -258,6 +258,156 @@
 
 Итог:
 - Что сделано:
+
+### [PLAN-20260306-05] Synonyms LLM Clustering (Domain + Facet + Skill Class)
+
+Контекст:
+- Что меняем и зачем.
+- На этапе набора большого словаря ручное создание aliases не масштабируется.
+- Вводим LLM-first кластеризацию синонимов по блокам, чтобы автоматически строить качественный `synonyms.auto`.
+- Ключевое ограничение: не смешивать термины между разными доменами и типами навыков.
+
+Область изменений:
+- Файлы/модули:
+- `conf/normalization/schemas/synonyms_cluster_input.schema.json`
+- `conf/normalization/schemas/synonyms_cluster_output.schema.json`
+- будущий скрипт `tools/build_synonyms_from_taxonomy.py`
+- будущий review-скрипт `tools/review_synonyms_pending.py`
+- Конфиги:
+- `conf/normalization/synonyms.release.json`
+- `conf/normalization/synonyms.auto.json`
+- `logs/normalization/synonyms_pending.jsonl`
+- Данные/индексы MongoDB:
+- на первом этапе без обязательного Mongo (JSON-first).
+
+Шаги:
+1. Зафиксировать контракты входа/выхода кластеризации.
+Критерий готовности:
+- schema-файлы добавлены в `conf/normalization/schemas`;
+- в контракте явно есть `domain`, `category`, `facet`, `skill_class`.
+Риски: несовместимость с более ранними артефактами без `skill_class`.
+Откат: временный fallback `skill_class=not_applicable`.
+
+2. Построить LLM-first clustering pipeline (батчи по блокам).
+Критерий готовности:
+- кластеризация идет только внутри блока `(domain, category, facet, skill_class)`;
+- на выходе `canonical_term_key + aliases + confidence + reason`.
+Риски: избыточное дробление блоков и пропуск синонимов.
+Откат: разрешить fallback-режим без `skill_class` только для `tools/stack`.
+
+3. Ввести pending review слой для спорных alias.
+Критерий готовности:
+- high-confidence aliases идут в auto-apply;
+- medium-confidence идут в `synonyms_pending.jsonl` на ручной review.
+Риски: накопление pending при больших объемах.
+Откат: повысить порог auto-apply.
+
+4. Подключить synonyms merge в runtime нормализации.
+Критерий готовности:
+- runtime читает `synonyms.release + synonyms.auto`;
+- маппинг aliases применяется одинаково к вакансиям и профилям.
+Риски: регрессия по старым данным.
+Откат: feature-flag отключения auto synonyms.
+
+Проверки:
+- Команды:
+- `.venv/bin/python -m pytest -q`
+- (после реализации скрипта) dry-run на 500-1000 терминах из агрегата.
+- Что должно получиться:
+- заметное снижение дублей (`k8s/kubernetes`, `postgres/postgresql`, `ci cd/ci/cd`);
+- без роста cross-domain ошибок.
+
+Статус:
+- [x] Запланировано
+- [ ] В работе
+- [ ] Завершено
+
+Итог:
+- Что сделано:
+- Добавлены contracts для `synonyms_cluster_input` и `synonyms_cluster_output` с `skill_class`.
+- Что не сделано:
+- Реализация `build_synonyms_from_taxonomy.py` и review flow.
+- Следующие действия:
+- Реализовать шаг 2 и сделать первый dry-run на текущем `taxonomy_domain_aggregate`.
+
+### [PLAN-20260306-06] Opt-in Learning Flags Before Synonyms
+
+Контекст:
+- До запуска synonyms-пайплайна нужно исключить "тихое" изменение словарей в релизном режиме.
+- По умолчанию обучение выключено, включается только явным opt-in.
+
+Область изменений:
+- Файлы/модули:
+- `tools/update_taxonomy_from_unknown_terms.py`
+- `tools/build_taxonomy_from_vacancies.py`
+- `tools/run_taxonomy_benchmark.sh` (явное включение learning для benchmark-сценария)
+- тесты `tests/test_update_taxonomy_from_unknown_terms.py`, `tests/test_build_taxonomy_from_vacancies.py`
+- Конфиги:
+- ENV: `ALLOW_PROFILE_LEARNING=false`, `ALLOW_VACANCY_LEARNING=false`
+
+Шаги:
+1. Добавить флаги allow-learning с ENV default.
+Критерий готовности:
+- profile/vacancy learning выключены по умолчанию.
+Риски: путаница между `dry-run` и `allow-learning`.
+Откат: оставить `dry-run` как единственный переключатель.
+
+2. Протянуть флаги в точки записи артефактов.
+Критерий готовности:
+- при `allow-learning=false` словари и pending не записываются;
+- печатается `learning_disabled_skip_write=true`.
+Риски: benchmark перестанет писать артефакты.
+Откат: для benchmark явно передавать `--allow-learning`.
+
+3. Закрыть тестами.
+Критерий готовности:
+- unit-тесты проверяют effective dry-run логику.
+Риски: недостаточное покрытие интеграционных кейсов.
+Откат: добавить smoke-интеграцию скриптов в отдельном PR.
+
+Статус:
+- [x] Запланировано
+- [x] В работе
+- [ ] Завершено
+
+Итог:
+- Что сделано:
+- Флаги и guard-логика добавлены в оба скрипта.
+- Что не сделано:
+- Smoke-подтверждение на реальном запуске.
+- Следующие действия:
+- Прогон smoke с `ALLOW_*_LEARNING=false/true` и фиксация результата.
+
+### [PLAN-20260306-07] Merged Loader for Taxonomy/Synonyms (Release + Auto)
+
+Контекст:
+- До synonyms runtime нужен единый слой загрузки словарей для вакансий и профилей.
+- Источник должен быть одинаковым: `release + auto`.
+
+Область изменений:
+- Файлы/модули:
+- будущий модуль `app/normalization/loader.py` (или эквивалент)
+- `tools/extract_profile_from_text.py`
+- пайплайн нормализации вакансий
+- Конфиги:
+- `conf/normalization/taxonomy.release.json`
+- `conf/normalization/taxonomy.auto.json`
+- `conf/normalization/synonyms.release.json`
+- `conf/normalization/synonyms.auto.json`
+
+Шаги:
+1. Ввести unified loader с merge-priority `auto > release`.
+2. Переключить профиль и вакансии на этот loader.
+3. Добавить тесты одинакового поведения для profile+vacancy.
+
+Критерии готовности:
+- один merged-слой используется в обоих пайплайнах;
+- одинаковый alias дает одинаковую нормализацию в профиле и вакансии.
+
+Статус:
+- [x] Запланировано
+- [ ] В работе
+- [ ] Завершено
 - Шаг 0: план добавлен.
 - Шаг 1: добавлены Pydantic-модели и нормализация (`app/matching/models.py`) + unit-тесты.
 - Шаг 2: добавлен JSONLogic engine (`app/matching/rule_engine.py`) + rule-files в `conf/rules` + unit-тесты.

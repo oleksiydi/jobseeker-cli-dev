@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SynonymsClusterOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "clusters"
+  ],
+  "properties": {
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "canonical_term_key",
+          "aliases",
+          "confidence",
+          "reason",
+          "domain",
+          "category",
+          "facet",
+          "skill_class"
+        ],
+        "properties": {
+          "canonical_term_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aliases": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "skills",
+              "tools",
+              "stack"
+            ]
+          },
+          "facet": {
+            "type": "string",
+            "minLength": 1
+          },
+          "skill_class": {
+            "type": "string",
+            "enum": [
+              "professional",
+              "interpersonal",
+              "non_skill_conditions",
+              "not_applicable"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
