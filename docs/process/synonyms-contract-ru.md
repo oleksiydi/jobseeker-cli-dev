@@ -124,3 +124,34 @@
 ```
 
 Поле `aliases` оставлено как legacy-слой для плавной миграции текущего flat-runtime.
+
+## 6) Как проверяется соблюдение контракта
+
+Проверка идёт в двух слоях:
+
+1. Статическая проверка схем/enum в тестах:
+- `tests/test_synonyms_contract.py`
+- контролирует, что enum-наборы синонимов синхронизированы с нормализацией
+  (`CATEGORY_ALLOWED`, `FACET_ALLOWED`, `SKILL_CLASS_ALLOWED`).
+
+2. Рантайм-валидатор записей/словаря:
+- модуль: `app/normalization/synonyms_contract.py`
+- CLI: `tools/validate_synonyms_contract.py`
+- дополнительно к структуре проверяет домен против
+  `conf/normalization/domains.level1.de.json`.
+
+Примеры запуска:
+
+```bash
+.venv/bin/python tools/validate_synonyms_contract.py \
+  --mode pending \
+  --input logs/normalization/synonyms.pending.jsonl
+```
+
+```bash
+.venv/bin/python tools/validate_synonyms_contract.py \
+  --mode dictionary \
+  --input conf/normalization/synonyms.auto.json
+```
+
+Если есть ошибки контракта, скрипт завершится с кодом `1`.

@@ -186,6 +186,8 @@ Detaildoku:
   `docs/process/taxonomy-release-freeze-workflow-ru.md`
 - Synonyms-Contract (domain-aware, pending + dictionary):
   `docs/process/synonyms-contract-ru.md`
+- Contract-Validator:
+  `.venv/bin/python tools/validate_synonyms_contract.py --mode pending|dictionary --input <path>`
 
 Release freeze command (mandatory before delivery):
 ```bash
