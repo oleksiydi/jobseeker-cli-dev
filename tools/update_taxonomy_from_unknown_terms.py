@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -74,6 +75,17 @@ DEFAULT_CATEGORY_BY_CANONICAL: dict[str, str] = {
 CATEGORY_FIELDS = {"skills", "tools", "stack"}
 REVIEW_STATUS_AUTO = "auto_suggested"
 REVIEW_CODE_AUTO = 0
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _effective_dry_run(*, dry_run: bool, allow_learning: bool) -> bool:
+    return dry_run or (not allow_learning)
 
 
 def _normalize_term_key(value: str) -> str:
@@ -319,6 +331,12 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="Process at most N terms (0 = all).",
     )
+    parser.add_argument(
+        "--allow-learning",
+        action=argparse.BooleanOptionalAction,
+        default=_env_flag("ALLOW_PROFILE_LEARNING", False),
+        help="Allow writing taxonomy/pending/processed outputs (default from ALLOW_PROFILE_LEARNING, off by default).",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Do not write taxonomy/index files.")
     return parser.parse_args()
 
@@ -366,7 +384,9 @@ def main() -> None:
 
         processed_new.append(sig)
 
-    if not args.dry_run:
+    effective_dry_run = _effective_dry_run(dry_run=args.dry_run, allow_learning=args.allow_learning)
+
+    if not effective_dry_run:
         _dump_json(args.taxonomy, _ensure_taxonomy_shape(taxonomy))
         updated_signatures = sorted(signatures.union(processed_new))
         _dump_json(args.processed_index, {"signatures": updated_signatures})
@@ -375,11 +395,13 @@ def main() -> None:
             with args.pending_out.open("a", encoding="utf-8") as handle:
                 for line in pending_lines:
                     handle.write(line + "\n")
+    elif not args.allow_learning:
+        print("learning_disabled_skip_write=true")
 
     print(
         "DONE: "
         f"total={len(records)}, applied={applied}, pending={pending}, skipped={skipped}, "
-        f"dry_run={args.dry_run}, taxonomy={args.taxonomy}"
+        f"dry_run={effective_dry_run}, allow_learning={args.allow_learning}, taxonomy={args.taxonomy}"
     )
 
 

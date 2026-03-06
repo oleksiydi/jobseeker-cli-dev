@@ -62,3 +62,9 @@ def test_build_pending_record_contains_review_workflow_fields():
     assert pending["review_note"] == ""
     assert pending["reviewed_by"] == ""
     assert pending["reviewed_at"] == ""
+
+
+def test_effective_dry_run_respects_allow_learning_flag():
+    assert updater._effective_dry_run(dry_run=False, allow_learning=False) is True
+    assert updater._effective_dry_run(dry_run=False, allow_learning=True) is False
+    assert updater._effective_dry_run(dry_run=True, allow_learning=True) is True

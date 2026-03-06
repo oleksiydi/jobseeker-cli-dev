@@ -1,6 +1,7 @@
 from tools.build_taxonomy_from_vacancies import (
     ExtractedTerm,
     _build_aggregate,
+    _effective_dry_run,
     _load_domains,
     _normalize_domain,
     _sanitize_term_record,
@@ -149,3 +150,9 @@ def test_sanitize_term_record_sets_interpersonal_class_for_interpersonal_facet()
     assert row is not None
     assert row.category == "skills"
     assert row.skill_class == "interpersonal"
+
+
+def test_effective_dry_run_respects_allow_learning_flag():
+    assert _effective_dry_run(dry_run=False, allow_learning=False) is True
+    assert _effective_dry_run(dry_run=False, allow_learning=True) is False
+    assert _effective_dry_run(dry_run=True, allow_learning=True) is True

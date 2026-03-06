@@ -183,6 +183,17 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
     return max(0.0, min(1.0, parsed))
 
 
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _effective_dry_run(*, dry_run: bool, allow_learning: bool) -> bool:
+    return dry_run or (not allow_learning)
+
+
 def _extract_json_object(text: str) -> dict[str, Any]:
     stripped = text.strip()
     if not stripped:
@@ -529,6 +540,12 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Optional comma-separated domain override (if empty, use --domains-file).",
     )
+    parser.add_argument(
+        "--allow-learning",
+        action=argparse.BooleanOptionalAction,
+        default=_env_flag("ALLOW_VACANCY_LEARNING", False),
+        help="Allow writing taxonomy artifacts (default from ALLOW_VACANCY_LEARNING, off by default).",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Do not write output files")
     return parser.parse_args()
 
@@ -567,7 +584,7 @@ def main() -> None:
     failed = 0
     checkpoint_every = max(0, args.checkpoint_every)
 
-    if not args.dry_run and args.overwrite_output:
+    if not effective_dry_run and args.overwrite_output:
         args.out_terms_jsonl.parent.mkdir(parents=True, exist_ok=True)
         args.llm_calls_log.parent.mkdir(parents=True, exist_ok=True)
         args.out_terms_jsonl.write_text("", encoding="utf-8")
@@ -653,7 +670,7 @@ def main() -> None:
                 "usage": response.usage,
                 "timings": response.timings,
             }
-            if not args.dry_run:
+            if not effective_dry_run:
                 _append_jsonl(args.out_terms_jsonl, term_rows_payload)
                 _append_jsonl(args.llm_calls_log, [llm_meta_row])
                 if checkpoint_every > 0 and processed % checkpoint_every == 0:
@@ -670,7 +687,7 @@ def main() -> None:
                     _write_json(args.out_aggregate_json, checkpoint)
         except Exception:
             failed += 1
-            if not args.dry_run:
+            if not effective_dry_run:
                 exc_type, exc_value, _ = sys.exc_info()
                 error_row: dict[str, Any] = {
                     "run_id": run_id,
@@ -703,12 +720,15 @@ def main() -> None:
     aggregate["run_id"] = run_id
     aggregate["checkpoint"] = False
 
-    if not args.dry_run:
+    if not effective_dry_run:
         _write_json(args.out_aggregate_json, aggregate)
+    elif not args.allow_learning:
+        print("learning_disabled_skip_write=true")
 
     print(
         f"DONE: scanned={scanned}, processed={processed}, failed={failed}, "
-        f"term_rows={len(extracted_rows)}, provider={provider}, model={args.model}, dry_run={args.dry_run}"
+        f"term_rows={len(extracted_rows)}, provider={provider}, model={args.model}, "
+        f"dry_run={effective_dry_run}, allow_learning={args.allow_learning}"
     )
     print(f"terms_jsonl={args.out_terms_jsonl}")
     print(f"aggregate_json={args.out_aggregate_json}")
@@ -717,3 +737,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    effective_dry_run = _effective_dry_run(dry_run=args.dry_run, allow_learning=args.allow_learning)

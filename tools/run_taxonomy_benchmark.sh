@@ -139,6 +139,7 @@ LLM_PROVIDER="${PROVIDER}" .venv/bin/python tools/build_taxonomy_from_vacancies.
   --llm-max-tokens "${LLM_MAX_TOKENS}" \
   --timeout-seconds "${TIMEOUT_SECONDS}" \
   --checkpoint-every "${CHECKPOINT_EVERY}" \
+  --allow-learning \
   --overwrite-output \
   --out-terms-jsonl "${OUT_TERMS}" \
   --out-aggregate-json "${OUT_AGG}" \
