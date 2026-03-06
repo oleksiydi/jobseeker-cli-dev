@@ -154,9 +154,15 @@ Taxonomy aus Vakanzen (Benchmark/Bootstrap):
 - `tools/build_taxonomy_from_vacancies.py` schreibt nur mit aktivem Learning.
 - Default: `ALLOW_VACANCY_LEARNING=false`.
 - Benchmark-Script `tools/run_taxonomy_benchmark.sh` setzt `--allow-learning` explizit.
+- Benchmark nutzt standardmäßig `--preset cpu_safe`:
+  - `max_terms=10`, `llm_max_tokens=900`, `timeout_seconds=1800`.
 - Vacancy-Terme nutzen denselben merged taxonomy layer wie Profil-Normalisierung
   (`taxonomy.release + taxonomy.auto`) für alias/category Mapping.
   Bei Bedarf abschaltbar: `--no-apply-runtime-taxonomy`.
+- Für lokale Langläufe:
+  - `--retry-on-length` reduziert Prompt bei `finish_reason=length`;
+  - `--resume-from-checkpoint` nutzt `--checkpoint-path` und überspringt bereits erfolgreiche Referenzen;
+  - `--process-log-level summary|full` steuert die Log-Detailtiefe.
 
 Local CPU smoke-check (2 Vakanzen + 1 Profil):
 ```bash
@@ -172,6 +178,12 @@ Empfohlene Parameter für lokale CPU-Modelle:
 Hinweis:
 - Der Smoke-Script stoppt sofort bei Fehlern und schreibt START/STEP/END in:
   `logs/normalization/smoke/<UTC_TS>/smoke_run.log`.
+
+Detaildoku:
+- Modulprinzipien und Pipeline-Dekomposition:
+  `docs/process/taxonomy-pipeline-decomposition-ru.md`
+- Dev->Release Freeze Workflow:
+  `docs/process/taxonomy-release-freeze-workflow-ru.md`
 
 ### ENV Defaults und Override-Priorität
 

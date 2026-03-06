@@ -447,12 +447,21 @@
 - `tools/extract_profile_from_text.py` переключен на merged taxonomy loader.
 - `tools/run_profile_normalization_cycle.sh` обновлен: поддержка `--taxonomy-release`.
 - Добавлены unit-тесты `tests/test_normalization_loader.py` для merge taxonomy/synonyms.
+- Вакансионный pipeline переведен на тот же runtime-mapping через общий модуль.
 - Что не сделано:
 - Подключение merged loader в остальные runtime-контуры вакансий (где нормализация словаря уже применяется).
 - Отдельный freeze-скрипт для продвижения `auto -> release`.
 - Следующие действия:
 - Подключить loader в vacancy runtime слой и зафиксировать интеграционным тестом.
 - Добавить `freeze`-команду и smoke-проверку релизного набора.
+
+Обновление (2026-03-06):
+- Добавлена минимальная декомпозиция taxonomy pipeline:
+  - `tools/taxonomy_extract.py`
+  - `tools/taxonomy_transform.py`
+  - `tools/taxonomy_io.py`
+- `tools/build_taxonomy_from_vacancies.py` оставлен как CLI-обертка orchestration.
+- Добавлены `retry-on-length`, `checkpoint/resume`, `process-log-level`, `preset`.
 - Шаг 0: план добавлен.
 - Шаг 1: добавлены Pydantic-модели и нормализация (`app/matching/models.py`) + unit-тесты.
 - Шаг 2: добавлен JSONLogic engine (`app/matching/rule_engine.py`) + rule-files в `conf/rules` + unit-тесты.
