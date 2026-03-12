@@ -155,3 +155,131 @@
 ```
 
 Если есть ошибки контракта, скрипт завершится с кодом `1`.
+
+## 7) Где лежат входы, правила и код валидатора
+
+### Входные данные для валидатора
+- Pending-режим (`--mode pending`):
+  - файл JSONL, 1 строка = 1 запись-кандидат.
+  - типичный путь: `logs/normalization/synonyms.pending.jsonl`.
+- Dictionary-режим (`--mode dictionary`):
+  - один JSON-словарь с `version` и `entries`.
+  - типичные пути:
+    - `conf/normalization/synonyms.auto.json`
+    - `conf/normalization/synonyms.release.json`
+
+### Правила (source of truth)
+- Домены: `conf/normalization/domains.level1.de.json`
+- Категории/фасеты/skill_class:
+  - `tools/taxonomy_transform.py`
+  - константы: `CATEGORY_ALLOWED`, `FACET_ALLOWED`, `SKILL_CLASS_ALLOWED`
+- JSON-контракты:
+  - `conf/normalization/schemas/synonyms_pending_record.schema.json`
+  - `conf/normalization/schemas/synonyms_dictionary.schema.json`
+
+### Код валидатора
+- Библиотечные функции:
+  - `app/normalization/synonyms_contract.py`
+  - `load_allowed_domains(...)`
+  - `validate_pending_record(...)`
+  - `validate_dictionary_payload(...)`
+- CLI-обертка:
+  - `tools/validate_synonyms_contract.py`
+
+## 8) Как запускать валидатор (пошагово)
+
+### Проверить pending-файл
+```bash
+.venv/bin/python tools/validate_synonyms_contract.py \
+  --mode pending \
+  --input logs/normalization/synonyms.pending.jsonl
+```
+
+### Проверить словарь (auto/release)
+```bash
+.venv/bin/python tools/validate_synonyms_contract.py \
+  --mode dictionary \
+  --input conf/normalization/synonyms.auto.json
+```
+
+### Проверить с альтернативным списком доменов
+```bash
+.venv/bin/python tools/validate_synonyms_contract.py \
+  --mode dictionary \
+  --input conf/normalization/synonyms.release.json \
+  --domains-file conf/normalization/domains.level1.de.json
+```
+
+Успешный финал всегда печатает строку:
+```text
+validation_done mode=... input=... total=... errors=0 allowed_domains=...
+```
+
+## 9) Примеры ошибок и как их читать
+
+### Пример 1: неизвестный домен
+```text
+line=17 errors=invalid_domain=health_it
+```
+Что это значит:
+- `domain` не найден в `domains.level1.de.json`.
+
+Что делать:
+1. Исправить `domain` на валидный (`it_software_daten`, `gesundheitswesen_pflege_medizin`, ...).
+2. Если домен действительно новый, сначала обновить `domains.level1.de.json`,
+   затем повторить валидацию.
+
+### Пример 2: отсутствует обязательное поле
+```text
+line=5 errors=missing_required=created_at,review_status
+```
+Что это значит:
+- запись неполная и не соответствует контракту pending.
+
+Что делать:
+1. Добавить отсутствующие поля.
+2. Повторно запустить валидатор.
+
+### Пример 3: ошибка в dictionary entries
+```text
+entry[3]_invalid_facet=soft_skill
+```
+Что это значит:
+- в `entries[3].facet` пришло значение вне enum.
+
+Что делать:
+- заменить на один из допустимых facet (`interpersonal_competency`, `skill_requirement`, ...).
+
+## 10) Что делать, если проверка упала (рабочий протокол)
+
+1. Запустить валидатор на том же файле повторно и сохранить вывод в лог:
+```bash
+.venv/bin/python tools/validate_synonyms_contract.py \
+  --mode pending \
+  --input logs/normalization/synonyms.pending.jsonl \
+  > /tmp/synonyms_validation.log 2>&1 || true
+```
+2. Исправить ошибки по типам:
+- `invalid_domain` -> сверка с `domains.level1.de.json`
+- `invalid_*` enum -> сверка с контрактом и `taxonomy_transform.py`
+- `missing_required` -> восстановить поля в генераторе или post-process шаге
+- `invalid_json` -> исправить битую строку в JSONL
+3. Перезапустить валидацию.
+4. Только после `errors=0` продолжать `review/apply/freeze`.
+
+## 11) Проверка контракта в CI/тестах
+
+- `tests/test_synonyms_contract.py`:
+  - проверяет синхрон enum-наборов между schema и runtime-константами.
+- `tests/test_synonyms_validator.py`:
+  - проверяет runtime-валидатор (валидный кейс + ошибки домена).
+
+Это защищает от ситуации, когда:
+- schema уже изменилась, а код валидатора или константы еще старые;
+- доменные ограничения перестали совпадать с реальным словарем доменов.
+
+## 12) Ограничения текущей версии
+
+- Валидатор проверяет структуру и enum/домены, но не решает семантические конфликты
+  (например, когда `alias` потенциально относится к двум разным `canonical`).
+- Для семантики нужна отдельная стадия review/LLM-верификации.
