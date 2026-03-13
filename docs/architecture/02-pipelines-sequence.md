@@ -26,8 +26,8 @@ sequenceDiagram
     L->>PS: write current query scope hash
     Note over L,PS: if full scan completed and scope hash changed, skip list_missing deactivation in this run
 
-    D->>SA: read active vacancies + modifikationsTimestamp(_dt)
-    D->>JD: batch read current details by referenznummer ($in)
+    D->>SA: read active vacancies and modifikationsTimestamp_dt
+    D->>JD: batch read current details by referenznummer in set
     Note over D: prefilter candidates by SA vs JD timestamps
     D->>API2: GET details only for candidates
     API2-->>D: details / 404 / error
@@ -38,7 +38,7 @@ sequenceDiagram
     A->>JD: lookup current details
     A->>OAI: analyze candidate payload
     OAI-->>A: strict JSON response
-    A->>AN: versioned write; unchanged skip by (referenznummer, candidate_profile_key, input_hash)
+    A->>AN: versioned write and unchanged skip by keys
 ```
 
 ## Data Freshness Contract

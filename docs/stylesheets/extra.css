@@ -1,0 +1,26 @@
+/* Make inline code less visually aggressive in long documentation pages */
+:root {
+  --md-code-bg-color: rgba(127, 127, 127, 0.14);
+}
+
+.md-typeset code {
+  border-radius: 0.28rem;
+  padding: 0.08em 0.32em;
+  font-size: 0.84em;
+}
+
+/* Reduce contrast for fenced code blocks too */
+.md-typeset pre > code {
+  background-color: rgba(127, 127, 127, 0.12);
+}
+
+.md-typeset pre {
+  background-color: rgba(127, 127, 127, 0.1);
+  border: 1px solid rgba(127, 127, 127, 0.18);
+  border-radius: 0.4rem;
+}
+
+/* Improve readability for dense link lists */
+.md-typeset li + li {
+  margin-top: 0.22em;
+}
