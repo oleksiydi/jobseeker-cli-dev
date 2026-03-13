@@ -78,6 +78,10 @@ nav:
       - 32 Semantic Chunking + Embedding + Rerank Math (RU): architecture/32-semantic-chunking-embedding-rerank-math-ru.md
       - 33 System Architecture Master Status (RU): architecture/33-system-architecture-master-status-ru.md
       - 34 Domain Attribution Layer Plan (RU): architecture/34-domain-attribution-layer-plan-ru.md
+      - 35 System Context Map: architecture/35-system-context-map.md
+      - 36 Data Lifecycle Map: architecture/36-data-lifecycle-map.md
+      - 37 Runtime Request Flow: architecture/37-runtime-request-flow.md
+      - 38 Taxonomy Governance Flow: architecture/38-taxonomy-governance-flow.md
       - ADR:
           - ADR Overview: architecture/adr/README.md
           - ADR Template: architecture/adr/ADR-TEMPLATE.md

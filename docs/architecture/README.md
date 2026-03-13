@@ -3,6 +3,13 @@
 This folder contains the visual system documentation for developers.
 All diagrams are written in Mermaid so they can be viewed directly in VS Code Markdown Preview.
 
+## Start Here (decomposed overview)
+
+1. [35-system-context-map](35-system-context-map.md)
+2. [36-data-lifecycle-map](36-data-lifecycle-map.md)
+3. [37-runtime-request-flow](37-runtime-request-flow.md)
+4. [38-taxonomy-governance-flow](38-taxonomy-governance-flow.md)
+
 Contents:
 
 - [00-runtime-contract](00-runtime-contract.md): authoritative current runtime contract (activity semantics, retry behavior, analysis uniqueness, known mismatches).
@@ -39,6 +46,10 @@ Contents:
 - [31-current-status-text-template-latency-ru](31-current-status-text-template-latency-ru.md): current gap analysis on model-rerank text template, runtime cost, and latency trade-offs.
 - [32-semantic-chunking-embedding-rerank-math-ru](32-semantic-chunking-embedding-rerank-math-ru.md): detailed math and algorithm of current semantic chunking + labeling + target rerank evolution.
 - [34-domain-attribution-layer-plan-ru](34-domain-attribution-layer-plan-ru.md): planned domain attribution layer to improve ranking quality for cross-domain roles (e.g., IT + healthcare) and reduce term ambiguity noise.
+- [35-system-context-map](35-system-context-map.md): L0 context map with major contours only (no low-level detail).
+- [36-data-lifecycle-map](36-data-lifecycle-map.md): L1 lifecycle of vacancy/profile/search artifacts.
+- [37-runtime-request-flow](37-runtime-request-flow.md): L1 runtime request sequence from input to top-N output.
+- [38-taxonomy-governance-flow](38-taxonomy-governance-flow.md): L1 governance of taxonomy/synonyms from extraction to release freeze.
 
 Architecture decision history:
 - [adr/README](adr/README.md)
