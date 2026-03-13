@@ -1,8 +1,16 @@
 # AGENTS.md
 
+Audience: `AI (primary)`, `Human (maintainers)`  
+Source of truth: `Yes` (project-level working rules for assistant and collaboration constraints)
+
 ## Назначение
 Этот файл фиксирует рабочие правила для Codex и разработчиков в проекте `jobseeker-cli`.
 Цель: сохранить проект рабочим, читаемым и предсказуемым при развитии ETL/ELT пайплайнов.
+
+Связанные операционные документы:
+- `docs/process/assistant-operating-rules.md` — ежедневный рабочий цикл после каждого запроса.
+- `docs/process/architecture-change-checklist.md` — DoD-чеклист для архитектурных/контрактных изменений.
+- `PLANS.md` — обязательный план для крупных изменений.
 
 ## Текущие решения по стеку
 - HTTP-клиент: используем `requests` + `Session`.

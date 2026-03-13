@@ -1,5 +1,8 @@
 # Правила Работы Ассистента (Операционный Контракт)
 
+Audience: `AI (primary)`, `Human operators`  
+Source of truth: `Yes` (daily operating cycle after each request)
+
 ## Цель
 Фиксировать повторяемый процесс работы после каждого запроса, чтобы:
 - не терялись решения;
@@ -9,6 +12,15 @@
 ## Область действия
 - Применяется к любому запросу, где затрагиваются код, конфиги, тесты, архитектура, процессы.
 - Не заменяет `AGENTS.md`, а конкретизирует ежедневный рабочий цикл.
+
+## Связанные документы
+- `AGENTS.md` — базовые правила проекта и ограничения.
+- [`docs/process/architecture-change-checklist.md`](architecture-change-checklist.md) — DoD-проверка для архитектурных изменений.
+- `PLANS.md` — план крупных задач с поэтапным статусом.
+- [`docs/process/diagrams-01-source-of-truth-map.md`](diagrams-01-source-of-truth-map.md) — карта приоритетов документации.
+- [`docs/process/diagrams-02-doc-change-impact-flow.md`](diagrams-02-doc-change-impact-flow.md) — что обновлять при изменении кода/контрактов.
+- [`docs/process/diagrams-05-plan-lifecycle-and-gates.md`](diagrams-05-plan-lifecycle-and-gates.md) — обязательные gate-этапы.
+- [`docs/process/documentation-linking-validation-rules.md`](documentation-linking-validation-rules.md) — правила кликабельных ссылок, cross-links и проверки `mkdocs --strict`.
 
 ## Базовый цикл после каждого запроса
 1. Уточнить цель и границы изменений.
@@ -56,6 +68,18 @@
 то нужно обновить:
 - актуальный документ в `docs/architecture/*`,
 - и добавить ADR c причиной изменения.
+
+## Обязательное правило обновления диаграмм
+
+Если изменение затронуло хотя бы один пункт:
+- источник истины по теме;
+- порядок шагов в process/plan lifecycle;
+- состав или жизненный цикл артефактов taxonomy/synonyms;
+- карту входов для аудитории (Human/AI/Both),
+то в этом же PR/коммите обязательно:
+1. обновить соответствующую диаграмму в `docs/process/diagrams-*`;
+2. добавить в итоговый отчет строку `diagrams_updated=yes|no` с пояснением;
+3. если `no`, зафиксировать follow-up задачу в `PLANS.md`.
 
 ## Формат отчета по завершению запроса
 Кратко и проверяемо:

@@ -1,7 +1,16 @@
 # Чеклист Архитектурных Изменений
 
+Audience: `Human + AI`  
+Source of truth: `Yes` (DoD checklist for architecture/runtime-contract changes)
+
 ## Назначение
 Быстрый DoD-чеклист для любых изменений архитектуры, правил ранжирования и контрактов данных.
+
+Связанные документы:
+- `AGENTS.md` — проектные правила и ограничения (корень репозитория, вне `docs/`).
+- [Assistant Operating Rules](assistant-operating-rules.md) — операционный цикл изменений.
+- [Documentation Linking/Validation Rules](documentation-linking-validation-rules.md) — стандарт кликабельных ссылок и проверки `mkdocs --strict`.
+- `PLANS.md` — обязательный план для крупных изменений (корень репозитория, вне `docs/`).
 
 ## 0) До начала
 - [ ] Понята причина изменения (проблема/метрика/риск).
@@ -37,6 +46,8 @@
 - [ ] Обновлен актуальный архитектурный документ (`docs/architecture/*`).
 - [ ] Добавлен ADR с “старое -> новое -> почему -> риски -> откат”.
 - [ ] В worklog зафиксированы результаты прогона/метрик (если применимо).
+- [ ] Обновлены релевантные диаграммы в `docs/process/diagrams-*` (или явно зафиксирован follow-up в `PLANS.md`).
+- [ ] Проверена кликабельность новых ссылок и `mkdocs build --strict` (по rules из `docs/process/documentation-linking-validation-rules.md`).
 
 ## 7) Готово к слиянию
 - [ ] Изменения разбиты на смысловые коммиты.

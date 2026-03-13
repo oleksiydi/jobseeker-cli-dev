@@ -1,5 +1,8 @@
 # jobseeker-cli
 
+Audience: `Human (primary)`, `AI (secondary)`  
+Source of truth: `No` (entrypoint + navigation, operational commands)
+
 ## Third-Party Licenses
 
 - `THIRD_PARTY_LICENSES.md`
@@ -38,6 +41,26 @@ Für Entwicklerdokumentation mit visuellen Schemata:
   - `docs/architecture/adr/ADR-TEMPLATE.md`
   - `docs/architecture/adr/README.md`
   - `docs/architecture/adr/ADR-20260224-01-model-rerank-fit-intent-split.md`
+- Documentation diagrams (human + AI navigation and artifact lifecycle):
+  - `docs/process/diagrams-01-source-of-truth-map.md`
+  - `docs/process/diagrams-02-doc-change-impact-flow.md`
+  - `docs/process/diagrams-03-taxonomy-synonyms-artifact-lifecycle.md`
+  - `docs/process/diagrams-04-audience-entrypoints-map.md`
+  - `docs/process/diagrams-05-plan-lifecycle-and-gates.md`
+
+## Audience Map (Mensch vs. KI)
+
+Für Menschen (Developer/Reviewer):
+- `README.md` (dieser Einstieg)
+- `docs/index.md`
+- `docs/architecture/README.md`
+- `docs/worklog/README.md`
+
+Für KI-Assistenten und prozessnahe Operatoren:
+- `AGENTS.md` (Projektregeln/Constraints)
+- `docs/process/assistant-operating-rules.md` (Arbeitszyklus)
+- `docs/process/architecture-change-checklist.md` (DoD-Checks)
+- `PLANS.md` (Pflicht bei großen Änderungen)
 
 Alle Diagramme sind in Mermaid in Markdown gehalten und direkt in VS Code (Markdown Preview) lesbar.
 
