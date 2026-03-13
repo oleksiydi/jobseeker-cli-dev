@@ -105,7 +105,7 @@ DESCRIPTION:
 - одинаковый смысловой вход должен давать одинаковый `embedding_input_hash`.
 
 Подробные реалистичные примеры (полные/избыточные/неполные/плохие данные):
-- `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`
+- [`docs/architecture/18-canonical-text-payload-llm-examples-ru.md`](18-canonical-text-payload-llm-examples-ru.md)
 
 ## 4) Segment -> Semantic Chunking
 

@@ -257,8 +257,8 @@
 ## 9. Источники актуальности
 - `PLANS.md`
 - `AGENTS.md`
-- `docs/process/assistant-operating-rules.md`
-- `docs/architecture/00-runtime-contract.md`
-- `docs/architecture/01-system-overview.md`
-- `docs/architecture/03-job-details-decision-and-state.md`
-- `docs/architecture/23-retrieval-rerank-runtime-flow.md`
+- [`docs/process/assistant-operating-rules.md`](../process/assistant-operating-rules.md)
+- [`docs/architecture/00-runtime-contract.md`](00-runtime-contract.md)
+- [`docs/architecture/01-system-overview.md`](01-system-overview.md)
+- [`docs/architecture/03-job-details-decision-and-state.md`](03-job-details-decision-and-state.md)
+- [`docs/architecture/23-retrieval-rerank-runtime-flow.md`](23-retrieval-rerank-runtime-flow.md)

@@ -20,4 +20,4 @@
 `ADR-20260223-01-model-rerank-fit-intent-split.md`
 
 ## Шаблон
-Используй `docs/architecture/adr/ADR-TEMPLATE.md`.
+Используй [`docs/architecture/adr/ADR-TEMPLATE.md`](ADR-TEMPLATE.md).

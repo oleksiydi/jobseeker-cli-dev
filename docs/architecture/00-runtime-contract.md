@@ -1,5 +1,8 @@
 # Runtime Contract (Current)
 
+Audience: `Human + AI`  
+Source of truth: `Yes` (authoritative current runtime behavior)
+
 Status: `current`  
 Last verified: `2026-02-24`
 

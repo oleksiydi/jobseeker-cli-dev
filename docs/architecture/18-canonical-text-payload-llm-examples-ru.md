@@ -391,7 +391,7 @@ ALT_ROLES:
 
 ## 9) Связанные документы
 
-1. Базовые правила: `docs/architecture/15-embedding-chunking-spec-v1-ru.md`
-2. Схема потока: `docs/architecture/16-embedding-chunking-flow-diagram.md`
-3. Решение skip/reindex: `docs/architecture/17-embedding-reindex-decision-diagram.md`
-4. Сборка LLM-контекста: `docs/architecture/13-llm-context-assembly.md`
+1. Базовые правила: [`docs/architecture/15-embedding-chunking-spec-v1-ru.md`](15-embedding-chunking-spec-v1-ru.md)
+2. Схема потока: [`docs/architecture/16-embedding-chunking-flow-diagram.md`](16-embedding-chunking-flow-diagram.md)
+3. Решение skip/reindex: [`docs/architecture/17-embedding-reindex-decision-diagram.md`](17-embedding-reindex-decision-diagram.md)
+4. Сборка LLM-контекста: [`docs/architecture/13-llm-context-assembly.md`](13-llm-context-assembly.md)

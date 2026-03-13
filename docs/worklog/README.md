@@ -21,6 +21,12 @@
 Пример:
 - `2026-02-19-session-phase1-matching.md`
 
+## Текущие записи
+
+- [2026-02-19 Session Phase 1 Matching](2026-02-19-session-phase1-matching.md)
+- [2026-02-22 Jobcenter API Audit (High Priority)](2026-02-22-jobcenter-api-audit-high-priority.md)
+- [2026-02-23 Session Handoff Status (RU)](2026-02-23-session-handoff-status-ru.md)
+
 ## Важно
 
 - Это журнал внутри репозитория, он не заменяет историю чата в интерфейсе.

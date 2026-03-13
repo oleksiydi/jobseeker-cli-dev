@@ -61,5 +61,5 @@
 - `PLANS.md`:
   - `PLAN-20260223-02` (high priority после базовых этапов).
 - Связанные docs:
-  - `docs/architecture/32-semantic-chunking-embedding-rerank-math-ru.md`
-  - `docs/architecture/29-inference-layer-in-search-ru.md`
+  - [`docs/architecture/32-semantic-chunking-embedding-rerank-math-ru.md`](../32-semantic-chunking-embedding-rerank-math-ru.md)
+  - [`docs/architecture/29-inference-layer-in-search-ru.md`](../29-inference-layer-in-search-ru.md)

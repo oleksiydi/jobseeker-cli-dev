@@ -69,7 +69,7 @@
 
 Обновлены:
 - `README.md` (добавлен блок запуска Local Matching Phase 1)
-- `docs/architecture/08-local-matching-implementation-plan.md` (добавлены implementation notes)
+- [`docs/architecture/08-local-matching-implementation-plan.md`](../architecture/08-local-matching-implementation-plan.md) (добавлены implementation notes)
 - `PLANS.md` (статус плана переведен в `В работе` и зафиксирован прогресс Phase 1)
 
 ### 3.6 Новые тесты
@@ -182,12 +182,12 @@ result = client.ensure_collection()
 - `app/core/matching_config.py`
 - `tests/test_matching_config.py`
 - `README.md`
-- `docs/architecture/08-local-matching-implementation-plan.md`
+- [`docs/architecture/08-local-matching-implementation-plan.md`](../architecture/08-local-matching-implementation-plan.md)
 
 ## 8) Запрос на "человеческое" описание Phase 2
 
 По запросу пользователя добавлен отдельный пошаговый документ:
-- `docs/architecture/14-phase2-index-builder-step-by-step-ru.md`
+- [`docs/architecture/14-phase2-index-builder-step-by-step-ru.md`](../architecture/14-phase2-index-builder-step-by-step-ru.md)
 
 Что в нём:
 1. Простое объяснение цели Phase 2.
@@ -196,25 +196,25 @@ result = client.ensure_collection()
 4. Частые ошибки и мини-чеклист перед реализацией.
 
 Также обновлён индекс архитектурных документов:
-- `docs/architecture/README.md`
+- [`docs/architecture/README.md`](../architecture/README.md)
 
 ## 9) Новый запрос: строгий spec по chunking/embedding + схемы
 
 По запросу пользователя добавлены:
 1. Строгий документ правил:
-- `docs/architecture/15-embedding-chunking-spec-v1-ru.md`
+- [`docs/architecture/15-embedding-chunking-spec-v1-ru.md`](../architecture/15-embedding-chunking-spec-v1-ru.md)
 2. Схема полного потока chunking/vectorization:
-- `docs/architecture/16-embedding-chunking-flow-diagram.md`
+- [`docs/architecture/16-embedding-chunking-flow-diagram.md`](../architecture/16-embedding-chunking-flow-diagram.md)
 3. Схема решения skip/reindex:
-- `docs/architecture/17-embedding-reindex-decision-diagram.md`
+- [`docs/architecture/17-embedding-reindex-decision-diagram.md`](../architecture/17-embedding-reindex-decision-diagram.md)
 
 Дополнительно:
-- Обновлён `docs/architecture/README.md` с ссылками на новые документы.
+- Обновлён [`docs/architecture/README.md`](../architecture/README.md) с ссылками на новые документы.
 
 ## 10) Дополнение: расширенный документ с реалистичными примерами
 
 По дополнительному запросу пользователя добавлен:
-- `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`
+- [`docs/architecture/18-canonical-text-payload-llm-examples-ru.md`](../architecture/18-canonical-text-payload-llm-examples-ru.md)
 
 Что добавлено в документ:
 1. Пошаговый разбор, как формируется каноничный текст вакансии.
@@ -291,14 +291,14 @@ scanned=120 reindexed=0 skipped=120 failed_quality=0 failed_qdrant=0 elapsed=~5.
 - иначе `section_label="unknown"` и низкий `section_confidence`.
 
 Обновлены файлы:
-- `docs/architecture/15-embedding-chunking-spec-v1-ru.md`
-- `docs/architecture/16-embedding-chunking-flow-diagram.md`
-- `docs/architecture/18-canonical-text-payload-llm-examples-ru.md`
+- [`docs/architecture/15-embedding-chunking-spec-v1-ru.md`](../architecture/15-embedding-chunking-spec-v1-ru.md)
+- [`docs/architecture/16-embedding-chunking-flow-diagram.md`](../architecture/16-embedding-chunking-flow-diagram.md)
+- [`docs/architecture/18-canonical-text-payload-llm-examples-ru.md`](../architecture/18-canonical-text-payload-llm-examples-ru.md)
 
 ## 12) Новый запрос: план внедрения стека правил
 
 Добавлен подробный документ:
-- `docs/architecture/19-rules-stack-implementation-plan-ru.md`
+- [`docs/architecture/19-rules-stack-implementation-plan-ru.md`](../architecture/19-rules-stack-implementation-plan-ru.md)
 
 Что покрыто:
 1. Что такое `Pydantic`, `Pandera`, `JSONLogic` и их роли в пайплайне.
@@ -363,5 +363,5 @@ scanned=120 reindexed=0 skipped=120 failed_quality=0 failed_qdrant=0 elapsed=~5.
 Сделано в обучающих материалах:
 1. `docs/learning/python/01_rule_engine_explained_ru.py`:
 - добавлен блок "что изменилось в production v2".
-2. `docs/learning/python/01_rule_engine_line_by_line_ru.md`:
+2. [`docs/learning/python/01_rule_engine_line_by_line_ru.md`](../learning/python/01_rule_engine_line_by_line_ru.md):
 - добавлен раздел с разбором отличий v2 и причин этих изменений.
