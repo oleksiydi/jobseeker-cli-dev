@@ -202,6 +202,37 @@ Hinweis:
 - Der Smoke-Script stoppt sofort bei Fehlern und schreibt START/STEP/END in:
   `logs/normalization/smoke/<UTC_TS>/smoke_run.log`.
 
+Final learning-flags smoke (opt-in write contract):
+```bash
+bash tools/run_learning_flags_smoke.sh
+```
+Schneller lokaler Lauf ohne externe LLM-Calls:
+```bash
+bash tools/run_learning_flags_smoke.sh --skip-vacancy
+```
+Prüft vier Fälle:
+- vacancy learning OFF -> keine write-Artefakte
+- vacancy learning ON -> write-Artefakte vorhanden
+- profile learning OFF -> taxonomy unverändert
+- profile learning ON -> taxonomy geändert
+
+Artefakte:
+- `logs/normalization/smoke/final/<UTC_TS>/smoke.log`
+- `logs/normalization/smoke/final/<UTC_TS>/results.jsonl`
+- `logs/normalization/smoke/final/<UTC_TS>/summary.json`
+- `logs/normalization/smoke/final/<UTC_TS>/cases/*`
+
+Hinweise zu Modellen:
+- `MODEL=...` und `PROVIDER=...` können direkt per ENV gesetzt werden:
+```bash
+MODEL="gpt-4o-mini" bash tools/run_learning_flags_smoke.sh
+```
+- OpenAI `gpt-5*` wird im Provider über Responses API verarbeitet (kompatibel mit bestehendem JSON-Flow).
+- Für `gpt-5*` setzt der Smoke-Script automatisch stabilere Defaults (falls nicht explizit über CLI gesetzt):
+  - `--max-terms 3`
+  - `--llm-max-tokens 1200`
+  - `--retry-on-length 1`
+
 Detaildoku:
 - Modulprinzipien und Pipeline-Dekomposition:
   `docs/process/taxonomy-pipeline-decomposition-ru.md`

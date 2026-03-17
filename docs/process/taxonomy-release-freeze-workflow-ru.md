@@ -90,6 +90,37 @@ ALLOW_VACANCY_LEARNING=false \
 .venv/bin/python tools/extract_profile_from_text.py --input conf/profiles/sample.resume.de.txt --dry-run
 ```
 
+4. Финальная smoke-проверка флагов обучения:
+```bash
+bash tools/run_learning_flags_smoke.sh
+```
+Ускоренный локальный вариант (без внешних LLM-вызовов):
+```bash
+bash tools/run_learning_flags_smoke.sh --skip-vacancy
+```
+Ожидаемое поведение:
+- `vacancy_learning_off`: нет write-артефактов;
+- `vacancy_learning_on`: write-артефакты присутствуют;
+- `profile_learning_off`: `taxonomy` не меняется;
+- `profile_learning_on`: `taxonomy` меняется.
+
+Артефакты smoke:
+- `logs/normalization/smoke/final/<UTC_TS>/smoke.log`
+- `logs/normalization/smoke/final/<UTC_TS>/results.jsonl`
+- `logs/normalization/smoke/final/<UTC_TS>/summary.json`
+- `logs/normalization/smoke/final/<UTC_TS>/cases/*`
+
+Параметры модели:
+- Можно запускать с ENV:
+```bash
+MODEL="gpt-4o-mini" bash tools/run_learning_flags_smoke.sh
+```
+- Для OpenAI `gpt-5*` провайдер использует Responses API.
+- В `run_learning_flags_smoke.sh` для `gpt-5*` включены авто-default (если не переопределены CLI):
+  - `max_terms=3`
+  - `llm_max_tokens=1200`
+  - `retry_on_length=1`
+
 ## Ответ на вопрос: сможем ли после Merged Loader наполнить словарь и поставлять как релизный?
 Да.
 
