@@ -1,6 +1,15 @@
 from app.llm.client import LLMChatRequest, chat_completion
 from app.llm.factory import get_provider, resolve_provider_name
-from app.llm.providers.openai_api import _normalize_response_format_for_openai
+from app.llm.providers.openai_api import (
+    _build_temperature_payload,
+    _build_token_limit_payload,
+    _finish_reason_from_responses_payload,
+    _is_gpt5_model,
+    _messages_to_responses_input,
+    _normalize_response_format_for_openai,
+    _normalize_response_format_for_openai_responses,
+    _normalize_responses_to_chat_shape,
+)
 from app.llm.providers.openrouter_api import (
     _build_provider_preferences,
     _normalize_response_format_for_openrouter,
@@ -117,6 +126,81 @@ def test_openai_response_format_conversion_from_llama_style_schema():
     assert normalized["json_schema"]["name"] == "profile_response"
     assert normalized["json_schema"]["strict"] is True
     assert normalized["json_schema"]["schema"]["type"] == "object"
+
+
+def test_openai_token_payload_for_gpt4_models_uses_max_tokens():
+    payload = _build_token_limit_payload("gpt-4o-mini", 321)
+    assert payload == {"max_tokens": 321}
+
+
+def test_openai_token_payload_for_gpt5_models_uses_max_completion_tokens():
+    payload = _build_token_limit_payload("gpt-5-nano", 321)
+    assert payload == {"max_completion_tokens": 321}
+
+
+def test_openai_temperature_payload_for_gpt4_models_keeps_value():
+    payload = _build_temperature_payload("gpt-4o-mini", 0.0)
+    assert payload == {"temperature": 0.0}
+
+
+def test_openai_temperature_payload_for_gpt5_models_uses_default_one():
+    payload = _build_temperature_payload("gpt-5-nano", 0.0)
+    assert payload == {}
+
+
+def test_openai_gpt5_detector():
+    assert _is_gpt5_model("gpt-5-nano")
+    assert _is_gpt5_model("gpt-5")
+    assert not _is_gpt5_model("gpt-4o-mini")
+
+
+def test_messages_to_responses_input_shape():
+    payload = _messages_to_responses_input([{"role": "user", "content": "ping"}])
+    assert payload == [{"role": "user", "content": [{"type": "input_text", "text": "ping"}]}]
+
+
+def test_openai_responses_format_conversion_from_json_schema():
+    response_format = {
+        "type": "json_object",
+        "schema": {"type": "object", "properties": {"x": {"type": "string"}}},
+    }
+    normalized = _normalize_response_format_for_openai_responses(response_format)
+    assert normalized is not None
+    assert normalized["format"]["type"] == "json_schema"
+    assert normalized["format"]["name"] == "profile_response"
+    assert normalized["format"]["strict"] is True
+    assert normalized["format"]["schema"]["type"] == "object"
+
+
+def test_finish_reason_from_responses_payload():
+    assert _finish_reason_from_responses_payload({"status": "completed"}) == "stop"
+    assert (
+        _finish_reason_from_responses_payload(
+            {"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}}
+        )
+        == "length"
+    )
+
+
+def test_normalize_responses_to_chat_shape_extracts_output_text():
+    raw = {
+        "id": "resp_1",
+        "model": "gpt-5-nano",
+        "status": "completed",
+        "output": [
+            {
+                "type": "message",
+                "content": [{"type": "output_text", "text": "{\"ok\":true}"}],
+            }
+        ],
+        "usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30},
+    }
+    normalized = _normalize_responses_to_chat_shape(raw, "gpt-5-nano")
+    assert normalized["id"] == "resp_1"
+    assert normalized["choices"][0]["finish_reason"] == "stop"
+    assert normalized["choices"][0]["message"]["content"] == "{\"ok\":true}"
+    assert normalized["usage"]["prompt_tokens"] == 10
+    assert normalized["usage"]["completion_tokens"] == 20
 
 
 def test_openrouter_response_format_conversion_from_llama_style_schema():
