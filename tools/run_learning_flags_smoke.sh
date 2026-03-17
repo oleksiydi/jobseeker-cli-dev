@@ -15,19 +15,25 @@ Purpose:
 
 Options:
   --python-bin PATH         Python executable (default: .venv/bin/python)
-  --provider NAME           LLM provider for vacancy smoke (default: openai)
-  --model NAME              Model for vacancy smoke (default: gpt-4o-mini)
+  --provider NAME           LLM provider for vacancy smoke (default: ENV PROVIDER or openai)
+  --model NAME              Model for vacancy smoke (default: ENV MODEL or gpt-4o-mini)
   --base-url URL            Optional LLM base URL override
   --api-key KEY             Optional LLM API key override
   --max-vacancies N         Vacancy sample size (default: 2)
-  --max-terms N             Max terms per vacancy (default: 5)
-  --llm-max-tokens N        Max completion tokens for vacancy extraction (default: 300)
-  --retry-on-length N       Retries for finish_reason=length (default: 0)
+  --max-terms N             Max terms per vacancy (base default: 5)
+  --llm-max-tokens N        Max completion tokens for vacancy extraction (base default: 300)
+  --retry-on-length N       Retries for finish_reason=length (base default: 0)
   --timeout-seconds N       Per-call timeout for vacancy extraction (default: 120)
   --out-root DIR            Output root (default: logs/normalization/smoke/final)
   --skip-vacancy            Skip vacancy OFF/ON checks
   --skip-profile            Skip profile OFF/ON checks
   -h, --help                Show help
+
+Model-specific defaults:
+  For gpt-5* models, if not overridden via CLI:
+  - max-terms         => 3
+  - llm-max-tokens    => 1200
+  - retry-on-length   => 1
 
 Artifacts:
   <run_dir>/smoke.log

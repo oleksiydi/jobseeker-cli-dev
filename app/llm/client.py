@@ -78,6 +78,8 @@ def _build_log_event(
         except (KeyError, TypeError, IndexError):
             finish_reason = ""
 
+    is_openai_gpt5 = request.provider == "openai" and request.model.strip().lower().startswith("gpt-5")
+
     event = {
         "event": "llm_chat_completion",
         "status": status,
@@ -88,13 +90,19 @@ def _build_log_event(
         "elapsed_ms": elapsed_ms,
         "started_at": started_at,
         "timeout_seconds": request.timeout_seconds,
-        "temperature": request.temperature,
-        "max_tokens": request.max_tokens,
         # Log only count of messages to avoid leaking prompt content.
         "messages_count": len(request.messages),
         "usage": usage,
         "timings": timings,
     }
+    if is_openai_gpt5:
+        event["api_mode"] = "responses"
+        event["temperature_mode"] = "provider_default"
+        event["max_completion_tokens"] = request.max_tokens
+    else:
+        event["api_mode"] = "chat_completions"
+        event["temperature"] = request.temperature
+        event["max_tokens"] = request.max_tokens
     if error is not None:
         event["error_type"] = error.__class__.__name__
         event["error_message"] = str(error)

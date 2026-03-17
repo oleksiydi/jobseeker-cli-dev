@@ -1,4 +1,4 @@
-from app.llm.client import LLMChatRequest, chat_completion
+from app.llm.client import LLMChatRequest, _build_log_event, chat_completion
 from app.llm.factory import get_provider, resolve_provider_name
 from app.llm.providers.openai_api import (
     _build_temperature_payload,
@@ -114,6 +114,51 @@ def test_chat_completion_logs_structured_error(monkeypatch, caplog):
         raise AssertionError("Expected RuntimeError")
     assert any('"status": "error"' in rec.message for rec in caplog.records)
     assert any('"error_type": "RuntimeError"' in rec.message for rec in caplog.records)
+
+
+def test_build_log_event_for_openai_gpt5_uses_responses_fields():
+    request = LLMChatRequest(
+        provider="openai",
+        model="gpt-5-nano",
+        timeout_seconds=10,
+        messages=[{"role": "user", "content": "x"}],
+        max_tokens=321,
+        temperature=0.0,
+    )
+    event = _build_log_event(
+        request=request,
+        status="ok",
+        started_at="2026-03-17T00:00:00+00:00",
+        elapsed_ms=12.3,
+        response_json={"id": "resp_1", "model": "gpt-5-nano", "choices": [{"finish_reason": "stop"}]},
+    )
+    assert event["api_mode"] == "responses"
+    assert event["temperature_mode"] == "provider_default"
+    assert event["max_completion_tokens"] == 321
+    assert "temperature" not in event
+    assert "max_tokens" not in event
+
+
+def test_build_log_event_for_non_gpt5_keeps_chat_completion_fields():
+    request = LLMChatRequest(
+        provider="openai",
+        model="gpt-4o-mini",
+        timeout_seconds=10,
+        messages=[{"role": "user", "content": "x"}],
+        max_tokens=321,
+        temperature=0.0,
+    )
+    event = _build_log_event(
+        request=request,
+        status="ok",
+        started_at="2026-03-17T00:00:00+00:00",
+        elapsed_ms=12.3,
+        response_json={"id": "resp_1", "model": "gpt-4o-mini", "choices": [{"finish_reason": "stop"}]},
+    )
+    assert event["api_mode"] == "chat_completions"
+    assert event["temperature"] == 0.0
+    assert event["max_tokens"] == 321
+    assert "max_completion_tokens" not in event
 
 
 def test_openai_response_format_conversion_from_llama_style_schema():
