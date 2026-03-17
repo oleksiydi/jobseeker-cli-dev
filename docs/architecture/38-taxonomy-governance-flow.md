@@ -32,9 +32,9 @@ flowchart LR
 
     LOAD --> RUN[profile/vacancy normalization runtime]
 
-    click FRZ "../process/taxonomy-release-freeze-workflow-ru.md" "Freeze workflow"
-    click LOAD "00-runtime-contract.md" "Runtime contract"
-    click RV "../process/synonyms-contract-ru.md" "Synonyms contract"
+    click FRZ "/process/taxonomy-release-freeze-workflow-ru/" "Freeze workflow"
+    click LOAD "/architecture/00-runtime-contract/" "Runtime contract"
+    click RV "/process/synonyms-contract-ru/" "Synonyms contract"
 ```
 
 ## Operational Rules

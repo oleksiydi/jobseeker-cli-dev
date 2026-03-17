@@ -32,11 +32,11 @@ flowchart TD
     M --> F
     M --> H
 
-    click B "02-pipelines-sequence.md" "ETL order"
-    click D "03-job-details-decision-and-state.md" "Details state/decisions"
-    click H "10-vacancy-version-state.md" "Version/reindex lifecycle"
-    click I "11-selection-cache-state.md" "Selection/index state"
-    click M "34-domain-attribution-layer-plan-ru.md" "Domain/taxonomy evolution"
+    click B "/architecture/02-pipelines-sequence/" "ETL order"
+    click D "/architecture/03-job-details-decision-and-state/" "Details state/decisions"
+    click H "/architecture/10-vacancy-version-state/" "Version/reindex lifecycle"
+    click I "/architecture/11-selection-cache-state/" "Selection/index state"
+    click M "/architecture/34-domain-attribution-layer-plan-ru/" "Domain/taxonomy evolution"
 ```
 
 ## Key Invariant

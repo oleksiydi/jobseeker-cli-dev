@@ -51,10 +51,10 @@ flowchart LR
     Q --> MATCH
     M --> MATCH
 
-    click ETL "02-pipelines-sequence.md" "Pipeline end-to-end"
-    click MATCH "23-retrieval-rerank-runtime-flow.md" "Retrieval + rerank runtime"
-    click NORM "00-runtime-contract.md" "Normalization/runtime contract"
-    click BA "03-job-details-decision-and-state.md" "Details API decision logic"
+    click ETL "/architecture/02-pipelines-sequence/" "Pipeline end-to-end"
+    click MATCH "/architecture/23-retrieval-rerank-runtime-flow/" "Retrieval + rerank runtime"
+    click NORM "/architecture/00-runtime-contract/" "Normalization/runtime contract"
+    click BA "/architecture/03-job-details-decision-and-state/" "Details API decision logic"
 ```
 
 ## Read Next
