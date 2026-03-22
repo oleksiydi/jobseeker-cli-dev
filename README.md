@@ -490,9 +490,42 @@ bash tools/smoke_run.sh
 
 Краткий runbook и команды:
 - `docs/operations/mongo-backup-restore.md`
+- `docs/operations/project-state-transfer.md` (полный перенос состояния сервер → ноутбук)
 
 Быстрые команды:
 ```bash
 bash tools/mongo_backup.sh --db jobcenter
 bash tools/mongo_restore.sh --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.archive.gz --db jobcenter
 ```
+
+## Project State Transfer (Server -> Laptop)
+
+Сценарий: перенести рабочее состояние проекта на ноутбук, включая:
+- `.env`
+- `conf/`
+- `logs/normalization`
+- Mongo backup
+- Qdrant snapshot (`data/qdrant`)
+
+Шаг 1. На сервере создать transfer bundle:
+```bash
+bash tools/export_project_state_bundle.sh --mongo-db jobcenter
+```
+
+Шаг 2. Скопировать на ноутбук файл:
+`backups/transfer/project_state_<UTC>.tar.gz`
+
+Шаг 3. На ноутбуке восстановить:
+```bash
+bash tools/import_project_state_bundle.sh \
+  --bundle backups/transfer/project_state_<UTC>.tar.gz \
+  --overwrite-env \
+  --replace-conf \
+  --restore-mongo-replace \
+  --replace-logs \
+  --replace-qdrant
+```
+
+Важно:
+- Mongo restore теперь explicit-only: выполняется только с `--restore-mongo` или `--restore-mongo-replace`.
+- Bundle содержит секреты из `.env`, храните/передавайте его как секрет.

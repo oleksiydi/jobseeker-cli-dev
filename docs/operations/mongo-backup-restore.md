@@ -4,6 +4,9 @@
 
 Короткий runbook для резервного копирования и восстановления MongoDB в текущем проектном окружении (`docker/docker-compose.yml`, сервис `mongo`).
 
+Для полного переноса состояния проекта (`.env` + `conf/` + logs + Mongo + Qdrant) используйте:
+- `docs/operations/project-state-transfer.md`
+
 ## Инструменты
 
 - `tools/mongo_backup.sh`
