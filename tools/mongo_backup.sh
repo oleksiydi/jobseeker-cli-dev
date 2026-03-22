@@ -10,9 +10,9 @@ Options:
   --env-file PATH      Env file for docker compose (default: .env)
   --compose-file PATH   Docker Compose file (default: docker/docker-compose.yml)
   --service NAME        Mongo service name in compose (default: mongo)
-  --username USER       Mongo username (default: MONGO_INITDB_ROOT_USERNAME from env/shell or root)
-  --password PASS       Mongo password (default: MONGO_INITDB_ROOT_PASSWORD from env/shell)
-  --auth-db DB          Mongo auth database (default: MONGO_AUTH_DB from env/shell or admin)
+  --username USER       Mongo username (default: .env -> shell env -> root)
+  --password PASS       Mongo password (default: .env -> shell env)
+  --auth-db DB          Mongo auth database (default: .env -> shell env -> admin)
   --db DB               Database name to dump (default: jobcenter)
   --all-databases       Dump all databases (ignores --db)
   --out FILE            Output archive path (default: backups/mongo_<db>_<utc>.archive.gz)
@@ -78,24 +78,24 @@ read_env_value() {
 }
 
 if [[ "${USERNAME_FROM_ARG}" != "true" ]]; then
-  USERNAME="${MONGO_INITDB_ROOT_USERNAME:-}"
+  USERNAME="$(read_env_value "MONGO_INITDB_ROOT_USERNAME" "${ENV_FILE}")"
   if [[ -z "${USERNAME}" ]]; then
-    USERNAME="$(read_env_value "MONGO_INITDB_ROOT_USERNAME" "${ENV_FILE}")"
+    USERNAME="${MONGO_INITDB_ROOT_USERNAME:-}"
   fi
   USERNAME="${USERNAME:-root}"
 fi
 
 if [[ "${PASSWORD_FROM_ARG}" != "true" ]]; then
-  PASSWORD="${MONGO_INITDB_ROOT_PASSWORD:-}"
+  PASSWORD="$(read_env_value "MONGO_INITDB_ROOT_PASSWORD" "${ENV_FILE}")"
   if [[ -z "${PASSWORD}" ]]; then
-    PASSWORD="$(read_env_value "MONGO_INITDB_ROOT_PASSWORD" "${ENV_FILE}")"
+    PASSWORD="${MONGO_INITDB_ROOT_PASSWORD:-}"
   fi
 fi
 
 if [[ "${AUTH_DB_FROM_ARG}" != "true" ]]; then
-  AUTH_DB="${MONGO_AUTH_DB:-}"
+  AUTH_DB="$(read_env_value "MONGO_AUTH_DB" "${ENV_FILE}")"
   if [[ -z "${AUTH_DB}" ]]; then
-    AUTH_DB="$(read_env_value "MONGO_AUTH_DB" "${ENV_FILE}")"
+    AUTH_DB="${MONGO_AUTH_DB:-}"
   fi
   AUTH_DB="${AUTH_DB:-admin}"
 fi
