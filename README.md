@@ -505,7 +505,7 @@ bash tools/mongo_restore.sh --archive backups/mongo_jobcenter_YYYYMMDDTHHMMSSZ.a
 - `conf/`
 - `logs/normalization`
 - Mongo backup
-- Qdrant snapshot (`data/qdrant`)
+- Qdrant snapshot (path: override -> docker inspect -> fallback)
 
 Шаг 1. На сервере создать transfer bundle:
 ```bash
@@ -528,4 +528,5 @@ bash tools/import_project_state_bundle.sh \
 
 Важно:
 - Mongo restore теперь explicit-only: выполняется только с `--restore-mongo` или `--restore-mongo-replace`.
+- Для Qdrant path можно задать override: `--qdrant-data-path`.
 - Bundle содержит секреты из `.env`, храните/передавайте его как секрет.

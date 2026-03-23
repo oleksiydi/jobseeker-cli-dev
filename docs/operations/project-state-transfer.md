@@ -15,7 +15,7 @@
 - `conf/`;
 - `logs/normalization`;
 - Mongo archive (`mongodump`);
-- Qdrant storage snapshot (`data/qdrant`).
+- Qdrant storage snapshot (путь резолвится автоматически).
 
 Не входит:
 - `.venv`;
@@ -31,6 +31,11 @@
 cd ~/projects/jobseeker-cli
 bash tools/export_project_state_bundle.sh --mongo-db jobcenter
 ```
+
+Резолв Qdrant path в export:
+1. `--qdrant-data-path` (если передан);
+2. mount из `docker inspect` для destination `/qdrant/storage`;
+3. fallback: `docker/data/qdrant`, затем `data/qdrant`.
 
 Результат:
 - `backups/transfer/project_state_<UTC>.tar.gz`
@@ -52,6 +57,10 @@ bash tools/import_project_state_bundle.sh \
   --replace-qdrant
 ```
 
+Резолв path при import:
+- Mongo reset path: `--mongo-data-path` -> `docker inspect` (`/data/db`) -> fallback.
+- Qdrant restore path: `--qdrant-data-path` -> `docker inspect` (`/qdrant/storage`) -> fallback.
+
 Что делает `--restore-mongo-replace`:
 - `--reset-mongo-data` (очистка локальных mongo-данных);
 - `--restore-mongo`;
@@ -59,11 +68,19 @@ bash tools/import_project_state_bundle.sh \
 
 Это рекомендуемый режим для чистого восстановления после переноса.
 
+Опциональные override-флаги:
+- `--qdrant-data-path /abs/path/to/qdrant/storage`
+- `--mongo-data-path /abs/path/to/mongo/data`
+
 ## 3. Важное изменение поведения
 
 Mongo restore в import-скрипте теперь **explicit-only**:
 - restore выполняется только при явном `--restore-mongo` или `--restore-mongo-replace`;
 - без этих флагов Mongo restore пропускается.
+
+Дополнительно:
+- если Qdrant path находится внутри Mongo data path, reset требует `--replace-qdrant`,
+  иначе скрипт завершится с ошибкой для защиты от тихой потери данных.
 
 ## 4. Troubleshooting: Mongo auth error после переноса
 
@@ -82,6 +99,10 @@ Mongo restore в import-скрипте теперь **explicit-only**:
 docker compose --env-file .env -f docker/docker-compose.yml ps
 ls -lah logs/normalization | head
 ```
+
+Проверка manifest в архиве:
+- `includes_qdrant` теперь отражает факт включения snapshot;
+- доступны служебные поля: `qdrant_path_resolved`, `qdrant_path_source`, `qdrant_include_reason`.
 
 ## Безопасность
 

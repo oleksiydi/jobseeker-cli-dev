@@ -12,7 +12,7 @@ Goal:
   - restore conf/
   - restore logs/normalization
   - restore Mongo dump into local Mongo container
-  - restore Qdrant storage into data/qdrant
+  - restore Qdrant storage into resolved host path
 
 Options:
   --bundle FILE            Transfer archive (.tar.gz) created by export script
@@ -20,6 +20,9 @@ Options:
   --compose-file PATH      Docker compose file (default: docker/docker-compose.yml)
   --mongo-service NAME     Mongo service name (default: mongo)
   --mongo-db DB            Target mongo DB (default: jobcenter)
+  --mongo-data-path PATH   Explicit Mongo data path on host for reset (optional)
+  --qdrant-service NAME    Qdrant service name (default: qdrant)
+  --qdrant-data-path PATH  Explicit Qdrant data path on host for restore (optional)
   --overwrite-env          Overwrite existing env file
   --replace-conf           Replace existing conf/ before restore
   --reset-mongo-data       Stop mongo, remove local mongo data dir, start fresh mongo
@@ -27,7 +30,7 @@ Options:
   --restore-mongo-replace  Reset mongo data + restore Mongo (explicit replace semantics)
   --drop-mongo             Drop collections before mongo restore
   --replace-logs           Replace existing logs/normalization
-  --replace-qdrant         Replace existing data/qdrant content
+  --replace-qdrant         Replace existing Qdrant storage at resolved target path
   --skip-conf              Skip conf restore
   --skip-mongo             Skip mongo restore
   --skip-qdrant            Skip qdrant restore
@@ -50,6 +53,9 @@ ENV_FILE=".env"
 COMPOSE_FILE="docker/docker-compose.yml"
 MONGO_SERVICE="mongo"
 MONGO_DB="jobcenter"
+MONGO_DATA_PATH=""
+QDRANT_SERVICE="qdrant"
+QDRANT_DATA_PATH=""
 OVERWRITE_ENV="false"
 REPLACE_CONF="false"
 RESET_MONGO_DATA="false"
@@ -69,6 +75,9 @@ while [[ $# -gt 0 ]]; do
     --compose-file) COMPOSE_FILE="$2"; shift 2 ;;
     --mongo-service) MONGO_SERVICE="$2"; shift 2 ;;
     --mongo-db) MONGO_DB="$2"; shift 2 ;;
+    --mongo-data-path) MONGO_DATA_PATH="$2"; shift 2 ;;
+    --qdrant-service) QDRANT_SERVICE="$2"; shift 2 ;;
+    --qdrant-data-path) QDRANT_DATA_PATH="$2"; shift 2 ;;
     --overwrite-env) OVERWRITE_ENV="true"; shift ;;
     --replace-conf) REPLACE_CONF="true"; shift ;;
     --reset-mongo-data) RESET_MONGO_DATA="true"; shift ;;
@@ -108,6 +117,101 @@ fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
+source tools/lib/state_bundle_paths.sh
+
+read_env_value() {
+  local key="$1"
+  local env_file="$2"
+  awk -F= -v key="${key}" '
+    function trim(s) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+      return s
+    }
+    function unquote(s) {
+      if (s ~ /^".*"$/ || s ~ /^'\''.*'\''$/) {
+        return substr(s, 2, length(s) - 2)
+      }
+      return s
+    }
+
+    # Skip comments and empty lines.
+    /^[[:space:]]*($|#)/ { next }
+
+    {
+      current_key = trim($1)
+      if (current_key != key) {
+        next
+      }
+
+      # Keep everything after first "=" to preserve values containing "=".
+      value = $0
+      sub(/^[^=]*=/, "", value)
+      value = trim(value)
+      print unquote(value)
+      exit
+    }
+  ' "${env_file}"
+}
+
+clear_dir_contents() {
+  local target_dir="$1"
+  local helper_image="${2:-mongo:8.0}"
+  mkdir -p "${target_dir}"
+
+  # Fast path: try removing as current user first.
+  (
+    shopt -s dotglob nullglob
+    local entries=("${target_dir}"/*)
+    if [[ ${#entries[@]} -gt 0 ]]; then
+      rm -rf "${entries[@]}" 2>/dev/null || true
+    fi
+  )
+
+  # Slow path: if directory still has entries (often root-owned), clean via container root.
+  if find "${target_dir}" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    docker run --rm -v "${target_dir}:/target" "${helper_image}" \
+      sh -lc 'rm -rf /target/* /target/.[!.]* /target/..?* 2>/dev/null || true'
+  fi
+}
+
+wait_for_mongo_ready() {
+  local env_file="$1"
+  local compose_file="$2"
+  local service="$3"
+  local timeout_seconds="${4:-90}"
+
+  local username password auth_db
+  username="$(read_env_value "MONGO_INITDB_ROOT_USERNAME" "${env_file}")"
+  password="$(read_env_value "MONGO_INITDB_ROOT_PASSWORD" "${env_file}")"
+  auth_db="$(read_env_value "MONGO_AUTH_DB" "${env_file}")"
+  username="${username:-root}"
+  auth_db="${auth_db:-admin}"
+
+  if [[ -z "${password}" ]]; then
+    echo "WARN: MONGO_INITDB_ROOT_PASSWORD is empty; skip explicit readiness wait"
+    return 0
+  fi
+
+  local started_at now
+  started_at="$(date +%s)"
+  while true; do
+    if docker compose --env-file "${env_file}" -f "${compose_file}" exec -T "${service}" \
+      mongosh --quiet \
+      --username "${username}" \
+      --password "${password}" \
+      --authenticationDatabase "${auth_db}" \
+      --eval 'db.adminCommand({ ping: 1 }).ok' 2>/dev/null | grep -q '^1$'; then
+      return 0
+    fi
+
+    now="$(date +%s)"
+    if (( now - started_at >= timeout_seconds )); then
+      echo "ERROR: Mongo is not ready after ${timeout_seconds}s" >&2
+      return 1
+    fi
+    sleep 2
+  done
+}
 
 if [[ ! -f "${COMPOSE_FILE}" ]]; then
   echo "Compose file not found: ${COMPOSE_FILE}" >&2
@@ -156,34 +260,41 @@ else
 fi
 
 if [[ "${RESET_MONGO_DATA}" == "true" ]]; then
+  resolve_mongo_data_path "${MONGO_DATA_PATH}" "${ENV_FILE}" "${COMPOSE_FILE}" "${MONGO_SERVICE}" >/dev/null
+  resolved_mongo_data_path="${STATE_BUNDLE_RESOLVED_PATH}"
+  mongo_data_source="${STATE_BUNDLE_PATH_SOURCE}"
+  resolve_qdrant_data_path "${QDRANT_DATA_PATH}" "${ENV_FILE}" "${COMPOSE_FILE}" "${QDRANT_SERVICE}" >/dev/null
+  resolved_qdrant_data_path="${STATE_BUNDLE_RESOLVED_PATH}"
+  qdrant_data_source="${STATE_BUNDLE_PATH_SOURCE}"
+
   echo "[4/8] Reset local Mongo data"
-  # Current compose uses shared host dir:
-  #   mongo:  ./data      -> /data/db
-  #   qdrant: ./data/qdrant -> /qdrant/storage
-  # To let Mongo init root user on empty /data/db, we must clear whole ./data.
-  # Therefore require qdrant replace in the same run to avoid silent data loss.
-  if grep -Eq '^[[:space:]]*-[[:space:]]*\./data:/data/db' "${COMPOSE_FILE}"; then
+  echo "       mongo path=${resolved_mongo_data_path} (source=${mongo_data_source})"
+  echo "       qdrant path=${resolved_qdrant_data_path} (source=${qdrant_data_source})"
+
+  # If Qdrant storage is nested under Mongo data path, Mongo reset will remove it.
+  # Require explicit qdrant replacement to avoid silent data loss.
+  if path_is_within "${resolved_qdrant_data_path}" "${resolved_mongo_data_path}"; then
     if [[ "${REPLACE_QDRANT}" != "true" ]]; then
-      echo "ERROR: --reset-mongo-data with shared ./data volume requires --replace-qdrant." >&2
-      echo "       Add --replace-qdrant (recommended) or adjust docker compose volumes." >&2
+      echo "ERROR: Qdrant path is within Mongo data path; reset will remove Qdrant data." >&2
+      echo "       Add --replace-qdrant (recommended) or provide separate data paths." >&2
       exit 2
     fi
   fi
 
-  docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" stop "${MONGO_SERVICE}" qdrant >/dev/null 2>&1 || true
-  mkdir -p data
-  find data -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+  docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" stop "${MONGO_SERVICE}" "${QDRANT_SERVICE}" >/dev/null 2>&1 || true
+  clear_dir_contents "${resolved_mongo_data_path}" "mongo:8.0"
 else
   echo "[4/8] Skip mongo data reset"
 fi
 
 echo "[5/8] Start infra (mongo + qdrant)"
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d "${MONGO_SERVICE}" qdrant
+docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d "${MONGO_SERVICE}" "${QDRANT_SERVICE}"
 
 if [[ "${SKIP_MONGO}" != "true" ]]; then
   echo "[6/8] Restore Mongo"
   mongo_archive="$(find "${payload_dir}" -maxdepth 1 -type f -name 'mongo_*.archive.gz' | head -n 1 || true)"
   if [[ "${RESTORE_MONGO}" == "true" && -n "${mongo_archive}" ]]; then
+    wait_for_mongo_ready "${ENV_FILE}" "${COMPOSE_FILE}" "${MONGO_SERVICE}" 90
     restore_cmd=(bash tools/mongo_restore.sh
       --archive "${mongo_archive}"
       --env-file "${ENV_FILE}"
@@ -206,15 +317,23 @@ fi
 
 if [[ "${SKIP_QDRANT}" != "true" ]]; then
   echo "[7/8] Restore Qdrant"
+  resolve_qdrant_data_path "${QDRANT_DATA_PATH}" "${ENV_FILE}" "${COMPOSE_FILE}" "${QDRANT_SERVICE}" >/dev/null
+  resolved_qdrant_data_path="${STATE_BUNDLE_RESOLVED_PATH}"
+  qdrant_data_source="${STATE_BUNDLE_PATH_SOURCE}"
+  echo "       target path=${resolved_qdrant_data_path} (source=${qdrant_data_source})"
+
   qdrant_archive="$(find "${payload_dir}/qdrant" -maxdepth 1 -type f -name 'qdrant_storage_*.tar.gz' | head -n 1 || true)"
   if [[ -n "${qdrant_archive}" ]]; then
-    mkdir -p data
     if [[ "${REPLACE_QDRANT}" == "true" ]]; then
-      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" stop qdrant
-      rm -rf data/qdrant
-      mkdir -p data/qdrant
-      tar -C data -xzf "${qdrant_archive}"
-      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d qdrant
+      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" stop "${QDRANT_SERVICE}"
+      clear_dir_contents "${resolved_qdrant_data_path}" "qdrant/qdrant:v1.17.0"
+      mkdir -p "${resolved_qdrant_data_path}"
+      docker run --rm \
+        -v "${resolved_qdrant_data_path}:/target" \
+        -v "${qdrant_archive}:/snapshot.tar.gz:ro" \
+        "qdrant/qdrant:v1.17.0" \
+        sh -lc 'tar -xzf /snapshot.tar.gz -C /target --strip-components=1'
+      docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d "${QDRANT_SERVICE}"
     else
       echo "Qdrant snapshot found but not applied. Use --replace-qdrant to apply it."
     fi
