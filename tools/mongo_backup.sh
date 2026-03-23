@@ -63,15 +63,32 @@ fi
 read_env_value() {
   local key="$1"
   local env_file="$2"
-  awk -F= -v k="${key}" '
-    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
-    $1 == k {
-      sub(/^[^=]*=/, "", $0)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
-      if (($0 ~ /^".*"$/) || ($0 ~ /^'\''.*'\''$/)) {
-        $0 = substr($0, 2, length($0)-2)
+  awk -F= -v key="${key}" '
+    function trim(s) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+      return s
+    }
+    function unquote(s) {
+      if (s ~ /^".*"$/ || s ~ /^'\''.*'\''$/) {
+        return substr(s, 2, length(s) - 2)
       }
-      print $0
+      return s
+    }
+
+    # Skip comments and empty lines.
+    /^[[:space:]]*($|#)/ { next }
+
+    {
+      current_key = trim($1)
+      if (current_key != key) {
+        next
+      }
+
+      # Keep everything after first "=" to preserve values containing "=".
+      value = $0
+      sub(/^[^=]*=/, "", value)
+      value = trim(value)
+      print unquote(value)
       exit
     }
   ' "${env_file}"
