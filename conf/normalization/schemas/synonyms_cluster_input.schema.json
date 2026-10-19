@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SynonymsClusterInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "block",
+    "terms"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "category",
+        "facet",
+        "skill_class"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "skills",
+            "tools",
+            "stack"
+          ]
+        },
+        "facet": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_class": {
+          "type": "string",
+          "enum": [
+            "professional",
+            "interpersonal",
+            "non_skill_conditions",
+            "not_applicable"
+          ]
+        }
+      }
+    },
+    "terms": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 400,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "term_key",
+          "canonical",
+          "source_refs_count",
+          "sample_phrases",
+          "skill_class"
+        ],
+        "properties": {
+          "term_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_refs_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sample_phrases": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string"
+            }
+          },
+          "skill_class": {
+            "type": "string",
+            "enum": [
+              "professional",
+              "interpersonal",
+              "non_skill_conditions",
+              "not_applicable"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

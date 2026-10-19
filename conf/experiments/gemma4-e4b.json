@@ -1,0 +1,16 @@
+{
+  "model_repository": "google/gemma-4-E4B-it-qat-q4_0-gguf",
+  "model_revision": "e998672c8018dd704e347d3b6843c112547244d1",
+  "model_file": {
+    "rfilename": "gemma-4-E4B_q4_0-it.gguf",
+    "size": 5154941280,
+    "lfs": {
+      "sha256": "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee"
+    }
+  },
+  "runtime_source_commit": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+  "runtime_source_archive_sha256": "1d4a987d9bd048f6e93107e838026438df70fbde237fc0c69c63d600512b4bd9",
+  "runtime_release_tag": "v0.7.0",
+  "note": "Pinned public text-only CPU comparison. No vision projector. Model Apache-2.0; llama.cpp MIT. Keep weights; no remote inference.",
+  "model_alias": "gemma4-e4b-local-experiment"
+}

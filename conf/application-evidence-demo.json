@@ -1,0 +1,315 @@
+{
+  "schema_version": 1,
+  "annotation_status": "agent_curated_not_human_expert",
+  "selection_note": "Fixed manually selected comparison set from existing public vacancy snapshots. It is not an automated extraction evaluation; labels and evidence spans are curated for the first project episode.",
+  "source_file": "logs/local-intelligence/demo-vacancies.json",
+  "vacancies": [
+    {
+      "job": {
+        "ref": "10001-1002294020-S",
+        "title": "Software Test Engineer (m/f/d)",
+        "role": "IT-Tester/in",
+        "location": "DEUTSCHLAND|BAYERN|Deggendorf|94469",
+        "description": "**Werde Teil unseres Teams in Deggendorf oder Regensburg!**\n\nAls Software Test Engineer bei b-plus entwickelst du anspruchsvolle Testfälle, sicherst eine hohe Testabdeckung, nutzt moderne Testautomatisierung und analysierst Testergebnisse, um die Qualität unserer Software über den gesamten Entwicklungszyklus hinweg zuverlässig zu gewährleisten. Dir gefällt das Arbeiten in kleinen Teams und in enger Abstimmung mit den Entwicklern? Dann bist du bei uns genau richtig!\n\n## Deine Aufgaben\n\n- Analyse von Softwareanforderungen und Ableitung umfassender Testspezifikationen\n- Konzeption und Weiterentwicklung von Testumgebungen sowie Steuerung des Testdesigns\n- Erstellung, Ausführung und kontinuierliche Optimierung von Testfällen\n- Sicherstellung der Einhaltung relevanter Normen (z. B. Automotive-Standards) und Qualitätsvorgaben\n- Erstellung sowie Review qualitätsgesicherter Test- und Fehlerreports (Polarion, Jira, Bitbucket)\n- Enge Zusammenarbeit mit der Softwareentwicklung sowie fachliche Unterstützung bei Fehlersuche und Ursachenanalyse\n\n## Dein Profil\n\n- Abgeschlossenes Studium der Angewandten Informatik, Elektrotechnik oder eine vergleichbare Qualifikation\n- Mehrjährige Erfahrung im Softwaretest, bevorzugt im Automotive- oder Embedded-Umfeld\n- Gute Deutsch- und Englischkenntnisse\n- Fundierte Kenntnisse in Bussystemen wie CAN und Netzwerkkommunikation über Ethernet\n- Vertiefte Kenntnisse in CI/CD-Methodik und Skriptsprachen wie Python\n- Tiefes Verständnis komplexer Embedded-Systeme sowie methodische, strukturierte Arbeitsweise\n\n## Deine #workatbplus Vorteile\n\n- Hybrides Arbeiten ohne Kernarbeitszeiten\n- Familiäres Arbeitsumfeld mit offener Du-Kultur\n- 30 Tage Urlaub und Sonderurlaubstage\n- Individuelle Weiterentwicklungsmöglichkeiten\n- Eigener Arbeitsbereich mit höhenverstellbarem Schreibtisch\n- Mitarbeiterrabatte bei zahlreichen Top-Anbietern\n\nWeitere Vorteile im Überblick auf unserer [Karriereseite!](https://karriere.b-plus.com/)\n\n## Werde jetzt Teil unseres Teams\n\nDeine Ansprechpartnerin Lisa freut sich auf deine Bewerbung",
+        "schedule": "vollzeit=true; teilzeit=false; vertragsdauer=UNBEFRISTET; minijob=false",
+        "employer": "b-plus Gruppe GmbH",
+        "url": "https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1002294020-S",
+        "source_modified_at": "2026-04-20T13:14:02.719",
+        "details_modified_at": "2026-04-20T13:14:02.719",
+        "source_input_hash": "3c275c003413aef6e3fdaba5cb0307ce996fa2e1e6e616ee6f365f7442343037",
+        "details_status": "available"
+      },
+      "category": "close",
+      "requirements": [
+        {
+          "quote": "Analyse von Softwareanforderungen und Ableitung umfassender Testspezifikationen",
+          "text_span": [
+            492,
+            571
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Erstellung, Ausführung und kontinuierliche Optimierung von Testfällen",
+          "text_span": [
+            660,
+            729
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Sicherstellung der Einhaltung relevanter Normen (z. B. Automotive-Standards) und Qualitätsvorgaben",
+          "text_span": [
+            732,
+            830
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Mehrjährige Erfahrung im Softwaretest, bevorzugt im Automotive- oder Embedded-Umfeld",
+          "text_span": [
+            1172,
+            1256
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "requirement",
+          "mixed_modality": true,
+          "note": "Required software-test experience; automotive/embedded is preferred. Whole group remains mixed."
+        }
+      ]
+    },
+    {
+      "job": {
+        "ref": "10001-1003037201-S",
+        "title": "DevOps Engineer (m/w/d)",
+        "role": "Fachinformatiker/in - Systemintegration",
+        "location": "DEUTSCHLAND|HESSEN|Frankfurt am Main|60486",
+        "description": "**Willkommen bei NConsult GmbH – Ihre Partner für innovative IT-Lösungen!**\n\nMit Leidenschaft und Expertise schaffen wir digitale Lösungen und realisieren IT-Projekte, die den Weg in die Zukunft ebnen. Unser Hauptsitz in Frankfurt am Main ist das Herzstück unserer Innovationskraft.\n\nUm den wachsenden Ansprüchen gerecht zu werden, benötigen wir zuverlässige, motivierte und qualifizierte Mitarbeiter.\n\n**Wir suchen Sie!**\n\n**DevOps Engineer (m/w/d) – Automatisierung & Skalierbarkeit in Ihrer Hand!**\n\n**Ihre Mission:**\nSie sind der Schlüssel zu einer effizienten, skalierbaren und hochverfügbaren IT-Infrastruktur. Mit Ihrem Know-how optimieren Sie unsere Entwicklungs- und Betriebsprozesse, automatisieren Deployments und sorgen für eine reibungslose Zusammenarbeit zwischen Entwicklung und IT-Betrieb.\n\n**Ihr neuer Job: IT-Held im Einsatz**\n\n- **Automatisierung und Optimierung** von CI/CD-Pipelines\n- **Verwaltung und Weiterentwicklung** der Cloud- und On-Premise-Infrastruktur\n- **Sicherstellung** der Systemstabilität, Skalierbarkeit und Performance\n- **Implementierung** von Monitoring- und Logging-Lösungen\n- **Unterstützung** bei der Einführung und Optimierung von Container-Technologien (Docker, Kubernetes)\n- **Zusammenarbeit** mit Entwicklern und IT-Teams zur Prozessoptimierung\n\n**Ihr Skillset: Das macht Sie aus**\n\n- Eine abgeschlossene Ausbildung oder ein Studium im IT-Bereich\n- Erfahrung mit DevOps-Tools wie Jenkins, GitLab CI/CD, Ansible, Terraform oder Kubernetes\n- **Fundierte Kenntnisse** in Cloud-Technologien (AWS, Azure oder Google Cloud)\n- **Gute Kenntnisse** in Skriptsprachen wie Bash, Python oder PowerShell\n- Verständnis für IT-Security, Netzwerke und Infrastruktur-as-Code\n- **Lösungsorientiertes** Denken und eine selbstständige Arbeitsweise\n- **Teamgeist** und eine ausgeprägte Serviceorientierung\n\n**Ihr Gewinn: Mehr als nur ein Job**\n\n- Ein **dynamisches Arbeitsumfeld** mit abwechslungsreichen Aufgaben\n- **Weiterbildungs- und Entwicklungsmöglichkeiten** für Ihre Karriere\n- Ein **motiviertes Team** und eine offene Unternehmenskultur\n- **Moderne IT-Ausstattung** und **flexible Arbeitszeiten**\n- **Attraktive Vergütung** und Zusatzleistungen\n\n**Bereit für den nächsten Karriereschritt?** Dann freuen wir uns auf Ihre Bewerbung!\nSchicken Sie uns Ihre Unterlagen an **[bewerbung@nconsult.de](https://mailto:bewerbung@nconsult.de)** und starten Sie mit uns durch.\nFür erste Fragen stehen wir Ihnen unter **0160/97996011** gerne zur Verfügung.",
+        "schedule": "vollzeit=true; teilzeit=false; vertragsdauer=UNBEFRISTET; minijob=false",
+        "employer": "NConsult GmbH",
+        "url": "https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1003037201-S",
+        "source_modified_at": "2026-05-07T10:05:10.583",
+        "details_modified_at": "2026-05-07T10:05:10.583",
+        "source_input_hash": "72d38e5f60a39318ce47924e68a490d08bc7a80d948a993e522b168e1f7a811f",
+        "details_status": "available"
+      },
+      "category": "close",
+      "requirements": [
+        {
+          "quote": "Automatisierung und Optimierung** von CI/CD-Pipelines",
+          "text_span": [
+            850,
+            903
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Verwaltung und Weiterentwicklung** der Cloud- und On-Premise-Infrastruktur",
+          "text_span": [
+            908,
+            982
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Implementierung** von Monitoring- und Logging-Lösungen",
+          "text_span": [
+            1061,
+            1115
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Fundierte Kenntnisse** in Cloud-Technologien (AWS, Azure oder Google Cloud)",
+          "text_span": [
+            1489,
+            1564
+          ],
+          "source": "description",
+          "modality": "required",
+          "context_role": "requirement"
+        }
+      ]
+    },
+    {
+      "job": {
+        "ref": "10001-1002978312-S",
+        "title": "Application Engineer Customer Support (all genders)",
+        "role": "IT-Kundenbetreuer/in",
+        "location": "DEUTSCHLAND|BAYERN|Wackersdorf|92442",
+        "description": "Dein Lieblingsgetränk? Egal, was es ist – es ist gut möglich, dass es mithilfe unserer **Digitalisierungslösungen** hergestellt wurde.\n\nDenn die Syskron GmbH ist stolzer Teil von Krones.digital – einer internationalen Community aus digitalen Expert:innen der Krones Gruppe. Wir sind Fans von **Cutting-Edge-Technologien** und entwickeln **innovative Services und Lösungen**, die bei jeder vierten Getränkeflasche weltweit zum Einsatz kommen. Uns vereint der Anspruch, mehr als nur Häkchen auf To-do-Listen zu setzen: Wir wollen echten Mehrwert für unsere Kunden schaffen und die Getränke- und Liquid-Food-Produktion überall da optimieren, wo noch Luft nach oben ist, und so unseren Beitrag für eine **nachhaltige und bessere Zukunft** leisten.\n\nJa, das ist ambitioniert! Aber wir haben einen Plan, wie das möglich wird: Mit Menschen, die **Chancen ergreifen, für ihre Ideen brennen und an die Power unseres Teams** glauben. Mit offenem Ohr, wertschätzendem Austausch und gegenseitiger Unterstützung – im Büro, von zuhause aus, von überall aus der Welt. Mit kreativem Freiraum und einem inspirierenden Umfeld, das dich vorantreibt und persönlich weiterbringt. Das dir Sicherheit gibt und Platz lässt für dein Leben nach Feierabend.\n\nLet’s create impact beyond tomorrow – bist du dabei?\n\n### Aufgaben\n\n- Du bist Teil des Customer Care Centers, in dem wir unsere Kund:innen und die Projekte im gesamten Lebenszyklus begleiten.\n- Aftersales-Tätigkeiten wie etwa Support, Ticketbearbeitung, Schulung sowie Nachrüstungen sind Teil deines Tagesgeschäftes.\n- Du erarbeitest maßgeschneiderte (auf das Linienkonzept der jeweiligen Abfülllinie ausgerichtet) Line-Management-Lösungen in Zusammenarbeit mit Krones und den Endkund:innen.\n- Du unterstützt in der Klärungsphase von Projekten und bei der Remote-Umsetzung der Lösungen.\n- Du begleitest den Prozess von der technischen Detailklärung bis hin zur Ausarbeitung von Schnittstellen zu Maschinensteuerungen (Signalaustausch) und externen ERP-Systemen in Abstimmung mit externen Partner:innen.\n- Du erstellst funktionale System- und Prozessbeschreibungen (FDS) sowie Projektsimulationen und erarbeitest Systemfunktionen im Rahmen des Projekt-Engineerings.\n- Du bist Kontaktperson für unsere nationalen und internationalen Partner:innen sowie für neue Teammitglieder bei der technischen Projektkontrolle, der fachlichen Beratung und Betreuung sowie Schulung.\n\n### Anforderungen\n\n- Du hast eine abgeschlossene IT-spezifische Berufsausbildung (z.B. Fachinformatiker:in für Anwendungsentwicklung oder gleichwertige Ausbildung) oder ein abgeschlossenes technisches Studium mit dem Schwerpunkt IT, Wirtschaftsinformatik oder Automatisierungstechnik.\n- Idealerweise bringst du bereits mehrjährige Berufserfahrung im Bereich Manufacturing Execution System (MES) mit.\n- Zu deiner Arbeitsweise gehört analytisches und lösungsorientiertes Denken sowie die Fähigkeit, über den Tellerrand hinaus zu schauen, um Prozessabläufe und Zusammenhänge ganzheitlich zu betrachten.\n- Zu deinen Eigenschaften zählen außerdem Selbstständigkeit und Verantwortungsbewusstsein.\n- Du besitzt Kommunikationsstärke sowie interkulturelle Kompetenz.\n- Du hast gute Deutsch- und Englischkenntnisse in Wort und Schrift.\n\n### Deine Vorteile\n\n- Flexibles Arbeiten - Mobiles Arbeiten und eine flexible Zeiteinteilung sind feste Bestandteile unserer Kultur – für eine Work-Life-Balance, die deinen Bedürfnissen entspricht.\n- Individuelle Weiterbildung - Wir setzen gezielt auf die Förderung deiner individuellen Potenziale und Interessen. Denn genau die sind es, die Syskron innovativ und dich einzigartig machen.\n- 30+ Urlaub - Bei uns sind mehr als 30 Tage Urlaub drin, denn wir wissen: Das tut nicht nur der Seele gut, sondern lädt auch deine Energiereserven auf.\n- Teamevents - Teamgeist kennt bei uns keinen Feierabend – deshalb verbringen wir auch außerhalb des Büros gerne Zeit miteinander.\n- Lohnenswerte Vorteile - Damit du den Kopf frei hast und Vollgas im Job geben kannst, sind ein faires Vergütungspaket und weitere Vergünstigungen für uns absolutes A und O.\n- Hunde willkommen - Dein vierbeiniger Begleiter ist am Standort Regensburg herzlich willkommen und kann so mit dir den Tag im Büro verbringen.\n\nWir konnten dein Interesse wecken? Dann bewirb dich!\n\nDu kannst dich bei uns sowohl auf Deutsch als auch auf Englisch bewerben.\n\nWir freuen uns auf deine aussagefähigen Unterlagen.\n\nHast du noch Fragen? Nähere Informationen erhältst du gerne unter Tel. +49 9431 79857-1111.\n\nDamit wir deine Bewerbung effizient und zeitnah bearbeiten können, benutze bitte unser Online-Formular.\n\nDiese Position ist auch für Menschen mit Schwerbehinderung geeignet.",
+        "schedule": "vollzeit=true; teilzeit=false; vertragsdauer=UNBEFRISTET; minijob=false",
+        "employer": "Syskron GmbH",
+        "url": "https://www.arbeitsagentur.de/jobsuche/jobdetail/10001-1002978312-S",
+        "source_modified_at": "2026-05-04T08:51:36.556",
+        "details_modified_at": "2026-05-04T08:51:36.556",
+        "source_input_hash": "6eed367da15597304a59353e6568dd2a267a8940d1f882d86d8d3337aa8ae492",
+        "details_status": "available"
+      },
+      "category": "adjacent",
+      "requirements": [
+        {
+          "quote": "Aftersales-Tätigkeiten wie etwa Support, Ticketbearbeitung, Schulung sowie Nachrüstungen sind Teil deines Tagesgeschäftes.",
+          "text_span": [
+            1426,
+            1548
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Du erarbeitest maßgeschneiderte (auf das Linienkonzept der jeweiligen Abfülllinie ausgerichtet) Line-Management-Lösungen in Zusammenarbeit mit Krones und den Endkund:innen.",
+          "text_span": [
+            1551,
+            1723
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Du begleitest den Prozess von der technischen Detailklärung bis hin zur Ausarbeitung von Schnittstellen zu Maschinensteuerungen (Signalaustausch) und externen ERP-Systemen in Abstimmung mit externen Partner:innen.",
+          "text_span": [
+            1821,
+            2034
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Du erstellst funktionale System- und Prozessbeschreibungen (FDS) sowie Projektsimulationen und erarbeitest Systemfunktionen im Rahmen des Projekt-Engineerings.",
+          "text_span": [
+            2037,
+            2196
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Idealerweise bringst du bereits mehrjährige Berufserfahrung im Bereich Manufacturing Execution System (MES) mit.",
+          "text_span": [
+            2687,
+            2799
+          ],
+          "source": "description",
+          "modality": "preferred",
+          "context_role": "requirement"
+        }
+      ]
+    },
+    {
+      "job": {
+        "ref": "10000-1203417743-S",
+        "title": "Kaufmännische Fachkraft (m/w/d) mit Buchhaltungskenntnissen in Vollzeit oder Teilzeit",
+        "role": "Kaufmännische Fachkraft",
+        "location": "DEUTSCHLAND|BAYERN|Regensburg|93055",
+        "description": "Das Steuerbüro Karl Huf in Regensburg, Weißenburgstr. 13 (Nähe Nibelungenbrücke stadteinwärts) sucht zum nächstmöglichen Zeitpunkt\n\neine kaufmännische Fachkraft (m/w/d) mit Buchhaltungskenntnissen\n\nDie unbefristete Beschäftigung ist möglich in Vollzeit oder Teilzeit (ab ca. 20 Stunden wöchentlich)\n\nAufgabenbereich:\n\n- allgemeine Büro- und Verwaltungsarbeiten\n- Post , Korrespondenz, Telefon, Buchhaltung\n- Assistenz- und Sekretariatstätigkeiten\n\nAnforderungen:\n\n- abgeschlossene kaufmännische Ausbildung\n- möglichst Berufserfahrung, aber auch geschickte/r Ausbildungsabsolvent/in\n- Buchhaltungskenntnisse\n- Erfahrung im Umgang mit Buchhaltungsprogrammen\n- freundlich, teamfähig und eine zuverlässige Arbeitsweise\n\nFalls Sie an die Arbeitsstelle interessiert sind, freuen wir uns auf Ihre Bewerbung,\nbevorzugt per E-Mail unter karl.huf@web.de",
+        "schedule": "vollzeit=true; teilzeit=true; vertragsdauer=UNBEFRISTET; minijob=false",
+        "employer": "Karl Huf Steuerberater",
+        "url": "https://www.arbeitsagentur.de/jobsuche/jobdetail/10000-1203417743-S",
+        "source_modified_at": "2026-05-08T12:55:40.184",
+        "details_modified_at": "2026-05-08T12:55:40.184",
+        "source_input_hash": "e1d04a0a76f9431684f1bc0d3a3a500bf045df64e7a224432d38e4d95cf420c6",
+        "details_status": "available"
+      },
+      "category": "substantial_gaps",
+      "requirements": [
+        {
+          "quote": "allgemeine Büro- und Verwaltungsarbeiten",
+          "text_span": [
+            320,
+            360
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Post , Korrespondenz, Telefon, Buchhaltung",
+          "text_span": [
+            363,
+            405
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "abgeschlossene kaufmännische Ausbildung",
+          "text_span": [
+            466,
+            505
+          ],
+          "source": "description",
+          "modality": "required",
+          "context_role": "requirement"
+        },
+        {
+          "quote": "Erfahrung im Umgang mit Buchhaltungsprogrammen",
+          "text_span": [
+            609,
+            655
+          ],
+          "source": "description",
+          "modality": "required",
+          "context_role": "requirement"
+        }
+      ]
+    },
+    {
+      "job": {
+        "ref": "10000-1197521030-S",
+        "title": "Pflegefachhelfer (m/w/d) VZ/TZ gerne auch Quereinsteiger",
+        "role": "Ambulante/r Pfleger/in",
+        "location": "DEUTSCHLAND|BAYERN|Regensburg|93049",
+        "description": "Zu Hause – selbstbestimmt Leben – das ist die Leitidee des neuen ambulanten Pflegedienstes PEGASUS im Regensburger Westen.\n\nWir bieten unseren Kunden eine qualitativ hochwertige Pflege, die uns jeder MDK-Begehung gelassen entgegen schauen lässt. Um dieses zu gewährleisten suchen wir motivierte und qualifizierte Mitarbeiter/-innen mit sehr guten Deutschkenntnissen in Wort und Schrift sowie sozialer, fachlicher, persönlicher und methodischer Kompetenz.\n\nPEGASUS will ein Klima der Offenheit, der Wertschätzung und des Verstehens verwirklichen. Aus dem Bewusstsein, dass die Mitarbeiter die Leistungsträger des Unternehmens sind werden Voraussetzungen geschaffen, eine qualitativ hochwertige Pflege und Betreuung zu ermöglichen.\n\nIhre Aufgaben:\n\n- respektvolle situationsbezogene Pflege alter und kranker Menschen im häuslichen Umfeld\n- Unterstützung der Pflegefachkräfte, Grundpflegerische Tätigkeiten\n\nWir bieten Ihnen:\n\n- einen unbefristeten Arbeitsvertrag\n- Freizeitausgleich alle 2 Wochen (zwei freie Wochenenden/Monat)\n- eine realistische Tourenplanung\n- ein Gehalt, mit dem sie garantiert zufrieden sind\n- eine interessante, abwechslungsreiche, verantwortungsvolle Tätigkeit\n- individuelle Einarbeitung und Betreuung durch Ihren festen Mentor\n- berufliche Weiterentwicklung und Aufstiegsmöglichkeiten\n\nAnforderungen an Sie:\n\n- Ausbildung zum/zur Altenpflegehelfer/in bzw. Gesundheits- und Krankenpflegehelfer/in (m/w/d) oder vergleichbare Pflegefachhelferausbildung, gerne auch branchenfremd, Quereinsteiger usw.\n- Berufserfahrung wünschenswert aber auch Berufseinsteiger und Wiedereinsteiger sind uns willkommen\n- Freude an der Arbeit mit alten und geronto-psychiatrisch erkrankten Menschen\n- Verantwortungsbewusstsein und selbständiges arbeiten\n- Flexibilität\n- kooperatives Arbeitsverhalten im Team und mit unterschiedlichen Berufsgruppen\n- Interesse an beruflicher Weiterentwicklung durch interne und externe Fortbildungen.\n\nTeilzeit oder Vollzeit mit anteiligem Wochenend- und Feiertagsdienst\n\nEinsatz erfolgt nach Dienstplan Arbeitszeitrahmen: 06:30 - 21:00 Uhr\n\n\n\nWenn Sie gerne im kollegialen Team arbeiten, Empathie und Freude am Umgang mit älteren Menschen haben, dann freuen wir uns auf Ihre aussagekräftige Bewerbung.\n\nIm Ambulanten Dienst ist ein Pkw-Führerschein zwingend erforderlich. Ein Fahrzeug zu den Einsatzorten wird gestellt.",
+        "schedule": "vollzeit=true; teilzeit=true; vertragsdauer=KEINE_ANGABE; minijob=false",
+        "employer": "Müller Dagmar",
+        "url": "https://www.arbeitsagentur.de/jobsuche/jobdetail/10000-1197521030-S",
+        "source_modified_at": "2026-04-08T09:29:40.774",
+        "details_modified_at": "2026-04-08T09:29:40.774",
+        "source_input_hash": "d8c2694d7636ecf679f60e18ee91535dd8535e672fa8624a059cf2f98fbe9edd",
+        "details_status": "available"
+      },
+      "category": "substantial_gaps",
+      "requirements": [
+        {
+          "quote": "respektvolle situationsbezogene Pflege alter und kranker Menschen im häuslichen Umfeld",
+          "text_span": [
+            749,
+            835
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Unterstützung der Pflegefachkräfte, Grundpflegerische Tätigkeiten",
+          "text_span": [
+            838,
+            903
+          ],
+          "source": "description",
+          "modality": "unknown",
+          "context_role": "task"
+        },
+        {
+          "quote": "Ausbildung zum/zur Altenpflegehelfer/in bzw. Gesundheits- und Krankenpflegehelfer/in (m/w/d) oder vergleichbare Pflegefachhelferausbildung, gerne auch branchenfremd, Quereinsteiger usw.",
+          "text_span": [
+            1335,
+            1520
+          ],
+          "source": "description",
+          "modality": "required",
+          "context_role": "requirement"
+        },
+        {
+          "quote": "Im Ambulanten Dienst ist ein Pkw-Führerschein zwingend erforderlich.",
+          "text_span": [
+            2239,
+            2307
+          ],
+          "source": "description",
+          "modality": "required",
+          "context_role": "requirement"
+        }
+      ]
+    }
+  ]
+}

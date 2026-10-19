@@ -1,0 +1,14 @@
+{
+  "key": "example-candidate",
+  "skills": ["Python", "SQL", "Docker"],
+  "experience_projects": [
+    {
+      "name": "Example data platform",
+      "company": "Example Company",
+      "timeframe": "2024-2025",
+      "responsibilities": ["Built reliable data-processing services."],
+      "deliverables": ["Automated a recurring reporting workflow."],
+      "tech_stack": ["Python", "SQL", "Docker"]
+    }
+  ]
+}

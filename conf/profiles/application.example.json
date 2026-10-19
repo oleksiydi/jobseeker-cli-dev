@@ -1,0 +1,24 @@
+{
+  "candidate": {
+    "full_name": "",
+    "street": "",
+    "postal_code": "",
+    "city": "",
+    "country": "",
+    "email": "",
+    "phone": ""
+  },
+  "recipients": {
+    "10001-1002692258-S": {
+      "company": "Dracoon GmbH",
+      "street": "",
+      "postal_code": "",
+      "city": "",
+      "country": "",
+      "contact_person": "",
+      "salutation": "neutral",
+      "email": "",
+      "phone": ""
+    }
+  }
+}

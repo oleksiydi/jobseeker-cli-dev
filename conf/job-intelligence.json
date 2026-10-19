@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "output_language": null,
+  "experimental_skill_matching": {
+    "enabled": false,
+    "top_k": 3,
+    "min_similarity": 0.5,
+    "max_requirements": 100,
+    "max_profile_facts": 2000,
+    "max_fact_chars": 12000,
+    "max_requirement_chars": 4000
+  },
+  "candidate_limit": 100,
+  "limit": 10,
+  "processing_batch_size": 200,
+  "vector_collection": "job_intelligence_minilm_v1",
+  "embedding_batch_size": 8,
+  "embedding_threads": 2,
+  "skill_evidence_target": 3,
+  "weights": {"role": 0.4, "skills": 0.4, "semantic": 0.2},
+  "required_gap_penalty": 0.08,
+  "max_required_gap_penalty": 0.32,
+  "direct_role_threshold": 0.35,
+  "reference_relations": {
+    "enabled": true,
+    "max_related_skills": 3,
+    "max_context_suggestions": 3
+  },
+  "document_export": {
+    "enabled": false,
+    "json_md_enabled": false,
+    "limit": 50,
+    "output_dir": null,
+    "conversion_timeout_seconds": 60,
+    "cover_letter": {
+      "enabled": true,
+      "max_skills": 3,
+      "details_file": "conf/profiles/application.private.json"
+    }
+  }
+}

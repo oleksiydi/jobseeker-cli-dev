@@ -1,0 +1,18 @@
+{
+  "key": "synthetic-skill-matching-demo",
+  "skills": ["Concourse CI", "Java"],
+  "experience_projects": [
+    {
+      "name": "Synthetische Release-Plattform",
+      "company": "Beispielunternehmen",
+      "timeframe": "2021–2022",
+      "responsibilities": [
+        "CI/CD-Pipelines mit Concourse CI erstellt und betreut.",
+        "Deployments mit Helm in Kubernetes geprüft und durchgeführt.",
+        "Metriken und Alarme für die Datenverarbeitung eingerichtet."
+      ],
+      "deliverables": ["Wiederholbare Software-Releases ermöglicht."],
+      "tech_stack": ["Concourse CI", "Java", "Helm", "Kubernetes"]
+    }
+  ]
+}

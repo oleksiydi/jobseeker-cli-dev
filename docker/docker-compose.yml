@@ -1,0 +1,23 @@
+services:
+  mongo:
+    image: ${MONGO_IMAGE:-mongo:8.0}
+    restart: always
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me}
+    volumes:
+      - ./data:/data/db  # Монтирование локальной директории ./data в /data/db в контейнере
+
+  qdrant:
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.17.0}
+    restart: always
+    ports:
+      - "127.0.0.1:6333:6333"   # Qdrant доступен только локально
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+
+networks:
+  default:
+    driver: bridge

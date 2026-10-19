@@ -1,0 +1,595 @@
+#!/usr/bin/env python3  # Kann unter Unix direkt als Skript ausgeführt werden
+# -*- coding: utf-8 -*-  # Dateikodierung (UTF-8)
+
+"""
+Lädt Stellendetails aus Jobcenter mit API-Aufrufbedingung:
+- Wenn in jobdetails bereits ein Datensatz existiert, vergleichen wir:
+    stellenangebote.modifikationsTimestamp (aus der Listen-Collection)
+    VS jobdetails.aenderungsdatum (in den Details)
+  Die API wird NUR aufgerufen, wenn modifikationsTimestamp strikt größer ist als aenderungsdatum.
+- Wenn kein Datensatz in jobdetails existiert, wird die API aufgerufen und ein neuer Datensatz erstellt.
+- Bei Inhaltsänderungen speichern wir den vorherigen Zustand in einer separaten History-Collection.
+- Bei unverändertem Inhalt speichern wir ein leichtgewichtiges Zeit-Update-Event.
+
+Annahmen:
+- Datumswerte kommen als Strings wie "2025-08-05T06:14:28.330" oder "2025-08-05T06:14:28.33".
+- Der Bruchteil der Sekunden wird auf 6 Stellen normalisiert, um datetime korrekt zu parsen.
+"""
+
+import base64
+import hashlib
+import json
+import os
+import random
+import time
+from datetime import datetime, timezone  # datetime/timezone für Zeitverarbeitung (UTC)
+from typing import Any
+
+import requests
+from pymongo import ASCENDING
+from pymongo.collection import Collection
+from pymongo.database import Database
+
+# Erlaubt Direktstart: python app/job_details_collector.py
+if __package__ is None or __package__ == "":
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from app.core.config import load_app_config
+from app.core.logging import get_logger
+from app.core.time_utils import ensure_utc_datetime, parse_remote_dt, utcnow_naive
+from app.db.mongo import get_database, resolve_collection_name
+from app.jobcenter.throttle import RequestJitter, request_jitter_from_config, sleep_with_jitter
+
+# ---------- Hilfsfunktionen ----------
+
+SERVICE_FIELDS = {
+    "_id",
+    "created_at",
+    "updated_at",
+    "details_hash",
+    "old",
+    "last_seen_remote_updated_at",
+    "last_seen_remote_updated_at_dt",
+    "aenderungsdatum_dt",
+    "last_checked_at",
+}
+CONTENT_HASH_EXCLUDE_FIELDS = {"aenderungsdatum"}
+DETAILS_PREFILTER_BATCH_SIZE_DEFAULT = 500
+
+
+def _list_history_collection_name(cfg: dict[str, Any]) -> str:
+    return cfg.get("history_collections", {}).get("list", "stellenangebote_history")
+
+
+def _history_collection_name(cfg: dict[str, Any]) -> str:
+    env_value = os.getenv("COLLECTION_JOBDETAILS_HISTORY")
+    if env_value:
+        return env_value
+    return cfg.get("history_collections", {}).get("details", "jobdetails_history")
+
+
+def _state_collection_name(cfg: dict[str, Any]) -> str:
+    return cfg.get("state_collections", {}).get("list", "pipeline_state")
+
+
+def ensure_indexes(
+    db: Database, details_collection_name: str, history_collection_name: str
+) -> None:
+    """Erstellt zuverlässig Indizes in Details- und History-Collections."""
+    det = db[details_collection_name]
+    det.create_index([("referenznummer", ASCENDING)], unique=True)
+    det.create_index([("aenderungsdatum", ASCENDING)])
+    det.create_index([("aenderungsdatum_dt", ASCENDING)])
+    det.create_index([("last_seen_remote_updated_at_dt", ASCENDING)])
+    det.create_index([("details_hash", ASCENDING)])
+
+    history = db[history_collection_name]
+    history.create_index([("referenznummer", ASCENDING), ("occurred_at", ASCENDING)])
+    history.create_index([("occurred_at", ASCENDING)])
+    history.create_index([("event_type", ASCENDING)])
+
+def to_b64(s: str) -> str:  # Base64-Kodierung für URL (API-Anforderung)
+    return base64.b64encode(s.encode("utf-8")).decode("utf-8").rstrip("=")  # Kodieren und abschließendes '=' entfernen
+
+
+def _details_payload(item: dict[str, Any]) -> dict[str, Any]:
+    """Behält nur Business-Felder für den Änderungsvergleich."""
+    return {k: v for k, v in item.items() if k not in SERVICE_FIELDS}
+
+
+def _content_payload_for_hash(payload: dict[str, Any]) -> dict[str, Any]:
+    """Felder für Inhalts-Hash (ohne Remote-Update-Zeitstempel)."""
+    return {k: v for k, v in payload.items() if k not in CONTENT_HASH_EXCLUDE_FIELDS}
+
+
+def _compute_details_hash(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _build_diff_update(
+    existing_doc: dict[str, Any], new_payload: dict[str, Any], new_hash: str, now: datetime
+) -> dict[str, Any]:
+    existing_payload = _details_payload(existing_doc)
+    set_fields: dict[str, Any] = {"updated_at": now, "details_hash": new_hash}
+    unset_fields: dict[str, str] = {}
+
+    for key, new_value in new_payload.items():
+        if existing_payload.get(key) != new_value:
+            set_fields[key] = new_value
+
+    for key in existing_payload.keys():
+        if key not in new_payload:
+            unset_fields[key] = ""
+
+    update_doc: dict[str, Any] = {"$set": set_fields}
+    if unset_fields:
+        update_doc["$unset"] = unset_fields
+    return update_doc
+
+
+def _build_history_snapshot(
+    existing_doc: dict[str, Any], new_hash: str, remote_updated_at: Any, now: datetime
+) -> dict[str, Any]:
+    snapshot = dict(existing_doc)
+    snapshot.pop("_id", None)
+    return {
+        "referenznummer": existing_doc.get("referenznummer"),
+        "occurred_at": now,
+        "event_type": "content_change",
+        "source": "jobcenter_details_api",
+        "previous_remote_updated_at": existing_doc.get("last_seen_remote_updated_at"),
+        "remote_updated_at": remote_updated_at,
+        "previous_details_hash": existing_doc.get("details_hash"),
+        "new_details_hash": new_hash,
+        "snapshot": snapshot,
+    }
+
+
+def _build_no_content_change_event(
+    referenznummer: str,
+    details_hash: str,
+    previous_remote_updated_at: Any,
+    remote_updated_at: Any,
+    now: datetime,
+) -> dict[str, Any]:
+    return {
+        "referenznummer": referenznummer,
+        "occurred_at": now,
+        "event_type": "no_content_change",
+        "source": "jobcenter_details_api",
+        "details_hash": details_hash,
+        "previous_remote_updated_at": previous_remote_updated_at,
+        "remote_updated_at": remote_updated_at,
+    }
+
+
+def _build_remote_not_found_event(
+    referenznummer: str,
+    previous_remote_updated_at: Any,
+    list_modifikations_timestamp: Any,
+    now: datetime,
+) -> dict[str, Any]:
+    return {
+        "referenznummer": referenznummer,
+        "occurred_at": now,
+        "event_type": "remote_not_found",
+        "source": "jobcenter_details_api",
+        "http_status": 404,
+        "previous_remote_updated_at": previous_remote_updated_at,
+        "list_modifikations_timestamp": list_modifikations_timestamp,
+    }
+
+
+def _prefilter_batch_size() -> int:
+    env_value = os.getenv("JOBDETAILS_PREFILTER_BATCH_SIZE")
+    if env_value is None:
+        return DETAILS_PREFILTER_BATCH_SIZE_DEFAULT
+    try:
+        return max(int(env_value), 1)
+    except ValueError:
+        return DETAILS_PREFILTER_BATCH_SIZE_DEFAULT
+
+
+def _retry_delay_seconds(attempt: int, base_delay_seconds: float = 1.0) -> float:
+    # attempt начинается с 0: 1.0, 2.0, 4.0, ...
+    return (base_delay_seconds * (2 ** attempt)) + random.uniform(0.0, 0.3)
+
+
+def _load_last_successful_list_run_id(state_col: Collection, log: Any) -> str | None:
+    from app.jobcenter.search_provenance import usable_list_run
+    state_doc = state_col.find_one({"key": "job_list_collector_query_scope"})
+    if not state_doc:
+        log.warning("details_collector: pipeline_state for job_list_collector not found, details run skipped")
+        return None
+
+    run_id = state_doc.get("last_run_id")
+    if not run_id:
+        log.warning("details_collector: last_run_id missing in job_list_collector state, details run skipped")
+        return None
+
+    if not usable_list_run(state_doc):
+        log.warning(
+            "details_collector: last list run %s is not usable, details run skipped",
+            run_id,
+        )
+        return None
+
+    return str(run_id)
+
+
+def _load_source_list_docs(
+    list_col: Collection,
+    list_history_col: Collection,
+    *,
+    run_id: str,
+    log: Any,
+) -> tuple[list[dict[str, Any]], int, int]:
+    history_docs = list_history_col.find(
+        {"event_type": "list_seen", "run_id": run_id},
+        {"referenznummer": 1},
+    )
+    refs = sorted(
+        {
+            str(doc.get("referenznummer")).strip()
+            for doc in history_docs
+            if doc.get("referenznummer")
+        }
+    )
+    if not refs:
+        log.warning("details_collector: no list_seen refs found for successful list run %s", run_id)
+        return [], 0, 0
+
+    list_docs = {
+        doc.get("referenznummer") or doc.get("refnr"): doc
+        for doc in list_col.find(
+            {"referenznummer": {"$in": refs}},
+            {"referenznummer": 1, "refnr": 1, "modifikationsTimestamp": 1, "modifikationsTimestamp_dt": 1},
+        )
+        if doc.get("referenznummer") or doc.get("refnr")
+    }
+
+    source_docs: list[dict[str, Any]] = []
+    missing_in_main = 0
+    for ref in refs:
+        doc = list_docs.get(ref)
+        if doc is None:
+            missing_in_main += 1
+            continue
+        source_docs.append(doc)
+
+    if missing_in_main:
+        log.warning(
+            "details_collector: %s refs from list_seen run %s are missing in stellenangebote and were skipped",
+            missing_in_main,
+            run_id,
+        )
+
+    return source_docs, len(refs), missing_in_main
+
+
+def _build_verify_candidates(
+    det_col: Collection, batch: list[dict[str, Any]], log: Any
+) -> tuple[list[dict[str, Any]], int]:
+    refs = [item["referenznummer"] for item in batch]
+    existing_docs = {
+        doc.get("referenznummer"): doc
+        for doc in det_col.find({"referenznummer": {"$in": refs}})
+        if doc.get("referenznummer")
+    }
+
+    candidates: list[dict[str, Any]] = []
+    skipped_guaranteed = 0
+    for item in batch:
+        ref = item["referenznummer"]
+        current = existing_docs.get(ref)
+        if current:
+            jd_raw = current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
+            jd_dt = ensure_utc_datetime(
+                current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
+            )
+            if jd_dt is None:
+                jd_dt = parse_remote_dt(jd_raw)
+            if jd_dt is not None and item["sa_dt"] <= jd_dt:
+                skipped_guaranteed += 1
+                log.info(f"{ref}: Liste ist nicht neuer (SA<=JD), API wird übersprungen")
+                continue
+
+        candidates.append(
+            {
+                "referenznummer": ref,
+                "list_modifikations_timestamp": item["sa_raw"],
+                "current": current,
+            }
+        )
+
+    return candidates, skipped_guaranteed
+
+
+def _verify_and_apply_candidates(
+    session: requests.Session,
+    candidates: list[dict[str, Any]],
+    det_col: Collection,
+    det_history_col: Collection,
+    history_collection_name: str,
+    headers: dict[str, Any],
+    url_tpl: str,
+    log: Any,
+    request_jitter: RequestJitter | None = None,
+) -> tuple[int, int]:
+    jitter = request_jitter or RequestJitter(0.5, 2.0)
+    inserted = 0
+    updated = 0
+    for candidate in candidates:
+        ref = candidate["referenznummer"]
+        sa_raw = candidate["list_modifikations_timestamp"]
+        current = candidate["current"]
+        ref_b64 = to_b64(ref)
+        url = url_tpl.format(ref_b64=ref_b64)
+
+        payload = None
+        remote_not_found = False
+        sleep_with_jitter(jitter)
+        for attempt in range(2):
+            try:
+                r = session.get(url, headers=headers, timeout=10)
+                if r.status_code == 200:
+                    payload = r.json()
+                    break
+                if r.status_code == 404:
+                    remote_not_found = True
+                    log.info(f"{ref}: HTTP 404 (Details an der Quelle nicht verfügbar), ohne Retry übersprungen")
+                    break
+                log.warning(f"{ref}: HTTP {r.status_code}")
+            except Exception as e:
+                log.warning(f"{ref}: Request-Fehler: {e}")
+            time.sleep(_retry_delay_seconds(attempt))
+
+        try:
+            if remote_not_found:
+                now = utcnow_naive()
+                det_history_col.insert_one(
+                    _build_remote_not_found_event(
+                        referenznummer=ref,
+                        previous_remote_updated_at=(
+                            current.get("last_seen_remote_updated_at") if current else None
+                        ),
+                        list_modifikations_timestamp=sa_raw,
+                        now=now,
+                    )
+                )
+                continue
+
+            if not payload:
+                log.info(f"{ref}: keine Daten von der API (übersprungen)")
+                continue
+
+            payload["referenznummer"] = ref
+            payload.setdefault("aenderungsdatum", None)
+            remote_updated_raw = payload.get("aenderungsdatum")
+            remote_updated_dt = parse_remote_dt(remote_updated_raw)
+            new_dt = remote_updated_dt or datetime.now(timezone.utc)
+
+            if current:
+                cur_dt = ensure_utc_datetime(
+                    current.get("last_seen_remote_updated_at_dt") or current.get("aenderungsdatum_dt")
+                )
+                if cur_dt is None:
+                    cur_dt = parse_remote_dt(
+                        current.get("last_seen_remote_updated_at") or current.get("aenderungsdatum")
+                    )
+
+                if cur_dt and new_dt <= cur_dt:
+                    log.info(f"{ref}: API-Details nicht neuer (new<=old), übersprungen")
+                    continue
+
+                business_payload = _details_payload(payload)
+                business_payload["referenznummer"] = ref
+                content_payload = _content_payload_for_hash(business_payload)
+                new_hash = _compute_details_hash(content_payload)
+                if current.get("details_hash") == new_hash:
+                    now = utcnow_naive()
+                    previous_remote_updated_at = current.get("last_seen_remote_updated_at")
+                    det_history_col.insert_one(
+                        _build_no_content_change_event(
+                            referenznummer=ref,
+                            details_hash=new_hash,
+                            previous_remote_updated_at=previous_remote_updated_at,
+                            remote_updated_at=remote_updated_raw,
+                            now=now,
+                        )
+                    )
+                    det_col.update_one(
+                        {"_id": current["_id"]},
+                        {
+                            "$set": {
+                                "aenderungsdatum": remote_updated_raw,
+                                "aenderungsdatum_dt": remote_updated_dt,
+                                "last_seen_remote_updated_at": remote_updated_raw,
+                                "last_seen_remote_updated_at_dt": remote_updated_dt,
+                                "last_checked_at": now,
+                            }
+                        },
+                    )
+                    log.info(f"{ref}: Inhalt unverändert, Zeitmarken und History-Event aktualisiert")
+                    continue
+
+                now = utcnow_naive()
+                business_payload["last_seen_remote_updated_at"] = remote_updated_raw
+                business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
+                business_payload["aenderungsdatum_dt"] = remote_updated_dt
+                business_payload["last_checked_at"] = now
+                det_history_col.insert_one(
+                    _build_history_snapshot(current, new_hash, remote_updated_raw, now)
+                )
+                det_col.update_one(
+                    {"_id": current["_id"], "details_hash": {"$ne": new_hash}},
+                    _build_diff_update(current, business_payload, new_hash, now),
+                )
+                updated += 1
+                log.info(f"{ref}: aktualisiert (vorheriger Zustand in {history_collection_name} archiviert)")
+            else:
+                now = utcnow_naive()
+                business_payload = _details_payload(payload)
+                business_payload["referenznummer"] = ref
+                business_payload["details_hash"] = _compute_details_hash(_content_payload_for_hash(business_payload))
+                business_payload["last_seen_remote_updated_at"] = remote_updated_raw
+                business_payload["last_seen_remote_updated_at_dt"] = remote_updated_dt
+                business_payload["aenderungsdatum_dt"] = remote_updated_dt
+                business_payload["last_checked_at"] = now
+                business_payload["created_at"] = now
+                business_payload["updated_at"] = now
+                det_col.insert_one(business_payload)
+                inserted += 1
+                log.info(f"{ref}: eingefügt")
+        except Exception as exc:
+            log.warning(f"{ref}: Mongo write error, candidate skipped: {exc}")
+            continue
+
+    return inserted, updated
+
+
+# ---------- Hauptlogik ----------
+
+def main():  # Hauptfunktion, die den Ablauf steuert
+    log = get_logger("job_details_collector")  # Benannter Logger
+
+    cfg = load_app_config()  # Anwendungskonfiguration laden
+    db = get_database(cfg)  # Mit MongoDB verbinden
+    list_collection_name = resolve_collection_name(cfg, key="list", default="stellenangebote")
+    details_collection_name = resolve_collection_name(cfg, key="details", default="jobdetails")
+    history_collection_name = _history_collection_name(cfg)
+    list_history_collection_name = _list_history_collection_name(cfg)
+    state_collection_name = _state_collection_name(cfg)
+    ensure_indexes(db, details_collection_name, history_collection_name)
+
+    list_col: Collection = db[list_collection_name]
+    det_col: Collection = db[details_collection_name]
+    det_history_col: Collection = db[history_collection_name]
+    list_history_col: Collection = db[list_history_collection_name]
+    state_col: Collection = db[state_collection_name]
+
+    api = cfg["jobcenter"]["details_api"]          # API-Parameter für Details
+    headers = dict(api.get("headers", {}))         # HTTP-Header (kopieren, um Original nicht zu ändern)
+    env_api_key = os.getenv("JOBCENTER_DETAILS_API_KEY", "").strip()
+    if env_api_key:
+        headers["X-API-Key"] = env_api_key
+    url_tpl = api["url_template"]                   # URL-Vorlage mit Base64(ref)
+    request_jitter = request_jitter_from_config(
+        api,
+        env_var="JOBCENTER_DETAILS_REQUEST_JITTER_SECONDS",
+        default=RequestJitter(0.5, 2.0),
+    )
+    log.info(
+        "Start details_collector: jitter=%.2f-%.2fs",
+        request_jitter.min_seconds,
+        request_jitter.max_seconds,
+    )
+
+    source_list_run_id = _load_last_successful_list_run_id(state_col, log)
+    if source_list_run_id is None:
+        return
+
+    source_docs, source_refs_total, source_missing_main = _load_source_list_docs(
+        list_col,
+        list_history_col,
+        run_id=source_list_run_id,
+        log=log,
+    )
+    if not source_docs:
+        log.warning(
+            "details_collector: no source list documents available for successful run_id=%s, details run skipped",
+            source_list_run_id,
+        )
+        return
+
+    log.info(
+        "details_collector source: list_run_id=%s, unique_refs=%s, missing_in_main=%s, source_docs=%s",
+        source_list_run_id,
+        source_refs_total,
+        source_missing_main,
+        len(source_docs),
+    )
+
+    prefilter_batch_size = _prefilter_batch_size()
+    session = requests.Session()
+    inserted_total = 0
+    updated_total = 0
+    skipped_missing_list_dt = 0
+    skipped_guaranteed = 0
+    verify_candidates_total = 0
+    batch: list[dict[str, Any]] = []
+
+    for doc in source_docs:
+        ref = doc.get("referenznummer") or doc.get("refnr")
+        if not ref:
+            continue
+
+        sa_raw = doc.get("modifikationsTimestamp")
+        sa_dt = ensure_utc_datetime(doc.get("modifikationsTimestamp_dt"))
+        if sa_dt is None:
+            sa_dt = parse_remote_dt(sa_raw)
+        if sa_dt is None:
+            skipped_missing_list_dt += 1
+            log.info(f"{ref}: kein gültiger modifikationsTimestamp in stellenangebote — Request übersprungen")
+            continue
+
+        batch.append({"referenznummer": ref, "sa_raw": sa_raw, "sa_dt": sa_dt})
+        if len(batch) < prefilter_batch_size:
+            continue
+
+        candidates, skipped = _build_verify_candidates(det_col, batch, log)
+        skipped_guaranteed += skipped
+        verify_candidates_total += len(candidates)
+        inserted, updated = _verify_and_apply_candidates(
+            session=session,
+            candidates=candidates,
+            det_col=det_col,
+            det_history_col=det_history_col,
+            history_collection_name=history_collection_name,
+            headers=headers,
+            url_tpl=url_tpl,
+            log=log,
+            request_jitter=request_jitter,
+        )
+        inserted_total += inserted
+        updated_total += updated
+        batch = []
+
+    if batch:
+        candidates, skipped = _build_verify_candidates(det_col, batch, log)
+        skipped_guaranteed += skipped
+        verify_candidates_total += len(candidates)
+        inserted, updated = _verify_and_apply_candidates(
+            session=session,
+            candidates=candidates,
+            det_col=det_col,
+            det_history_col=det_history_col,
+            history_collection_name=history_collection_name,
+            headers=headers,
+            url_tpl=url_tpl,
+            log=log,
+            request_jitter=request_jitter,
+        )
+        inserted_total += inserted
+        updated_total += updated
+
+    close_fn = getattr(session, "close", None)
+    if callable(close_fn):
+        close_fn()
+
+    log.info(
+        "Fertig. Eingefügt: %s, aktualisiert: %s, gesamt_verarbeitet=%s, skipped_guaranteed=%s, skipped_missing_list_dt=%s, verify_candidates=%s",
+        inserted_total,
+        updated_total,
+        inserted_total + updated_total,
+        skipped_guaranteed,
+        skipped_missing_list_dt,
+        verify_candidates_total,
+    )
+
+if __name__ == "__main__":  # Bei Direktstart als Hauptprogramm
+    main()

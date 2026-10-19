@@ -1,0 +1,48 @@
+{
+  "rule_set_version": "v1",
+  "default": {
+    "label": "unknown",
+    "confidence": 0.35,
+    "reason": "no_section_markers_detected"
+  },
+  "rules": [
+    {
+      "id": "label_tasks",
+      "when": {
+        "or": [
+          { "in": [ "aufgaben", { "var": "chunk_text_lc" } ] },
+          { "in": [ "tätigkeiten", { "var": "chunk_text_lc" } ] },
+          { "in": [ "verantwortung", { "var": "chunk_text_lc" } ] }
+        ]
+      },
+      "label": "tasks",
+      "confidence": 0.85
+    },
+    {
+      "id": "label_requirements",
+      "when": {
+        "or": [
+          { "in": [ "anforderungen", { "var": "chunk_text_lc" } ] },
+          { "in": [ "ihr profil", { "var": "chunk_text_lc" } ] },
+          { "in": [ "qualifikation", { "var": "chunk_text_lc" } ] },
+          { "in": [ "voraussetzungen", { "var": "chunk_text_lc" } ] }
+        ]
+      },
+      "label": "requirements",
+      "confidence": 0.9
+    },
+    {
+      "id": "label_benefits",
+      "when": {
+        "or": [
+          { "in": [ "wir bieten", { "var": "chunk_text_lc" } ] },
+          { "in": [ "benefits", { "var": "chunk_text_lc" } ] },
+          { "in": [ "urlaub", { "var": "chunk_text_lc" } ] },
+          { "in": [ "zuschuss", { "var": "chunk_text_lc" } ] }
+        ]
+      },
+      "label": "benefits",
+      "confidence": 0.82
+    }
+  ]
+}

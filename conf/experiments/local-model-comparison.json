@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reference": "qwen35-2b.json",
+  "selected": [
+    "qwen35-4b.json",
+    "gemma4-e2b.json",
+    "gemma4-e4b.json",
+    "phi4-mini.json"
+  ],
+  "deferred": [],
+  "case_file_sha256": "3cf9cf1a24f8ae51ae529dbbafde553d86b7eeeecd0debb1a5575241fe4b8279",
+  "selection_amendment": "Qwen3.5-9B replaced before download/inference by Phi-4-mini-instruct solely to retain all four weights on the project filesystem after available disk increased. No prompt/case/label changes.",
+  "weights_total_bytes": 14009360032,
+  "supplemental": [
+    "qwen35-9b.json"
+  ],
+  "weights_total_bytes_scope": "original_selected_four_only",
+  "supplemental_experiment": {
+    "status": "completed",
+    "reason": "User freed project disk space and explicitly requested continuation; original four-model selection preserved.",
+    "case_file_sha256": "3cf9cf1a24f8ae51ae529dbbafde553d86b7eeeecd0debb1a5575241fe4b8279",
+    "cases_prompts_labels_unchanged": true,
+    "new_independent_holdout": false,
+    "weights_bytes": 6169341984,
+    "retained_six_model_weights_bytes": 21574900512
+  }
+}

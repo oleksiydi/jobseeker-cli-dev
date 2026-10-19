@@ -1,0 +1,177 @@
+{
+  "output_language": "ru",
+  "dictionary_pipeline": {
+    "reference_first": true,
+    "extraction_provider": "openrouter",
+    "extraction_model": "mistralai/mistral-nemo",
+    "review_provider": "openrouter",
+    "review_model": "xiaomi/mimo-v2.6-flash",
+    "escalation_provider": "openrouter",
+    "escalation_model": "xiaomi/mimo-v2.6-pro",
+    "max_vacancies": 0
+  },
+  "mongodb": {
+    "db_name": "jobcenter"
+  },
+  "collections": {
+    "list": "stellenangebote",
+    "details": "jobdetails",
+    "analysis": "analysen",
+    "profiles": "profiles",
+    "analysis_prompts": "analysis_prompts",
+    "normalization_synonyms_state": "normalization_synonyms_state",
+    "normalization_synonyms_audit": "normalization_synonyms_audit"
+  },
+  "history_collections": {
+    "list": "stellenangebote_history",
+    "details": "jobdetails_history"
+  },
+  "history_ttl_days": {
+    "list_seen": 540
+  },
+  "jobcenter": {
+    "list_api": {
+      "api_url": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs",
+      "api_key": "jobboerse-jobsuche",
+      "params": {
+        "angebotsart": 1,
+        "wo": "Regensburg",
+        "umkreis": 15,
+        "size": "200",
+        "pav": false,
+        "facetten": false
+      },
+      "search_url": null,
+      "result_window_limit": 10000,
+      "search_area": {
+        "mode": "legacy",
+        "plz": "",
+        "bundesland": "Bayern",
+        "city": "Regensburg",
+        "country": "de",
+        "plz_query_umkreis": 0,
+        "max_plz_per_run": 10000,
+        "max_pages_per_physical_query": 500,
+        "dry_run": false
+      },
+      "headers": {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "de,ru-RU;q=0.9,ru;q=0.8,en-US;q=0.7,en;q=0.6,uk;q=0.5",
+        "Connection": "keep-alive",
+        "Origin": "https://www.arbeitsagentur.de"
+      },
+      "max_requests": 100000,
+      "request_jitter_seconds": {
+        "min": 0.5,
+        "max": 5.0
+      },
+      "output_filenames": {
+        "job_list": "jobangebote.json",
+        "job_details": "stellenangebote.json"
+      }
+    },
+    "details_api": {
+      "url_template": "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobdetails/{ref_b64}",
+      "headers": {
+        "X-API-Key": "jobboerse-jobsuche",
+        "Accept": "application/json"
+      },
+      "request_jitter_seconds": {
+        "min": 0.8,
+        "max": 2.6
+      }
+    }
+  },
+  "analyzer": {
+    "model": "gpt-5-nano",
+    "profile_key": "default",
+    "prompt_key": "default",
+    "prompt_version": null
+  },
+  "matching": {
+    "enabled": false,
+    "run_mode": "nightly",
+    "allow_manual_run": true,
+    "nightly_schedule_cron": "0 2 * * *",
+    "preprocess": {
+      "strategy": "spacy_de_trf",
+      "version": "v1"
+    },
+    "chunking": {
+      "strategy": "semantic",
+      "version": "v1",
+      "sentence_splitter": "spacy",
+      "spacy_model": "de_core_news_md",
+      "semantic_similarity_threshold": 0.72,
+      "semantic_sentence_window": 2,
+      "semantic_min_sentences": 2,
+      "semantic_max_sentences": 8,
+      "hard_max_chunk_chars": 2200,
+      "hard_min_chunk_chars": 200,
+      "fallback_overlap_chars": 120,
+      "token_aware_enabled": true,
+      "token_splitter": "transformers",
+      "tokenizer_model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "max_tokens_per_chunk": 260,
+      "overlap_tokens": 40
+    },
+    "embeddings": {
+      "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "vector_size": 384
+    },
+    "retrieval": {
+      "top_k": 100
+    },
+    "rerank": {
+      "enabled": true,
+      "model_name": "BAAI/bge-reranker-v2-m3",
+      "top_n": 50,
+      "weights": {
+        "role": 0.4,
+        "chunk": 0.3,
+        "profile": 0.2,
+        "metadata": 0.1,
+        "chunk_top1": 0.6,
+        "chunk_top2": 0.3,
+        "chunk_top3": 0.1,
+        "rerank_pre_llm": 0.75,
+        "rerank_lexical": 0.25,
+        "role_mismatch_threshold": 0.08,
+        "role_mismatch_penalty": 0.65
+      }
+    },
+    "selection_cache": {
+      "enabled": true,
+      "ttl_hours": 24,
+      "top_base": 20,
+      "extra_min": 5,
+      "top_cap": 50
+    },
+    "llm": {
+      "provider_mode": "local",
+      "input_mode": "compact",
+      "fallback_provider_mode": null
+    },
+    "qdrant": {
+      "url": "http://127.0.0.1:6333",
+      "collection_name": "job_chunks_v1",
+      "distance": "Cosine",
+      "hnsw_m": 16,
+      "hnsw_ef_construct": 100,
+      "timeout_seconds": 10,
+      "max_retries": 2,
+      "retry_backoff_seconds": 0.5
+    },
+    "rules": {
+      "enabled": true,
+      "ruleset_version": "v1",
+      "path": "conf/rules",
+      "files": {
+        "normalize": "normalize_rules.v1.json",
+        "fallback": "fallback_rules.v1.json",
+        "label": "label_rules.v1.json",
+        "reindex": "reindex_rules.v1.json"
+      }
+    }
+  }
+}

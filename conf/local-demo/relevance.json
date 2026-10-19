@@ -1,0 +1,841 @@
+{
+  "annotation_status": "agent_reviewed_fixture_human_validation_pending",
+  "annotation_scope": "Independent relevance judgments based on vacancy title and description; no ranker scores or outputs were used.",
+  "not_expert_ground_truth": true,
+  "selected_reference_ids": [
+    "10000-1203934842-S",
+    "10001-1001952695-S",
+    "10001-1002724237-S",
+    "10001-1003036959-S",
+    "10001-1003037201-S",
+    "10001-1003062958-S",
+    "10001-1003063399-S",
+    "10001-1002834528-S",
+    "10001-1002978312-S",
+    "10001-1002884959-S",
+    "10001-1002294005-S",
+    "10001-1002294020-S",
+    "10000-1191814578-S",
+    "10000-1201203438-S",
+    "10000-1202328081-S",
+    "10000-1202742273-S",
+    "10000-1203069634-S",
+    "10000-1205396781-S",
+    "10001-1000069073-S",
+    "10001-1000549526-S",
+    "10001-1000572382-S",
+    "10000-1205283090-S",
+    "10001-1001980271-S",
+    "10001-1002080462-S",
+    "10000-1197055062-S",
+    "10000-1197055091-S",
+    "10000-1198160660-S",
+    "10000-1202722521-S",
+    "10000-1203640756-S",
+    "10000-1201862500-S",
+    "10000-1202875595-S",
+    "10000-1203417743-S",
+    "10000-1197915338-S",
+    "10000-1202108786-S",
+    "10000-1197521030-S",
+    "10000-1203433303-S"
+  ],
+  "duplicate_test": {
+    "source_reference_id": "10000-1197055091-S",
+    "synthetic_reference_id": "LOCAL-DEMO-DUPLICATE-01",
+    "identity_fields_changed": [
+      "outer.referenznummer",
+      "stellenangebote._id",
+      "stellenangebote.referenznummer",
+      "stellenangebote.refnr",
+      "jobdetails._id",
+      "jobdetails.referenznummer"
+    ],
+    "content_fields_preserved": [
+      "title",
+      "role",
+      "location",
+      "description",
+      "employer"
+    ]
+  },
+  "profiles": [
+    {
+      "profile_key": "it_support",
+      "evaluations": [
+        {
+          "reference_id": "10000-1203934842-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "Unterstützung im Bereich 2st Level Support",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1001952695-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "per Fernwartungssoftware",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002724237-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "Administration von Server-, Netzwerk- und Client-Infrastrukturen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003036959-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "Administration, Wartung und Weiterentwicklung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003037201-S",
+          "grade": 2,
+          "rationale": "Смежная инфраструктурная/клиентская задача; часть целевых навыков подходит, но профиль роли шире или специализированнее.",
+          "quote": "Verwaltung und Weiterentwicklung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003062958-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "Administration von Linux-Server-Umgebungen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003063399-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "Analyse, Bearbeitung und Lösung von technischen Störungen in der IT-Infrastruktur",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002834528-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "1st und 2nd Level Support für unsere Kunden",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002978312-S",
+          "grade": 2,
+          "rationale": "Смежная инфраструктурная/клиентская задача; часть целевых навыков подходит, но профиль роли шире или специализированнее.",
+          "quote": "Support, Ticketbearbeitung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002884959-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с ролью и повседневными задачами системного администрирования или поддержки.",
+          "quote": "Annahme und Lösung von Supportanfragen per Telefon und Ticketsystem",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002294005-S",
+          "grade": 1,
+          "rationale": "Техническая разработка/тестирование смежна с IT, но не совпадает с целевой работой по администрированию и поддержке пользователей.",
+          "quote": "Entwicklung und Weiterentwicklung von Anwendungen in C/C++",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002294020-S",
+          "grade": 1,
+          "rationale": "Техническая разработка/тестирование смежна с IT, но не совпадает с целевой работой по администрированию и поддержке пользователей.",
+          "quote": "Ableitung umfassender Testspezifikationen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1191814578-S",
+          "grade": 0,
+          "rationale": "«BF3-Fahrer/Begleiter von Schwertransporten (m/w/d)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "BF3-Fahrer/Begleiter von Schwertransporten (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1201203438-S",
+          "grade": 0,
+          "rationale": "«Fahrer (m/w/d) für Möbelwagen gesucht» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Fahrer (m/w/d) für Möbelwagen gesucht",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202328081-S",
+          "grade": 0,
+          "rationale": "«Fahrer (m/w/d) für Festtouren gesucht» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Fahrer (m/w/d) für Festtouren gesucht",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202742273-S",
+          "grade": 0,
+          "rationale": "«LKW Fahrer (m/w/d) für Umzüge  in Vollzeit» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "LKW Fahrer (m/w/d) für Umzüge  in Vollzeit",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1203069634-S",
+          "grade": 0,
+          "rationale": "«Auslieferungsfahrer mit Führerschein C / über 7,5t» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Auslieferungsfahrer mit Führerschein C / über 7,5t",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1205396781-S",
+          "grade": 0,
+          "rationale": "«Fahrer für nationalen Fernverkehr gesucht ****  LKW kann mit nach Hause genommen werden» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Fahrer für nationalen Fernverkehr gesucht ****  LKW kann mit nach Hause genommen werden",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1000069073-S",
+          "grade": 0,
+          "rationale": "«Transporteur / Routenzugfahrer (m/w/d) in Regensburg» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Innerbetrieblicher Transport",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1000549526-S",
+          "grade": 0,
+          "rationale": "«Staplerfahrer (m/w/d) in Regensburg (auch mit Schichtbereitschaft)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Staplerfahrer (m/w/d) in Regensburg",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1000572382-S",
+          "grade": 0,
+          "rationale": "«Kommissionierer (m/w/d)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Kommissionierer (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1205283090-S",
+          "grade": 0,
+          "rationale": "«Lagermitarbeiter / Lagermeister (m/w/d) in Vollzeit oder Quereinsteiger handwerklich begabt» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Lagermitarbeiter / Lagermeister (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1001980271-S",
+          "grade": 0,
+          "rationale": "«Fachkraft für Lagerlogistik / Wareneingang (gn)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Fachkraft für Lagerlogistik / Wareneingang",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1002080462-S",
+          "grade": 0,
+          "rationale": "«Fachkraft Lagerlogistik m/w/d» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Fachkraft Lagerlogistik",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1197055062-S",
+          "grade": 0,
+          "rationale": "«Verkäufer (w/m/d) gesucht für Fisch/Fleisch/Wurst und Gemüse» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Kundenberatung und der Verkauf unserer Fisch-, Wurst- und Fleischwaren",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1197055091-S",
+          "grade": 0,
+          "rationale": "«Kassierer (m/w/d) mit russischen Sprachkenntnissen gesucht!» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Bedienen der Scannerkasse",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1198160660-S",
+          "grade": 0,
+          "rationale": "«Verkäufer / Verkaufsberater (m/w/d)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Verkäufer / Verkaufsberater",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202722521-S",
+          "grade": 0,
+          "rationale": "«Verkäuferin (m/w/d) für die Bäckerei gesucht» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Verkauf von Backwaren",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203640756-S",
+          "grade": 0,
+          "rationale": "«Mitarbeiter (w/m/d) im Verkauf und Service gesucht!» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Verkauf unserer Pralinen- und Konditoreispezialitäten",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1201862500-S",
+          "grade": 0,
+          "rationale": "«Kaufmann/-frau für Büromanagement Teilzeit (m/w/d)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Auftragsabwicklung (Einkauf/Verkauf)",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1202875595-S",
+          "grade": 0,
+          "rationale": "«Unterstützung im Büro (m/w/d)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Allgemeine Büroarbeiten",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203417743-S",
+          "grade": 0,
+          "rationale": "«Kaufmännische Fachkraft (m/w/d) mit Buchhaltungskenntnissen in Vollzeit oder Teilzeit» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Kaufmännische Fachkraft (m/w/d) mit Buchhaltungskenntnissen",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1197915338-S",
+          "grade": 0,
+          "rationale": "«Buchhalter/in Versicherung (m/w/d) Regensburg» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Abrechnungen an Gesellschaften",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1202108786-S",
+          "grade": 0,
+          "rationale": "«Finanzbuchhalter zentrale Buchhaltung Kirchenstiftungen (m/w/x)» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Selbstständige Durchführung der laufenden Buchhaltung für Kirchenstiftungen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1197521030-S",
+          "grade": 0,
+          "rationale": "«Pflegefachhelfer (m/w/d) VZ/TZ gerne auch Quereinsteiger» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "respektvolle situationsbezogene Pflege alter und kranker Menschen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203433303-S",
+          "grade": 0,
+          "rationale": "«Front Office Agent (m/w/d) auch als Quereinsteiger Novotel & ibis Regensburg Zentrum» относится к другой профессиональной области; в объявлении нет IT-администрирования или поддержки как целевой работы.",
+          "quote": "Front Office Agent (m/w/d) auch als Quereinsteiger",
+          "quote_from": "title"
+        }
+      ],
+      "judged_reference_count": 36,
+      "unjudged_reference_ids": []
+    },
+    {
+      "profile_key": "lagerlogistik",
+      "evaluations": [
+        {
+          "reference_id": "10000-1203934842-S",
+          "grade": 0,
+          "rationale": "«IT Systemadministrator / Administrator (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Unterstützung im Bereich 2st Level Support",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1001952695-S",
+          "grade": 0,
+          "rationale": "«IT-Systemadministrator (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "per Fernwartungssoftware",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002724237-S",
+          "grade": 0,
+          "rationale": "«IT-Administrator (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Administration von Server-, Netzwerk- und Client-Infrastrukturen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003036959-S",
+          "grade": 0,
+          "rationale": "«Linux Administrator (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Administration, Wartung und Weiterentwicklung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003037201-S",
+          "grade": 0,
+          "rationale": "«DevOps Engineer (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Verwaltung und Weiterentwicklung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003062958-S",
+          "grade": 0,
+          "rationale": "«Administrator Linux (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Administration von Linux-Server-Umgebungen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003063399-S",
+          "grade": 0,
+          "rationale": "«Support 2nd Level (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Analyse, Bearbeitung und Lösung von technischen Störungen in der IT-Infrastruktur",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002834528-S",
+          "grade": 0,
+          "rationale": "«Technical Consultant (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "1st und 2nd Level Support für unsere Kunden",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002978312-S",
+          "grade": 0,
+          "rationale": "«Application Engineer Customer Support (all genders)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Support, Ticketbearbeitung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002884959-S",
+          "grade": 0,
+          "rationale": "«Fachinformatikerin / Fachinformatiker (m/w/d) Systemintegration» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Annahme und Lösung von Supportanfragen per Telefon und Ticketsystem",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002294005-S",
+          "grade": 0,
+          "rationale": "«Software Developer (m/f/d) Embedded Applications» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Entwicklung und Weiterentwicklung von Anwendungen in C/C++",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002294020-S",
+          "grade": 0,
+          "rationale": "«Software Test Engineer (m/f/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Ableitung umfassender Testspezifikationen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1191814578-S",
+          "grade": 0,
+          "rationale": "«BF3-Fahrer/Begleiter von Schwertransporten (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "BF3-Fahrer/Begleiter von Schwertransporten (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1201203438-S",
+          "grade": 0,
+          "rationale": "«Fahrer (m/w/d) für Möbelwagen gesucht» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Fahrer (m/w/d) für Möbelwagen gesucht",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202328081-S",
+          "grade": 0,
+          "rationale": "«Fahrer (m/w/d) für Festtouren gesucht» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Fahrer (m/w/d) für Festtouren gesucht",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202742273-S",
+          "grade": 0,
+          "rationale": "«LKW Fahrer (m/w/d) für Umzüge  in Vollzeit» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "LKW Fahrer (m/w/d) für Umzüge  in Vollzeit",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1203069634-S",
+          "grade": 0,
+          "rationale": "«Auslieferungsfahrer mit Führerschein C / über 7,5t» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Auslieferungsfahrer mit Führerschein C / über 7,5t",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1205396781-S",
+          "grade": 0,
+          "rationale": "«Fahrer für nationalen Fernverkehr gesucht ****  LKW kann mit nach Hause genommen werden» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Fahrer für nationalen Fernverkehr gesucht ****  LKW kann mit nach Hause genommen werden",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1000069073-S",
+          "grade": 2,
+          "rationale": "Внутренний Routenzug-transport смежен со складской логистикой, но объявление не подтверждает весь набор складских задач.",
+          "quote": "Innerbetrieblicher Transport",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1000549526-S",
+          "grade": 3,
+          "rationale": "Прямая складская роль: заголовок или задача описывает склад, Wareneingang, Kommissionierung либо работу на погрузчике.",
+          "quote": "Staplerfahrer (m/w/d) in Regensburg",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1000572382-S",
+          "grade": 3,
+          "rationale": "Прямая складская роль: заголовок или задача описывает склад, Wareneingang, Kommissionierung либо работу на погрузчике.",
+          "quote": "Kommissionierer (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1205283090-S",
+          "grade": 3,
+          "rationale": "Прямая складская роль: заголовок или задача описывает склад, Wareneingang, Kommissionierung либо работу на погрузчике.",
+          "quote": "Lagermitarbeiter / Lagermeister (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1001980271-S",
+          "grade": 3,
+          "rationale": "Прямая складская роль: заголовок или задача описывает склад, Wareneingang, Kommissionierung либо работу на погрузчике.",
+          "quote": "Fachkraft für Lagerlogistik / Wareneingang",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1002080462-S",
+          "grade": 3,
+          "rationale": "Прямая складская роль: заголовок или задача описывает склад, Wareneingang, Kommissionierung либо работу на погрузчике.",
+          "quote": "Fachkraft Lagerlogistik",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1197055062-S",
+          "grade": 0,
+          "rationale": "«Verkäufer (w/m/d) gesucht für Fisch/Fleisch/Wurst und Gemüse» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Kundenberatung und der Verkauf unserer Fisch-, Wurst- und Fleischwaren",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1197055091-S",
+          "grade": 0,
+          "rationale": "«Kassierer (m/w/d) mit russischen Sprachkenntnissen gesucht!» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Bedienen der Scannerkasse",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1198160660-S",
+          "grade": 0,
+          "rationale": "«Verkäufer / Verkaufsberater (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Verkäufer / Verkaufsberater",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202722521-S",
+          "grade": 0,
+          "rationale": "«Verkäuferin (m/w/d) für die Bäckerei gesucht» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Verkauf von Backwaren",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203640756-S",
+          "grade": 0,
+          "rationale": "«Mitarbeiter (w/m/d) im Verkauf und Service gesucht!» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Verkauf unserer Pralinen- und Konditoreispezialitäten",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1201862500-S",
+          "grade": 0,
+          "rationale": "«Kaufmann/-frau für Büromanagement Teilzeit (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Auftragsabwicklung (Einkauf/Verkauf)",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1202875595-S",
+          "grade": 0,
+          "rationale": "«Unterstützung im Büro (m/w/d)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Allgemeine Büroarbeiten",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203417743-S",
+          "grade": 0,
+          "rationale": "«Kaufmännische Fachkraft (m/w/d) mit Buchhaltungskenntnissen in Vollzeit oder Teilzeit» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Kaufmännische Fachkraft (m/w/d) mit Buchhaltungskenntnissen",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1197915338-S",
+          "grade": 0,
+          "rationale": "«Buchhalter/in Versicherung (m/w/d) Regensburg» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Abrechnungen an Gesellschaften",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1202108786-S",
+          "grade": 0,
+          "rationale": "«Finanzbuchhalter zentrale Buchhaltung Kirchenstiftungen (m/w/x)» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Selbstständige Durchführung der laufenden Buchhaltung für Kirchenstiftungen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1197521030-S",
+          "grade": 0,
+          "rationale": "«Pflegefachhelfer (m/w/d) VZ/TZ gerne auch Quereinsteiger» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "respektvolle situationsbezogene Pflege alter und kranker Menschen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203433303-S",
+          "grade": 0,
+          "rationale": "«Front Office Agent (m/w/d) auch als Quereinsteiger Novotel & ibis Regensburg Zentrum» не описывает складскую обработку, комплектование или внутреннее перемещение товаров.",
+          "quote": "Front Office Agent (m/w/d) auch als Quereinsteiger",
+          "quote_from": "title"
+        }
+      ],
+      "judged_reference_count": 36,
+      "unjudged_reference_ids": []
+    },
+    {
+      "profile_key": "einzelhandel_office",
+      "evaluations": [
+        {
+          "reference_id": "10000-1203934842-S",
+          "grade": 0,
+          "rationale": "«IT Systemadministrator / Administrator (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Unterstützung im Bereich 2st Level Support",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1001952695-S",
+          "grade": 0,
+          "rationale": "«IT-Systemadministrator (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "per Fernwartungssoftware",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002724237-S",
+          "grade": 0,
+          "rationale": "«IT-Administrator (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Administration von Server-, Netzwerk- und Client-Infrastrukturen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003036959-S",
+          "grade": 0,
+          "rationale": "«Linux Administrator (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Administration, Wartung und Weiterentwicklung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003037201-S",
+          "grade": 0,
+          "rationale": "«DevOps Engineer (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Verwaltung und Weiterentwicklung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003062958-S",
+          "grade": 0,
+          "rationale": "«Administrator Linux (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Administration von Linux-Server-Umgebungen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1003063399-S",
+          "grade": 0,
+          "rationale": "«Support 2nd Level (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Analyse, Bearbeitung und Lösung von technischen Störungen in der IT-Infrastruktur",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002834528-S",
+          "grade": 1,
+          "rationale": "Есть переносимые навыки клиентской коммуникации, но основной профиль вакансии — техническая поддержка, а не целевые розничные/офисные операции.",
+          "quote": "1st und 2nd Level Support für unsere Kunden",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002978312-S",
+          "grade": 1,
+          "rationale": "Есть переносимые навыки клиентской коммуникации, но основной профиль вакансии — техническая поддержка, а не целевые розничные/офисные операции.",
+          "quote": "Support, Ticketbearbeitung",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002884959-S",
+          "grade": 0,
+          "rationale": "«Fachinformatikerin / Fachinformatiker (m/w/d) Systemintegration» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Annahme und Lösung von Supportanfragen per Telefon und Ticketsystem",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002294005-S",
+          "grade": 0,
+          "rationale": "«Software Developer (m/f/d) Embedded Applications» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Entwicklung und Weiterentwicklung von Anwendungen in C/C++",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1002294020-S",
+          "grade": 0,
+          "rationale": "«Software Test Engineer (m/f/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Ableitung umfassender Testspezifikationen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1191814578-S",
+          "grade": 0,
+          "rationale": "«BF3-Fahrer/Begleiter von Schwertransporten (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "BF3-Fahrer/Begleiter von Schwertransporten (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1201203438-S",
+          "grade": 0,
+          "rationale": "«Fahrer (m/w/d) für Möbelwagen gesucht» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Fahrer (m/w/d) für Möbelwagen gesucht",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202328081-S",
+          "grade": 0,
+          "rationale": "«Fahrer (m/w/d) für Festtouren gesucht» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Fahrer (m/w/d) für Festtouren gesucht",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202742273-S",
+          "grade": 0,
+          "rationale": "«LKW Fahrer (m/w/d) für Umzüge  in Vollzeit» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "LKW Fahrer (m/w/d) für Umzüge  in Vollzeit",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1203069634-S",
+          "grade": 0,
+          "rationale": "«Auslieferungsfahrer mit Führerschein C / über 7,5t» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Auslieferungsfahrer mit Führerschein C / über 7,5t",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1205396781-S",
+          "grade": 0,
+          "rationale": "«Fahrer für nationalen Fernverkehr gesucht ****  LKW kann mit nach Hause genommen werden» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Fahrer für nationalen Fernverkehr gesucht ****  LKW kann mit nach Hause genommen werden",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1000069073-S",
+          "grade": 0,
+          "rationale": "«Transporteur / Routenzugfahrer (m/w/d) in Regensburg» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Innerbetrieblicher Transport",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10001-1000549526-S",
+          "grade": 0,
+          "rationale": "«Staplerfahrer (m/w/d) in Regensburg (auch mit Schichtbereitschaft)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Staplerfahrer (m/w/d) in Regensburg",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1000572382-S",
+          "grade": 0,
+          "rationale": "«Kommissionierer (m/w/d)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Kommissionierer (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1205283090-S",
+          "grade": 0,
+          "rationale": "«Lagermitarbeiter / Lagermeister (m/w/d) in Vollzeit oder Quereinsteiger handwerklich begabt» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Lagermitarbeiter / Lagermeister (m/w/d)",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1001980271-S",
+          "grade": 0,
+          "rationale": "«Fachkraft für Lagerlogistik / Wareneingang (gn)» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Fachkraft für Lagerlogistik / Wareneingang",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10001-1002080462-S",
+          "grade": 0,
+          "rationale": "«Fachkraft Lagerlogistik m/w/d» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "Fachkraft Lagerlogistik",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1197055062-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с выбранной розничной/офисной ролью и её ежедневными клиентскими или административными задачами.",
+          "quote": "Kundenberatung und der Verkauf unserer Fisch-, Wurst- und Fleischwaren",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1197055091-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с выбранной розничной/офисной ролью и её ежедневными клиентскими или административными задачами.",
+          "quote": "Bedienen der Scannerkasse",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1198160660-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с выбранной розничной/офисной ролью и её ежедневными клиентскими или административными задачами.",
+          "quote": "Verkäufer / Verkaufsberater",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1202722521-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с выбранной розничной/офисной ролью и её ежедневными клиентскими или административными задачами.",
+          "quote": "Verkauf von Backwaren",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203640756-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с выбранной розничной/офисной ролью и её ежедневными клиентскими или административными задачами.",
+          "quote": "Verkauf unserer Pralinen- und Konditoreispezialitäten",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1201862500-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с выбранной розничной/офисной ролью и её ежедневными клиентскими или административными задачами.",
+          "quote": "Auftragsabwicklung (Einkauf/Verkauf)",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1202875595-S",
+          "grade": 3,
+          "rationale": "Прямое совпадение с выбранной розничной/офисной ролью и её ежедневными клиентскими или административными задачами.",
+          "quote": "Allgemeine Büroarbeiten",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203417743-S",
+          "grade": 2,
+          "rationale": "Есть заметная связь с офисным сопровождением или клиентским сервисом, но роль включает более узкую отраслевую специализацию.",
+          "quote": "Kaufmännische Fachkraft (m/w/d) mit Buchhaltungskenntnissen",
+          "quote_from": "title"
+        },
+        {
+          "reference_id": "10000-1197915338-S",
+          "grade": 1,
+          "rationale": "Есть переносимые навыки клиентской коммуникации, но основной профиль вакансии — техническая поддержка, а не целевые розничные/офисные операции.",
+          "quote": "Abrechnungen an Gesellschaften",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1202108786-S",
+          "grade": 1,
+          "rationale": "Есть переносимые навыки клиентской коммуникации, но основной профиль вакансии — техническая поддержка, а не целевые розничные/офисные операции.",
+          "quote": "Selbstständige Durchführung der laufenden Buchhaltung für Kirchenstiftungen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1197521030-S",
+          "grade": 0,
+          "rationale": "«Pflegefachhelfer (m/w/d) VZ/TZ gerne auch Quereinsteiger» относится к иной сфере и не содержит целевых функций розничной продажи или офисного сопровождения.",
+          "quote": "respektvolle situationsbezogene Pflege alter und kranker Menschen",
+          "quote_from": "description"
+        },
+        {
+          "reference_id": "10000-1203433303-S",
+          "grade": 2,
+          "rationale": "Есть заметная связь с офисным сопровождением или клиентским сервисом, но роль включает более узкую отраслевую специализацию.",
+          "quote": "Front Office Agent (m/w/d) auch als Quereinsteiger",
+          "quote_from": "title"
+        }
+      ],
+      "judged_reference_count": 36,
+      "unjudged_reference_ids": []
+    }
+  ]
+}

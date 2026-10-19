@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SynonymsAuditSnapshotRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "snapshot_run_id",
+    "exported_at",
+    "state_id",
+    "event_type",
+    "run_id",
+    "payload",
+    "created_at"
+  ],
+  "properties": {
+    "snapshot_run_id": { "type": "string", "minLength": 1 },
+    "exported_at": { "type": "string", "minLength": 1 },
+    "state_id": { "type": "string", "minLength": 1 },
+    "event_type": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object" },
+    "created_at": { "type": "string", "minLength": 1 }
+  }
+}

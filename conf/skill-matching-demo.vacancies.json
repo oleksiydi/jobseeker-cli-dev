@@ -1,0 +1,22 @@
+[
+  {
+    "ref": "synthetic-release",
+    "title": "Release Engineer",
+    "description": "Dein Profil\n- Erfahrung beim Aufbau und Betrieb von CI/CD-Pipelines erforderlich.\n- Kubernetes-Kenntnisse sind wünschenswert.\nDeine Aufgaben\n- Software-Releases automatisieren und überwachen."
+  },
+  {
+    "ref": "synthetic-specific-product",
+    "title": "Azure DevOps Engineer",
+    "description": "Dein Profil\n- Mehrjährige Erfahrung mit Azure DevOps erforderlich.\n- CI/CD-Pipelines betreuen."
+  },
+  {
+    "ref": "synthetic-unrelated",
+    "title": "Buchhaltung",
+    "description": "Dein Profil\n- Jahresabschlüsse nach Handelsrecht erstellen.\n- Umsatzsteuervoranmeldungen bearbeiten."
+  },
+  {
+    "ref": "synthetic-negated",
+    "title": "Einstieg in den IT-Betrieb",
+    "description": "Dein Profil\n- Kubernetes-Kenntnisse sind nicht erforderlich."
+  }
+]

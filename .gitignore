@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+ENV/
+
+
+
+# Logs
+logs/
+*.log
+site/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Docker local volumes (runtime data, not source)
+docker/data/
+docker/metabase-data/
+docker/models/
+models/
+backups/
+*.archive.gz
+
+
+
+# Misc
+*.tmp
+*.swp
+
+# Local personal drafts
+playgrounds/mongodb/Oleksii Didyk Anschreiben.md
+temp.txt
+ccp_rag_spec.md
+config/profiles/default.profile.ext.json
+conf/profiles/default.profile.ext.json
+conf/profiles/*.private.json
+artifacts/
+
+# Private analysis reports (local only)
+reports/private/
+
+# Local job-search artifacts and working notes (may contain personal data)
+/report/
+/report.zip
+/exports/
+/conversation/

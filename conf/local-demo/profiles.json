@@ -1,0 +1,95 @@
+[
+  {
+    "key": "it_support",
+    "roles": [
+      "IT-Systemadministration",
+      "2nd-Level-Support"
+    ],
+    "target_roles": [
+      "IT-Systemadministrator/in",
+      "IT-Administrator/in",
+      "Fachinformatiker/in Systemintegration",
+      "IT-Support"
+    ],
+    "skills": [
+      "Windows- und Linux-Systeme administrieren",
+      "Server- und Netzwerkinfrastruktur betreuen",
+      "Technische Störungen analysieren und lösen",
+      "Supportanfragen und Tickets bearbeiten",
+      "Nutzer und Kunden bei Konfigurationen unterstützen",
+      "Fernwartung und technische Dokumentation",
+      "Grundlagen Cloud- und On-Premise-Betrieb"
+    ],
+    "languages": {
+      "de": "B2",
+      "en": "B1"
+    },
+    "licenses": [],
+    "constraints": {
+      "on_call": false,
+      "shift_work": false
+    }
+  },
+  {
+    "key": "lagerlogistik",
+    "roles": [
+      "Lagermitarbeiter/in",
+      "Kommissionierer/in"
+    ],
+    "target_roles": [
+      "Fachkraft für Lagerlogistik",
+      "Wareneingang",
+      "Staplerfahrer/in",
+      "Routenzugfahrer/in"
+    ],
+    "skills": [
+      "Wareneingang prüfen und Waren einlagern",
+      "Kommissionieren und Aufträge zusammenstellen",
+      "Innerbetrieblichen Transport durchführen",
+      "Mit Gabelstapler arbeiten",
+      "Waren bewegen, be- und entladen",
+      "Lagerbestände und Versandabläufe unterstützen"
+    ],
+    "languages": {
+      "de": "B1"
+    },
+    "licenses": [
+      "Staplerschein"
+    ],
+    "constraints": {
+      "on_call": false,
+      "shift_work": true
+    }
+  },
+  {
+    "key": "einzelhandel_office",
+    "roles": [
+      "Verkäufer/in",
+      "Büroassistenz"
+    ],
+    "target_roles": [
+      "Verkäufer/in",
+      "Kassierer/in",
+      "Fachverkäufer/in",
+      "Kaufmann/-frau für Büromanagement",
+      "Kaufmännische Assistenz"
+    ],
+    "skills": [
+      "Kunden beraten und freundlich bedienen",
+      "Verkauf und Service im Einzelhandel",
+      "Scannerkasse bedienen und Zahlungen abwickeln",
+      "Waren präsentieren und verkaufen",
+      "Aufträge bearbeiten und Büroabläufe organisieren",
+      "Einfache Buchhaltung und Rechnungsbearbeitung",
+      "Kundenanfragen schriftlich und telefonisch bearbeiten"
+    ],
+    "languages": {
+      "de": "B2"
+    },
+    "licenses": [],
+    "constraints": {
+      "on_call": false,
+      "shift_work": true
+    }
+  }
+]

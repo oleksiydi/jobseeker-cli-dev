@@ -1,0 +1,9 @@
+Max Mustermann
+
+Softwareentwickler mit Erfahrung in Python, SQL und Docker.
+
+Berufserfahrung
+2024-2025: Beispielunternehmen, Entwicklung von Datenverarbeitungsdiensten.
+
+Kenntnisse
+Python, SQL, Docker, Git

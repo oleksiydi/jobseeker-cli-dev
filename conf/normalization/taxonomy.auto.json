@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "aliases": {
+    "aws": "AWS",
+    "bash": "Bash",
+    "bugzilla": "Bugzilla",
+    "ci/cd": "CI/CD",
+    "digital ocean": "Digital Ocean",
+    "docker": "Docker",
+    "git": "Git",
+    "helm": "Helm",
+    "incident response": "Incident Response",
+    "intellij idea": "IntelliJ IDEA",
+    "java": "Java",
+    "jenkins": "Jenkins",
+    "jira": "Jira",
+    "kubernetes": "Kubernetes",
+    "maven": "Maven",
+    "microsoft azure": "Microsoft Azure",
+    "mongodb": "MongoDB",
+    "node.js": "Node.js",
+    "postgresql": "PostgreSQL",
+    "requirements engineering": "Requirements Engineering",
+    "scala": "Scala",
+    "spark sql": "Spark SQL",
+    "sql": "SQL",
+    "teamcity": "TeamCity",
+    "testlink": "TestLink",
+    "troubleshooting": "Troubleshooting",
+    "visual studio code": "Visual Studio Code",
+    "wireshark": "Wireshark"
+  },
+  "categories": {
+    "tools": [
+      "Bugzilla",
+      "Git",
+      "IntelliJ IDEA",
+      "Jenkins",
+      "Jira",
+      "Maven",
+      "TeamCity",
+      "TestLink",
+      "Visual Studio Code",
+      "Wireshark"
+    ],
+    "stack": [
+      "AWS",
+      "Bash",
+      "Digital Ocean",
+      "Docker",
+      "Helm",
+      "Java",
+      "Kubernetes",
+      "Microsoft Azure",
+      "MongoDB",
+      "Node.js",
+      "PostgreSQL",
+      "Scala",
+      "Spark SQL",
+      "SQL"
+    ],
+    "skills": [
+      "CI/CD",
+      "Incident Response",
+      "Requirements Engineering",
+      "Troubleshooting"
+    ]
+  }
+}

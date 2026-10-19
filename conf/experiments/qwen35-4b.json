@@ -1,0 +1,16 @@
+{
+  "model_repository": "bartowski/Qwen_Qwen3.5-4B-GGUF",
+  "model_revision": "ba06320255db2dbec194dad738d066be90dabf29",
+  "model_file": {
+    "rfilename": "Qwen_Qwen3.5-4B-Q4_K_M.gguf",
+    "size": 3013027808,
+    "lfs": {
+      "sha256": "13c16f426047e2de38cd075bdade4a7bcbc8c774384876f677740cda65f8a983"
+    }
+  },
+  "runtime_source_commit": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+  "runtime_source_archive_sha256": "1d4a987d9bd048f6e93107e838026438df70fbde237fc0c69c63d600512b4bd9",
+  "runtime_release_tag": "v0.7.0",
+  "note": "Pinned public text-only CPU comparison. No vision projector. Model Apache-2.0; llama.cpp MIT. Keep weights; no remote inference.",
+  "model_alias": "qwen35-4b-local-experiment"
+}
